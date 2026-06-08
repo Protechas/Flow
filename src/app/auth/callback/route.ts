@@ -1,0 +1,40 @@
+import { createClient } from "@/lib/supabase/server";
+import { getDefaultRoute, normalizeRole } from "@/lib/auth/permissions";
+import { NextResponse } from "next/server";
+
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+  const next = searchParams.get("next") ?? "/";
+  const errorParam = searchParams.get("error_description");
+
+  if (errorParam) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(errorParam)}`
+    );
+  }
+
+  if (code) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user && next === "/") {
+        const { data: profile } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        const role = profile ? normalizeRole(String(profile.role)) : "employee";
+        return NextResponse.redirect(`${origin}${getDefaultRoute(role)}`);
+      }
+
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+  }
+
+  return NextResponse.redirect(`${origin}/login?error=auth_callback`);
+}

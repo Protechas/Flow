@@ -1,0 +1,56 @@
+import { getFlowStore, initFlowStore, submitQaReview } from "@/lib/data/flow-store";
+import { getWorkPackages } from "@/lib/data/work-packages";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
+import type { QaResult, QaReview } from "@/types/flow";
+
+export async function getQaQueue() {
+  const items = await getWorkPackages();
+  return items.filter((i) => ["ready_for_qa", "in_qa"].includes(i.status));
+}
+
+export async function getQaReviews(): Promise<QaReview[]> {
+  initFlowStore();
+  if (!isSupabaseConfigured()) return getFlowStore().qaReviews;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("qa_reviews").select("*").order("reviewed_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    ...r,
+    work_package_id: r.work_item_id ?? r.work_package_id,
+  })) as QaReview[];
+}
+
+export { submitQaReview };
+
+export async function submitQaReviewApi(params: {
+  workPackageId: string;
+  reviewerId: string;
+  analystId: string;
+  result: QaResult;
+  notes?: string;
+  errorCategory?: string;
+}) {
+  if (!isSupabaseConfigured()) {
+    return submitQaReview(
+      params.workPackageId,
+      params.reviewerId,
+      params.analystId,
+      params.result,
+      params.notes,
+      params.errorCategory
+    );
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("qa_reviews").insert({
+    work_item_id: params.workPackageId,
+    reviewer_id: params.reviewerId,
+    analyst_id: params.analystId,
+    result: params.result,
+    notes: params.notes,
+    error_category: params.errorCategory,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
