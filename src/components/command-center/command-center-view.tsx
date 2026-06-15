@@ -166,17 +166,17 @@ export function CommandCenterView({ data }: { data: CommandCenterMetrics }) {
                 <EnterpriseTd align="right">{e.active}</EnterpriseTd>
                 <EnterpriseTd align="right">{e.inProgress}</EnterpriseTd>
                 <EnterpriseTd align="right">
-                  <span className={cn(e.overdue > 0 && "text-red-600 font-medium")}>{e.overdue}</span>
+                  <span className={cn(e.overdue > 0 && "text-red-400 font-medium")}>{e.overdue}</span>
                 </EnterpriseTd>
                 <EnterpriseTd align="right">
-                  <span className={cn(e.stuck > 0 && "text-amber-600 font-medium")}>{e.stuck}</span>
+                  <span className={cn(e.stuck > 0 && "text-amber-400 font-medium")}>{e.stuck}</span>
                 </EnterpriseTd>
                 <EnterpriseTd>
                   {e.flag === "overloaded" && (
-                    <span className="text-[10px] font-semibold uppercase text-amber-700">Overloaded</span>
+                    <span className="text-[10px] font-semibold uppercase text-amber-400">Overloaded</span>
                   )}
                   {e.flag === "underutilized" && (
-                    <span className="text-[10px] font-semibold uppercase text-blue-700">Low load</span>
+                    <span className="text-[10px] font-semibold uppercase text-blue-400">Low load</span>
                   )}
                 </EnterpriseTd>
               </tr>
@@ -209,7 +209,7 @@ export function CommandCenterView({ data }: { data: CommandCenterMetrics }) {
                   <span
                     className={cn(
                       "text-xs font-medium capitalize",
-                      p.status === "at_risk" ? "text-amber-700" : "text-muted-foreground"
+                      p.status === "at_risk" ? "text-amber-400" : "text-muted-foreground"
                     )}
                   >
                     {p.status.replace("_", " ")}
@@ -217,7 +217,7 @@ export function CommandCenterView({ data }: { data: CommandCenterMetrics }) {
                 </EnterpriseTd>
                 <EnterpriseTd align="right">{p.completedPct}%</EnterpriseTd>
                 <EnterpriseTd align="right">
-                  <span className={cn(p.overdue > 0 && "text-red-600 font-medium")}>{p.overdue}</span>
+                  <span className={cn(p.overdue > 0 && "text-red-400 font-medium")}>{p.overdue}</span>
                 </EnterpriseTd>
                 <EnterpriseTd align="right">{p.qaRate}%</EnterpriseTd>
               </tr>
@@ -276,7 +276,7 @@ function WorkloadRow({
     <tr className="enterprise-row-hover">
       <EnterpriseTd>{label}</EnterpriseTd>
       <EnterpriseTd align="right">
-        <span className={cn(warn && value > 0 && "text-amber-700 font-medium")}>{value}</span>
+        <span className={cn(warn && value > 0 && "text-amber-400 font-medium")}>{value}</span>
       </EnterpriseTd>
       <EnterpriseTd align="right">
         <Link href={href} className="text-xs text-primary hover:underline">
@@ -351,7 +351,7 @@ function AttentionTable({
               <EnterpriseTd align="right">
                 {item.value && <span className="font-medium tabular-nums">{item.value}</span>}
                 {item.priority === "high" && (
-                  <span className="text-[10px] font-semibold uppercase text-amber-700">High</span>
+                  <span className="text-[10px] font-semibold uppercase text-amber-400">High</span>
                 )}
               </EnterpriseTd>
             </tr>

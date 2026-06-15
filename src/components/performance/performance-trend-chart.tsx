@@ -59,7 +59,7 @@ export function PerformanceTrendChart({
               className={cn(
                 "rounded border px-2.5 py-1 text-xs font-medium transition-colors",
                 active === s.key
-                  ? "border-primary bg-blue-50 text-primary"
+                  ? "border-primary bg-primary/15 text-primary"
                   : "border-border bg-card text-muted-foreground hover:bg-accent"
               )}
             >

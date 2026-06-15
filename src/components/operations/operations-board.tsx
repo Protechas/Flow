@@ -394,7 +394,7 @@ function ProjectRows({
   const r = node.rollup;
   return (
     <>
-      <tr className="border-b border-border bg-blue-50/50 hover:bg-blue-50 enterprise-row-hover">
+      <tr className="border-b border-border bg-blue-500/10 hover:bg-blue-500/15 enterprise-row-hover">
         <td className="py-2.5 pl-3" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selected.has(pKey)} onCheckedChange={() => onToggleSelect(pKey)} />
         </td>

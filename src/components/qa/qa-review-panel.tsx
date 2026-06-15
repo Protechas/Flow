@@ -64,7 +64,7 @@ export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps
               onClick={() => setSelectedId(item.id)}
               className={`w-full text-left px-4 py-3 border-b border-border transition-colors ${
                 selectedId === item.id
-                  ? "bg-blue-50 border-l-2 border-l-primary"
+                  ? "bg-primary/15 border-l-2 border-l-primary"
                   : "border-l-2 border-l-transparent hover:bg-accent"
               }`}
             >
@@ -122,7 +122,7 @@ export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps
                     r.value === "pass"
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : r.value === "rejected"
-                        ? "border-red-300 text-red-700"
+                        ? "border-red-500/40 text-red-300"
                         : ""
                   }
                   onClick={() => {

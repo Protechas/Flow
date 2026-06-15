@@ -21,12 +21,12 @@ export function EnterpriseKpi({
       className={cn(
         "enterprise-panel px-4 py-3 min-w-0",
         href && "transition-colors hover:bg-accent/60",
-        warn && "border-amber-300 bg-amber-50/50",
+        warn && "border-amber-500/40 bg-amber-500/10",
         className
       )}
     >
       <p className="enterprise-label truncate">{label}</p>
-      <p className={cn("enterprise-kpi-value mt-0.5", warn && "text-amber-700")}>{value}</p>
+      <p className={cn("enterprise-kpi-value mt-0.5", warn && "text-amber-400")}>{value}</p>
       {sublabel && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sublabel}</p>}
     </div>
   );

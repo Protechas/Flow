@@ -91,17 +91,17 @@ export function PeopleDashboard({
                 <EnterpriseTd>
                   <div className="flex flex-wrap gap-1">
                     {p.metrics.overdueWork > 0 && (
-                      <span className="text-[10px] font-semibold uppercase text-red-700">
+                      <span className="text-[10px] font-semibold uppercase text-red-400">
                         {p.metrics.overdueWork} overdue
                       </span>
                     )}
                     {p.stuckItems > 0 && (
-                      <span className="text-[10px] font-semibold uppercase text-amber-700">
+                      <span className="text-[10px] font-semibold uppercase text-amber-400">
                         {p.stuckItems} blocked
                       </span>
                     )}
                     {p.trend.length >= 2 && p.trend[p.trend.length - 1].flowScore > p.trend[0].flowScore && (
-                      <span className="text-[10px] font-semibold uppercase text-green-700">
+                      <span className="text-[10px] font-semibold uppercase text-green-400">
                         Improving
                       </span>
                     )}

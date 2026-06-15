@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { clearDemoSession, setDemoUserCookie } from "@/lib/auth/demo-session";
+import { useSecureCookies } from "@/lib/auth/cookie-options";
 import { getDefaultRoute, normalizeRole } from "@/lib/auth/permissions";
 import {
   createUserRecord,
@@ -58,7 +59,7 @@ export async function supabaseLoginAction(
     const store = await cookies();
     store.set(REMEMBER_ME_COOKIE, "1", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: useSecureCookies(),
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 30,

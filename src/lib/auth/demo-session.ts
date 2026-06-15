@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { MOCK_USERS } from "@/lib/data/mock-data";
+import { useSecureCookies } from "@/lib/auth/cookie-options";
 import { normalizeRole } from "@/lib/auth/permissions";
 import type { User, UserRole } from "@/types/flow";
 
@@ -16,14 +17,14 @@ export async function setDemoUserCookie(userId: string, rememberMe = false) {
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
   store.set(DEMO_USER_COOKIE, userId, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: useSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge,
   });
   store.set(DEMO_SESSION_COOKIE, "1", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: useSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge,

@@ -25,7 +25,7 @@ export function MetricCard({
       className={cn(
         "enterprise-panel px-4 py-3",
         highlight && "border-primary/30",
-        warn && "border-amber-300 bg-amber-50/40",
+        warn && "border-amber-500/40 bg-amber-500/10",
         className
       )}
     >
@@ -33,7 +33,7 @@ export function MetricCard({
         <p className="enterprise-label">{title}</p>
         {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
       </div>
-      <p className={cn("enterprise-kpi-value mt-1", warn && "text-amber-700")}>{value}</p>
+      <p className={cn("enterprise-kpi-value mt-1", warn && "text-amber-400")}>{value}</p>
       {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
     </div>
   );
