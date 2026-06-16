@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS help_flags (
   team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   board_id UUID,
   project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-  task_id UUID REFERENCES work_packages(id) ON DELETE SET NULL,
+  task_id UUID REFERENCES work_items(id) ON DELETE SET NULL,
   reason TEXT NOT NULL CHECK (
     reason IN (
       'need_clarification',

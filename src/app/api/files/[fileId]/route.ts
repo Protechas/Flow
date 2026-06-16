@@ -1,9 +1,10 @@
 import { assertCanViewTaskFile, getCurrentUser } from "@/lib/auth/session";
+import { inlineFileContentDisposition, attachmentFileContentDisposition } from "@/lib/files/content-disposition";
 import { getTaskFileById, initProductionTracking } from "@/lib/data/production-tracking";
 import { NextResponse } from "next/server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ fileId: string }> }
 ) {
   const user = await getCurrentUser();
@@ -32,10 +33,13 @@ export async function GET(
   }
 
   const buffer = Buffer.from(file.file_data_base64, "base64");
-  return new NextResponse(buffer, {
+  const forceDownload = new URL(request.url).searchParams.get("download") === "1";
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": file.file_type || "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${file.file_name.replace(/"/g, "")}"`,
+      "Content-Disposition": forceDownload
+        ? attachmentFileContentDisposition(file.file_name)
+        : inlineFileContentDisposition(file.file_name),
       "Content-Length": String(buffer.length),
     },
   });

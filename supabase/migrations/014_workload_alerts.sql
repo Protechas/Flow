@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS workload_alerts (
     severity IN ('info', 'warning', 'critical', 'needs_review')
   ),
   remaining_hours NUMERIC(10, 2),
-  current_task_id UUID REFERENCES work_packages(id) ON DELETE SET NULL,
+  current_task_id UUID REFERENCES work_items(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'open' CHECK (
     status IN ('open', 'snoozed', 'dismissed', 'reviewed')
   ),

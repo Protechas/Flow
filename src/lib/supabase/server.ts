@@ -1,8 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import {
+  applyRememberMeToAuthCookie,
+  isRememberMeEnabled,
+} from "@/lib/auth/remember-me";
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const rememberMe = isRememberMeEnabled(cookieStore);
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,7 +20,11 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(
+                name,
+                value,
+                applyRememberMeToAuthCookie(options, rememberMe)
+              )
             );
           } catch {
             // Called from Server Component — middleware handles refresh

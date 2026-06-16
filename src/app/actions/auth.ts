@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { clearDemoSession, setDemoUserCookie } from "@/lib/auth/demo-session";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import {
+  REMEMBER_ME_COOKIE,
+  rememberMeCookieOptions,
+} from "@/lib/auth/remember-me";
 import { getDefaultRoute, normalizeRole } from "@/lib/auth/permissions";
 import {
   createUserRecord,
@@ -20,8 +23,6 @@ import { getSiteUrl } from "@/lib/supabase/site-url";
 import { requirePermission } from "@/lib/auth/session";
 import { MOCK_USERS } from "@/lib/data/mock-data";
 import type { UserRole } from "@/types/flow";
-
-const REMEMBER_ME_COOKIE = "flow_remember_me";
 
 export async function demoLoginAction(userId: string, rememberMe = false) {
   if (isSupabaseConfigured()) {
@@ -50,6 +51,14 @@ export async function supabaseLoginAction(
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured");
   }
+
+  const store = await cookies();
+  if (rememberMe) {
+    store.set(REMEMBER_ME_COOKIE, "1", rememberMeCookieOptions());
+  } else {
+    store.delete(REMEMBER_ME_COOKIE);
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(error.message);
@@ -58,18 +67,8 @@ export async function supabaseLoginAction(
 
   if (!profile?.is_active) {
     await supabase.auth.signOut();
+    store.delete(REMEMBER_ME_COOKIE);
     throw new Error("Your account is inactive. Contact an administrator.");
-  }
-
-  if (rememberMe) {
-    const store = await cookies();
-    store.set(REMEMBER_ME_COOKIE, "1", {
-      httpOnly: true,
-      secure: useSecureCookies(),
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
   }
 
   if (profile) await recordLastLogin(profile.id);

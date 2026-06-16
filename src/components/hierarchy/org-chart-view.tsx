@@ -4,6 +4,13 @@ import { useMemo, useState } from "react";
 import { OrgChartProfilePanel } from "@/components/hierarchy/org-chart-profile-panel";
 import { OrgChartUserCard, ROLE_LABELS } from "@/components/hierarchy/org-chart-user-card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { roleLabel } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type {
@@ -247,45 +254,57 @@ export function OrgChartView({
             />
           </div>
           {departments.length > 0 && (
-            <select
-              className="h-9 rounded-md border border-border/60 bg-background/80 px-3 text-sm"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
+            <Select
+              value={departmentId || "__all__"}
+              onValueChange={(v) => setDepartmentId(!v || v === "__all__" ? "" : v)}
             >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 min-w-[160px] bg-card text-foreground text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           {teams.length > 0 && (
-            <select
-              className="h-9 rounded-md border border-border/60 bg-background/80 px-3 text-sm"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
+            <Select
+              value={teamId || "__all__"}
+              onValueChange={(v) => setTeamId(!v || v === "__all__" ? "" : v)}
             >
-              <option value="">All teams</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 min-w-[140px] bg-card text-foreground text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All teams</SelectItem>
+                {teams.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <select
-            className="h-9 rounded-md border border-border/60 bg-background/80 px-3 text-sm"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+          <Select
+            value={roleFilter || "__all__"}
+            onValueChange={(v) => setRoleFilter(!v || v === "__all__" ? "" : v)}
           >
-            <option value="">All roles</option>
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r as UserRole] ?? roleLabel(r)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9 min-w-[130px] bg-card text-foreground text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All roles</SelectItem>
+              {roleOptions.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {ROLE_LABELS[r as UserRole] ?? roleLabel(r)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             type="button"
             variant="outline"

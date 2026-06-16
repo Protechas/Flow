@@ -38,6 +38,10 @@ export type Permission =
 
   | "files:create"
 
+  | "company_documents:view"
+
+  | "company_documents:manage"
+
   | "qa:review"
 
   | "qa:view"
@@ -98,6 +102,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
+    "company_documents:manage",
+
     "qa:review",
 
     "qa:view",
@@ -148,6 +156,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
+    "company_documents:manage",
+
     "qa:review",
 
     "qa:view",
@@ -192,6 +204,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
+    "company_documents:manage",
+
     "qa:review",
 
     "qa:view",
@@ -234,6 +250,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
+    "company_documents:manage",
+
     "qa:review",
 
     "qa:view",
@@ -270,6 +290,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
     "qa:review",
 
     "qa:view",
@@ -298,13 +320,15 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "files:create",
 
+    "company_documents:view",
+
     "people:view_own",
 
     "reports:view_own",
 
   ],
 
-  viewer: ["dashboard:view", "reports:view_all", "work:view_all", "qa:view", "people:view_all", "departments:view"],
+  viewer: ["dashboard:view", "reports:view_all", "work:view_all", "qa:view", "people:view_all", "departments:view", "company_documents:view"],
 
 };
 
@@ -334,7 +358,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/project-health": "dashboard:view",
 
-  "/files": "dashboard:view",
+  "/files": "company_documents:view",
 
   "/work-tracker": ["work:view_all", "work:assign"],
 
@@ -399,7 +423,7 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/project-health": ["admin", "super_admin", "senior_manager", "manager"],
 
-  "/files": ["admin", "super_admin", "senior_manager", "manager"],
+  "/files": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"],
 
   "/work-tracker": ["admin", "super_admin", "senior_manager", "manager"],
 
@@ -530,7 +554,7 @@ export const NAV_CONFIG: {
 
   { id: "project-health", href: "/project-health", label: "Project Health", icon: "FolderKanban", group: "reports", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager"] },
 
-  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "reports", permissions: "dashboard:view", roles: ["admin", "manager"] },
+  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "reports", permissions: "company_documents:view", roles: ["admin", "manager", "teamlead", "employee", "viewer"] },
 
   { id: "production", href: "/production", label: "Production", icon: "Activity", group: "reports", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
@@ -551,6 +575,8 @@ export const NAV_CONFIG: {
 export const EMPLOYEE_NAV = [
 
   { href: "/work", label: "Workspace", icon: "Briefcase" },
+
+  { href: "/files", label: "Files & SOPs", icon: "FileStack" },
 
   { href: "/scorecard", label: "My Scorecard", icon: "Award" },
 
@@ -625,6 +651,8 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
     if (pathname === "/scorecard") return true;
 
     if (pathname === "/notifications") return true;
+
+    if (pathname === "/files" || pathname.startsWith("/files/")) return true;
 
     if (pathname.startsWith("/people/") && pathname.split("/").length >= 3) return true;
 

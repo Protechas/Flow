@@ -643,6 +643,27 @@ export interface FlowFile {
   created_at: string;
 }
 
+export type CompanyDocumentCategory = "sop" | "policy" | "reference" | "other";
+
+export interface CompanyDocument {
+  id: string;
+  title: string;
+  description?: string | null;
+  category: CompanyDocumentCategory;
+  file_name: string;
+  storage_path: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  created_at: string;
+  /** Demo / local fallback only */
+  file_data_base64?: string;
+}
+
+export interface CompanyDocumentView extends CompanyDocument {
+  uploaded_by_name?: string;
+}
+
 export type ActivityEventType =
   | "status_change"
   | "assignment"

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
+import Link from "next/link";
 import { uploadTaskFileAction } from "@/app/actions/production";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { formatActionError } from "@/lib/errors/action-messages";
-import { taskFileDownloadHref } from "@/lib/files/download";
+import { fileViewHref } from "@/lib/files/download";
 import { cn } from "@/lib/utils";
 import type { TaskFileUpload } from "@/types/flow";
 import { FileText, Loader2, Upload } from "lucide-react";
@@ -113,13 +114,12 @@ export function TaskFileUploadZone({
               >
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 {f.file_data_base64 ? (
-                  <a
-                    href={taskFileDownloadHref(f.id)}
+                  <Link
+                    href={fileViewHref("task", f.id)}
                     className="truncate flex-1 text-primary hover:underline"
-                    download={f.file_name}
                   >
                     {f.file_name}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="truncate flex-1">{f.file_name}</span>
                 )}

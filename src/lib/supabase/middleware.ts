@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  applyRememberMeToAuthCookie,
+  isRememberMeEnabled,
+} from "@/lib/auth/remember-me";
+import {
   getDefaultRoute,
   normalizeRole,
 } from "@/lib/auth/permissions";
@@ -40,6 +44,8 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  const rememberMe = isRememberMeEnabled(request.cookies);
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -54,7 +60,11 @@ export async function updateSession(request: NextRequest) {
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(
+              name,
+              value,
+              applyRememberMeToAuthCookie(options, rememberMe)
+            )
           );
         },
       },

@@ -9,6 +9,13 @@ import {
 } from "@/app/actions/notifications";
 import { NotificationItem } from "@/components/notifications/notification-item";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NOTIFICATION_CENTER_CATEGORIES, NOTIFICATION_CATEGORY_LABELS } from "@/lib/notifications/categories";
 import type {
   Notification,
@@ -121,27 +128,35 @@ export function NotificationCenterView({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <select
-          className="h-8 rounded-md border border-border/60 bg-background px-2.5 text-xs"
+        <Select
           value={category}
-          onChange={(e) => setCategory(e.target.value as NotificationCategory | "all")}
+          onValueChange={(v) => v && setCategory(v as NotificationCategory | "all")}
         >
-          <option value="all">All types</option>
-          {NOTIFICATION_CENTER_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {NOTIFICATION_CATEGORY_LABELS[cat]}
-            </option>
-          ))}
-        </select>
-        <select
-          className="h-8 rounded-md border border-border/60 bg-background px-2.5 text-xs"
+          <SelectTrigger className="h-8 min-w-[140px] bg-card text-foreground text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {NOTIFICATION_CENTER_CATEGORIES.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {NOTIFICATION_CATEGORY_LABELS[cat]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={status}
-          onChange={(e) => setStatus(e.target.value as NotificationReadFilter)}
+          onValueChange={(v) => v && setStatus(v as NotificationReadFilter)}
         >
-          <option value="all">All status</option>
-          <option value="unread">Unread</option>
-          <option value="read">Read</option>
-        </select>
+          <SelectTrigger className="h-8 min-w-[120px] bg-card text-foreground text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All status</SelectItem>
+            <SelectItem value="unread">Unread</SelectItem>
+            <SelectItem value="read">Read</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div

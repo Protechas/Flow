@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { submitQaReviewAction } from "@/app/actions/qa";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ERROR_CATEGORIES, QA_RESULTS } from "@/lib/constants";
-import { taskFileDownloadHref } from "@/lib/files/download";
+import { fileViewHref } from "@/lib/files/download";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
 import { FileText } from "lucide-react";
@@ -126,13 +127,12 @@ export function QaReviewPanel({ queue, reviewer, canReview, fileMap = {}, submis
                   {fileMap[selected.id]!.map((f) => (
                     <li key={f.id} className="rounded-md bg-muted/20 px-3 py-2 flex justify-between gap-2">
                       {f.file_data_base64 ? (
-                        <a
-                          href={taskFileDownloadHref(f.id)}
+                        <Link
+                          href={fileViewHref("task", f.id)}
                           className="truncate text-primary hover:underline"
-                          download={f.file_name}
                         >
                           {f.file_name}
-                        </a>
+                        </Link>
                       ) : (
                         <span className="truncate">{f.file_name}</span>
                       )}
