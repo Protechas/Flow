@@ -32,7 +32,7 @@ export function ForgotPasswordForm() {
         <p className="text-sm text-muted-foreground">
           If an account exists for that email, we sent a reset link. Check your inbox.
         </p>
-        <Link href="/login" className="text-sm text-violet-400 hover:underline">
+        <Link href="/login" className="text-sm text-primary hover:underline">
           Back to login
         </Link>
       </div>
@@ -50,7 +50,7 @@ export function ForgotPasswordForm() {
       </Button>
       {error && <p className="text-sm text-red-400 text-center">{error}</p>}
       <p className="text-center text-sm">
-        <Link href="/login" className="text-violet-400 hover:underline">
+        <Link href="/login" className="text-primary hover:underline">
           Back to login
         </Link>
       </p>

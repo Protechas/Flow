@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission } from "@/lib/auth/session";
 import { submitQaReviewApi } from "@/lib/data/qa";
+import {
+  getLatestSubmission,
+  recordProductionQaReview,
+} from "@/lib/data/production-tracking";
 import type { QaResult } from "@/types/flow";
 
 const PATHS = [
@@ -13,6 +17,8 @@ const PATHS = [
   "/project-health",
   "/qa-center",
   "/reports",
+  "/production",
+  "/work",
 ];
 
 export async function submitQaReviewAction(params: {
@@ -25,6 +31,15 @@ export async function submitQaReviewAction(params: {
 }) {
   await requirePermission("qa:review");
   await submitQaReviewApi(params);
+  const submission = getLatestSubmission(params.workPackageId);
+  recordProductionQaReview({
+    task_id: params.workPackageId,
+    submission_id: submission?.id ?? null,
+    reviewer_id: params.reviewerId,
+    result: params.result,
+    notes: params.notes,
+    error_category: params.errorCategory,
+  });
   await writeAuditLog({
     action: "qa_decision",
     entityType: "work_package",

@@ -57,7 +57,7 @@ export function InviteUserForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 rounded-xl border border-violet-500/30 bg-violet-500/5 p-4"
+      className="space-y-4 rounded-xl border border-primary/25 bg-primary/5 p-4"
     >
       <div>
         <h3 className="font-semibold text-sm">Invite user</h3>

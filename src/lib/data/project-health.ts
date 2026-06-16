@@ -1,10 +1,15 @@
 import { projectRollup } from "@/lib/hierarchy/rollups";
 import { getMockStore } from "@/lib/data/mock-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
+import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import type { ProjectHealth } from "@/types/flow";
 import { addDays, format } from "date-fns";
 
 export async function getProjectHealthList(): Promise<ProjectHealth[]> {
+  await hydrateForecastSettings();
+  initFlowStore();
+  const forecastSettings = getFlowStore().forecastSettings;
   const store = getMockStore();
   const packages = await getWorkPackages();
 
@@ -25,9 +30,9 @@ export async function getProjectHealthList(): Promise<ProjectHealth[]> {
 
     const hoursLogged = rollup.hoursLogged;
     const estimatedRemaining = Math.max(0, rollup.estimatedHours - hoursLogged);
-    const activeCount = projectPkgs.filter((p) => p.status !== "done").length;
-    const avgPerDay = 2;
-    const projectedDays = activeCount > 0 ? Math.ceil(activeCount / avgPerDay) : 0;
+    const hoursPerDay = forecastSettings.productive_hours_per_day ?? 6.5;
+    const projectedDays =
+      estimatedRemaining > 0 ? Math.ceil(estimatedRemaining / hoursPerDay) : 0;
 
     const analystIds = [...new Set(projectPkgs.map((p) => p.assigned_to).filter(Boolean))] as string[];
     const assignedAnalysts = analystIds.map(

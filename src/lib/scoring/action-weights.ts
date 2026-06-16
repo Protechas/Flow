@@ -12,6 +12,7 @@ export const ACTION_BASE_POINTS: Record<ActivityEventType, number> = {
   task_complete: 22,
   correction_received: 0,
   correction_resolved: 14,
+  help_flag: 2,
 };
 
 export const ACTION_LABELS: Record<ActivityEventType, string> = {
@@ -25,6 +26,7 @@ export const ACTION_LABELS: Record<ActivityEventType, string> = {
   task_complete: "Tasks completed",
   correction_received: "QA returns",
   correction_resolved: "Corrections resolved",
+  help_flag: "Help requests",
 };
 
 const WEEKLY_ACTIVITY_TARGET_POINTS = 120;

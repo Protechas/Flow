@@ -12,9 +12,9 @@ export function TrendBadge({ trend, label, className }: TrendBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        trend === "up" && "bg-emerald-500/15 text-emerald-400",
-        trend === "down" && "bg-red-500/15 text-red-400",
+        "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        trend === "up" && "flow-status-success",
+        trend === "down" && "flow-status-danger",
         trend === "neutral" && "bg-muted text-muted-foreground",
         className
       )}

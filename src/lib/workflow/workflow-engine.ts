@@ -90,14 +90,30 @@ export function onAssignment(
   prevAssignee: string | null | undefined,
   actorId?: string
 ) {
+  if (prevAssignee && prevAssignee !== pkg.assigned_to && prevAssignee !== actorId) {
+    notify(ctx, {
+      userId: prevAssignee,
+      type: "assignment_changed",
+      title: "Assignment removed",
+      message: `You were unassigned from "${pkg.title}".`,
+      entityType: "work_package",
+      entityId: pkg.id,
+      dedupe: false,
+    });
+  }
+
   if (!pkg.assigned_to || pkg.assigned_to === prevAssignee) return;
   if (pkg.assigned_to === actorId) return;
 
+  const isReassignment = !!prevAssignee && prevAssignee !== pkg.assigned_to;
+
   notify(ctx, {
     userId: pkg.assigned_to,
-    type: "new_assignment",
-    title: "New work assigned",
-    message: `You were assigned "${pkg.title}".`,
+    type: isReassignment ? "assignment_changed" : "new_assignment",
+    title: isReassignment ? "Work reassigned to you" : "New work assigned",
+    message: isReassignment
+      ? `"${pkg.title}" was reassigned to you.`
+      : `You were assigned "${pkg.title}".`,
     entityType: "work_package",
     entityId: pkg.id,
     dedupe: false,
@@ -188,8 +204,8 @@ export function onQAReview(
   if (pkg.assigned_to) {
     notify(ctx, {
       userId: pkg.assigned_to,
-      type: "correction_issued",
-      title: "Correction issued",
+      type: "qa_rejected",
+      title: "QA rejected",
       message: `QA returned "${pkg.title}" — ${result.replace("_", " ")}.`,
       entityType: "work_package",
       entityId: pkg.id,
@@ -202,8 +218,8 @@ export function onQAReview(
     if (mgr.id === reviewerId) continue;
     notify(ctx, {
       userId: mgr.id,
-      type: "correction_issued",
-      title: "Team correction issued",
+      type: "qa_rejected",
+      title: "QA rejected on team task",
       message: `"${pkg.title}" needs corrections after QA review.`,
       entityType: "work_package",
       entityId: pkg.id,

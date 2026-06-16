@@ -14,15 +14,20 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ERROR_CATEGORIES, QA_RESULTS } from "@/lib/constants";
-import type { QaResult, User, WorkPackage } from "@/types/flow";
+import { taskFileDownloadHref } from "@/lib/files/download";
+import { formatMinutes } from "@/lib/production/metrics";
+import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
+import { FileText } from "lucide-react";
 
 interface QaReviewPanelProps {
   queue: WorkPackage[];
   reviewer: User;
   canReview: boolean;
+  fileMap?: Record<string, TaskFileUpload[]>;
+  submissionMap?: Record<string, TaskSubmissionRecord | null>;
 }
 
-export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps) {
+export function QaReviewPanel({ queue, reviewer, canReview, fileMap = {}, submissionMap = {} }: QaReviewPanelProps) {
   const [selectedId, setSelectedId] = useState(queue[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
   const selected = queue.find((q) => q.id === selectedId);
@@ -90,6 +95,65 @@ export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps
             </p>
           </div>
           <div className="p-4">
+            {submissionMap[selected.id] && (
+              <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                <div className="rounded-md bg-muted/30 px-3 py-2">
+                  <p className="text-[10px] uppercase text-muted-foreground">Task time</p>
+                  <p className="font-semibold">{formatMinutes(submissionMap[selected.id]!.total_task_minutes)}</p>
+                </div>
+                <div className="rounded-md bg-muted/30 px-3 py-2">
+                  <p className="text-[10px] uppercase text-muted-foreground">Files</p>
+                  <p className="font-semibold">{submissionMap[selected.id]!.uploaded_file_count}</p>
+                </div>
+                <div className="rounded-md bg-muted/30 px-3 py-2">
+                  <p className="text-[10px] uppercase text-muted-foreground">Min / doc</p>
+                  <p className="font-semibold">{submissionMap[selected.id]!.average_minutes_per_document || "—"}</p>
+                </div>
+                <div className="rounded-md bg-muted/30 px-3 py-2">
+                  <p className="text-[10px] uppercase text-muted-foreground">Docs / hr</p>
+                  <p className="font-semibold">{submissionMap[selected.id]!.documents_per_hour || "—"}</p>
+                </div>
+              </div>
+            )}
+
+            {(fileMap[selected.id]?.length ?? 0) > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  Submitted files
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {fileMap[selected.id]!.map((f) => (
+                    <li key={f.id} className="rounded-md bg-muted/20 px-3 py-2 flex justify-between gap-2">
+                      {f.file_data_base64 ? (
+                        <a
+                          href={taskFileDownloadHref(f.id)}
+                          className="truncate text-primary hover:underline"
+                          download={f.file_name}
+                        >
+                          {f.file_name}
+                        </a>
+                      ) : (
+                        <span className="truncate">{f.file_name}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {(f.file_size / 1024).toFixed(1)} KB
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!canReview ? (
+              <div className="rounded-md border border-[var(--border-subtle)] bg-muted/30 px-4 py-3 mb-4">
+                <p className="text-sm font-medium">Read-only QA access</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You can review queue details and download submitted files. QA decisions require review permission.
+                </p>
+              </div>
+            ) : null}
+            {canReview && (
             <form id="qa-form" className="space-y-4 mb-6">
               <div className="space-y-2">
                 <Label>Error Category</Label>
@@ -109,21 +173,18 @@ export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps
                 <Input id="notes" name="notes" placeholder="Optional feedback for analyst" />
               </div>
             </form>
+            )}
+            {canReview && (
             <div className="flex flex-wrap gap-2">
-              {!canReview && (
-                <p className="text-sm text-muted-foreground">You have read-only QA access.</p>
-              )}
               {QA_RESULTS.map((r) => (
                 <Button
                   key={r.value}
                   disabled={pending || !canReview}
                   variant={r.value === "pass" ? "default" : "outline"}
                   className={
-                    r.value === "pass"
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : r.value === "rejected"
-                        ? "border-red-500/40 text-red-300"
-                        : ""
+                    r.value === "rejected"
+                      ? "border-red-500/40 text-red-300"
+                      : ""
                   }
                   onClick={() => {
                     const form = document.getElementById("qa-form") as HTMLFormElement;
@@ -134,6 +195,7 @@ export function QaReviewPanel({ queue, reviewer, canReview }: QaReviewPanelProps
                 </Button>
               ))}
             </div>
+            )}
           </div>
         </div>
       )}

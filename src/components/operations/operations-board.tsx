@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   archiveManufacturerAction,
   bulkAssignWorkPackagesAction,
@@ -68,9 +68,10 @@ import { isOverdue, isStuck } from "@/lib/scoring/flow-score";
 import { cn } from "@/lib/utils";
 import type {
   Comment,
-  FlowFile,
+  ForecastSettings,
   OperationsTree,
   QaStatus,
+  TaskFileUpload,
   TimeLog,
   User,
   WorkPackage,
@@ -94,12 +95,15 @@ import {
   Plus,
   Trash2,
   Upload,
-  UserPlus,
 } from "lucide-react";
 
 interface OperationsBoardProps {
   tree: OperationsTree;
+  initialSearch?: string;
+  initialPackageId?: string;
+  taskFileUploads: TaskFileUpload[];
   analysts: User[];
+  forecastSettings: ForecastSettings;
   currentUserId: string;
   teamUserIds: string[];
   canEdit: boolean;
@@ -111,7 +115,6 @@ interface OperationsBoardProps {
   canEditQa: boolean;
   readOnly: boolean;
   comments: Comment[];
-  files: FlowFile[];
   timeLogs: TimeLog[];
 }
 
@@ -126,9 +129,25 @@ function pkgDonePct(pkg: WorkPackage) {
   return pkg.status === "done" ? 100 : 0;
 }
 
+function flattenPackages(tree: OperationsTree): WorkPackage[] {
+  const packages: WorkPackage[] = [];
+  for (const project of tree.projects) {
+    for (const manufacturer of project.manufacturers) {
+      for (const year of manufacturer.years) {
+        packages.push(...year.packages);
+      }
+    }
+  }
+  return packages;
+}
+
 export function OperationsBoard({
   tree,
+  initialSearch = "",
+  initialPackageId,
+  taskFileUploads,
   analysts,
+  forecastSettings,
   currentUserId,
   teamUserIds,
   canEdit,
@@ -140,7 +159,6 @@ export function OperationsBoard({
   canEditQa,
   readOnly,
   comments,
-  files,
   timeLogs,
 }: OperationsBoardProps) {
   const allowEdit = canEdit && !readOnly;
@@ -148,10 +166,25 @@ export function OperationsBoard({
   const allowManage = canManageProjects && !readOnly;
   const showActions = allowEdit || allowAssign || canDeleteProjects || canDeleteWork || allowManage;
 
-  const [filters, setFilters] = useState<OpsBoardFilters>(DEFAULT_OPS_FILTERS);
+  const [filters, setFilters] = useState<OpsBoardFilters>({
+    ...DEFAULT_OPS_FILTERS,
+    search: initialSearch,
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [detailPkg, setDetailPkg] = useState<WorkPackage | null>(null);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setFilters((f) => ({ ...f, search: initialSearch }));
+    }
+  }, [initialSearch]);
+
+  useEffect(() => {
+    if (!initialPackageId) return;
+    const pkg = flattenPackages(tree).find((p) => p.id === initialPackageId);
+    if (pkg) setDetailPkg(pkg);
+  }, [initialPackageId, tree]);
 
   const projectIds = useMemo(() => tree.projects.map((p) => p.project.id), [tree]);
   const { expanded, toggle, expandAll, collapseAll } = useOperationsExpanded(projectIds);
@@ -199,7 +232,9 @@ export function OperationsBoard({
 
   return (
     <>
-      <OperationsToolbar
+      <div className="flow-workspace">
+        <div className="flow-workspace-toolbar">
+          <OperationsToolbar
         filters={filters}
         onFiltersChange={setFilters}
         projects={projects}
@@ -265,9 +300,10 @@ export function OperationsBoard({
             : undefined
         }
       />
+        </div>
 
-      <div className="enterprise-panel overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-11rem)]">
+      <div className="flow-workspace-body overflow-hidden">
+        <div className="overflow-auto max-h-[calc(100vh-14rem)]">
           <table className="w-full min-w-[1400px] text-sm border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 enterprise-grid-header">
               <tr className="text-xs text-muted-foreground">
@@ -323,6 +359,7 @@ export function OperationsBoard({
                     onUpdateYear={updateYear}
                     onDetail={setDetailPkg}
                     startTransition={startTransition}
+                    forecastSettings={forecastSettings}
                   />
                 );
               })}
@@ -330,15 +367,19 @@ export function OperationsBoard({
           </table>
         </div>
       </div>
+      </div>
 
       <PackageDetailSheet
         pkg={detailPkg}
         open={!!detailPkg}
         onOpenChange={(o) => !o && setDetailPkg(null)}
         comments={comments}
-        files={files}
+        taskFiles={taskFileUploads}
         timeLogs={timeLogs}
         currentUserId={currentUserId}
+        analysts={analysts}
+        canAssign={allowAssign}
+        canEdit={allowEdit}
       />
     </>
   );
@@ -367,6 +408,7 @@ function ProjectRows({
   onUpdateYear,
   onDetail,
   startTransition,
+  forecastSettings,
 }: {
   node: OperationsTree["projects"][0];
   pKey: string;
@@ -390,6 +432,7 @@ function ProjectRows({
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
   startTransition: (fn: () => void | Promise<void>) => void;
+  forecastSettings: ForecastSettings;
 }) {
   const r = node.rollup;
   return (
@@ -401,7 +444,7 @@ function ProjectRows({
         <td className="py-2.5 cursor-pointer" onClick={onToggle}>
           <div className="flex items-center gap-2 font-semibold">
             {pOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <FolderKanban className="h-4 w-4 text-violet-400" />
+            <FolderKanban className="h-4 w-4 text-primary" />
             {node.project.name}
             <span className="text-[10px] text-muted-foreground font-normal">
               {r.manufacturerCount} mfr · {r.yearCount} yr · {r.totalPackages} pkg
@@ -470,6 +513,7 @@ function ProjectRows({
               onUpdateYear={onUpdateYear}
               onDetail={onDetail}
               startTransition={startTransition}
+              forecastSettings={forecastSettings}
             />
           );
         })}
@@ -500,6 +544,7 @@ function ManufacturerRows({
   onUpdateYear,
   onDetail,
   startTransition,
+  forecastSettings,
 }: {
   node: OperationsTree["projects"][0]["manufacturers"][0];
   mKey: string;
@@ -523,6 +568,7 @@ function ManufacturerRows({
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
   startTransition: (fn: () => void | Promise<void>) => void;
+  forecastSettings: ForecastSettings;
 }) {
   const mr = node.rollup;
   const mfr = node.manufacturer;
@@ -601,6 +647,7 @@ function ManufacturerRows({
               key={yKey}
               yKey={yKey}
               yearNode={yearNode}
+              manufacturerName={mfr.name}
               yOpen={yOpen}
               onToggleChild={onToggleChild}
               selected={selected}
@@ -619,6 +666,7 @@ function ManufacturerRows({
               onUpdateYear={onUpdateYear}
               onDetail={onDetail}
               startTransition={startTransition}
+              forecastSettings={forecastSettings}
             />
           );
         })}
@@ -629,6 +677,7 @@ function ManufacturerRows({
 function YearRowsGroup({
   yKey,
   yearNode,
+  manufacturerName,
   yOpen,
   onToggleChild,
   selected,
@@ -647,9 +696,11 @@ function YearRowsGroup({
   onUpdateYear,
   onDetail,
   startTransition,
+  forecastSettings,
 }: {
   yKey: string;
   yearNode: OperationsTree["projects"][0]["manufacturers"][0]["years"][0];
+  manufacturerName: string;
   yOpen: boolean;
   onToggleChild: (k: string) => void;
   selected: Set<string>;
@@ -668,6 +719,7 @@ function YearRowsGroup({
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
   startTransition: (fn: () => void | Promise<void>) => void;
+  forecastSettings: ForecastSettings;
 }) {
   const y = yearNode.yearWorkItem;
   const yr = yearNode.rollup;
@@ -709,7 +761,9 @@ function YearRowsGroup({
                 canManage ? (
                   <AddWorkPackageDialog
                     yearItem={y}
+                    manufacturerName={manufacturerName}
                     analysts={analysts}
+                    forecastSettings={forecastSettings}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                         <Plus className="h-3.5 w-3.5 mr-2" /> Add Work Package
@@ -828,12 +882,7 @@ function PackageRow({
         value={pkg.assigned_to}
         analysts={analysts}
         canEdit={canAssign}
-        onChange={(v) =>
-          onUpdate(pkg.id, {
-            assigned_to: v,
-            status: v && pkg.status === "not_started" ? "assigned" : pkg.status,
-          })
-        }
+        onChange={(v) => onUpdate(pkg.id, { assigned_to: v })}
       />
       <InlinePriority value={pkg.priority} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { priority: v })} />
       <InlineDate value={pkg.due_date} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { due_date: v })} overdue={overdue} />
@@ -854,14 +903,6 @@ function PackageRow({
         <td>
           <RowActions
             onDetail={() => onDetail(pkg)}
-            onAssign={
-              canAssign
-                ? () => {
-                    /* opens detail for assign via sheet */
-                    onDetail(pkg);
-                  }
-                : undefined
-            }
             onLogTime={canEdit ? () => onDetail(pkg) : undefined}
             onComment={canEdit ? () => onDetail(pkg) : undefined}
             onUpload={canEdit ? () => onDetail(pkg) : undefined}
@@ -915,7 +956,6 @@ function RowActions({
   onBulkYears,
   onAddPackage,
   onDetail,
-  onAssign,
   onLogTime,
   onComment,
   onUpload,
@@ -933,7 +973,6 @@ function RowActions({
   onBulkYears?: React.ReactNode;
   onAddPackage?: React.ReactNode;
   onDetail?: () => void;
-  onAssign?: () => void;
   onLogTime?: () => void;
   onComment?: () => void;
   onUpload?: () => void;
@@ -963,11 +1002,6 @@ function RowActions({
         {onDetail && (
           <DropdownMenuItem onClick={onDetail}>
             <MessageSquare className="h-3.5 w-3.5 mr-2" /> Open details
-          </DropdownMenuItem>
-        )}
-        {onAssign && (
-          <DropdownMenuItem onClick={onAssign}>
-            <UserPlus className="h-3.5 w-3.5 mr-2" /> Assign user
           </DropdownMenuItem>
         )}
         {onLogTime && (

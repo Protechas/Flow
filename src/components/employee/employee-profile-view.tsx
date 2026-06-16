@@ -21,8 +21,8 @@ export function EmployeeProfileView({
   return (
     <div className="space-y-8 pb-8">
       <div>
-        <h1 className="text-2xl font-bold">My performance</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="flow-page-title text-2xl">My performance</h1>
+        <p className="flow-helper mt-1">
           Your personal progress — focused on growth, not comparison.
         </p>
       </div>
@@ -36,7 +36,7 @@ export function EmployeeProfileView({
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row items-center gap-6 rounded-2xl border border-violet-500/25 bg-violet-500/5 p-6">
+      <div className="flex flex-col sm:flex-row items-center gap-6 enterprise-panel-elevated p-6">
         <FlowScoreExplainDialog breakdown={scorecard.scoreBreakdown}>
           <div className="cursor-pointer hover:opacity-90 transition-opacity">
             <FlowScoreRing score={scorecard.flowScore} size="lg" />
@@ -133,7 +133,7 @@ export function EmployeeProfileView({
       )}
 
       {scorecard.coachingInsights.length > 0 && (
-        <Card className="border-violet-500/20 bg-violet-500/5">
+        <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-base">Coaching tips</CardTitle>
           </CardHeader>

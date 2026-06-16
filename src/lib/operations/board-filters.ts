@@ -1,8 +1,10 @@
 import { isOverdue, isStuck } from "@/lib/scoring/flow-score";
+import { getAssignableUserIdsClient } from "@/lib/hierarchy/scope-client";
 import type {
   OperationsTree,
   Project,
   QaStatus,
+  Team,
   User,
   WorkPackage,
   WorkPriority,
@@ -247,13 +249,9 @@ export function collectPackageIds(tree: OperationsTree, selectedKeys: Set<string
   return [...new Set(ids)];
 }
 
-export function getTeamUserIds(currentUser: User, analysts: User[]): string[] {
-  const directReports = analysts.filter((a) => a.manager_id === currentUser.id).map((a) => a.id);
-  if (directReports.length) return directReports;
-  if (currentUser.team_id) {
-    return analysts.filter((a) => a.team_id === currentUser.team_id).map((a) => a.id);
-  }
-  return analysts.map((a) => a.id);
+export function getTeamUserIds(currentUser: User, analysts: User[], allUsers: User[], teams: Team[] = []): string[] {
+  const assignable = new Set(getAssignableUserIdsClient(currentUser, allUsers, teams));
+  return analysts.filter((a) => assignable.has(a.id)).map((a) => a.id);
 }
 
 export function flattenManufacturers(tree: OperationsTree): { id: string; name: string; projectId: string }[] {

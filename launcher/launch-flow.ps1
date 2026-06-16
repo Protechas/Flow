@@ -1,15 +1,15 @@
-# Flow desktop launcher — starts the app and opens the browser (no Cursor required).
+# Flow desktop launcher — fast open, minimal cache churn, no console window.
 $ErrorActionPreference = "Stop"
 
-$FlowDir = Join-Path $PSScriptRoot ".." | Resolve-Path
-$AppUrl = "http://localhost:3000/operations"
-$HealthUrl = "http://127.0.0.1:3000/operations"
+$FlowDir = (Join-Path $PSScriptRoot ".." | Resolve-Path).Path
+$AppUrl = "http://127.0.0.1:3000/operations"
+$HealthUrl = "http://127.0.0.1:3000/login"
 $Port = 3000
 $LogDir = Join-Path $PSScriptRoot "logs"
 $ServerLog = Join-Path $LogDir "server.log"
 $PidFile = Join-Path $LogDir "server.pid"
-$BuildIdFile = Join-Path $LogDir "running-build-id.txt"
-$CurrentBuildIdPath = Join-Path $FlowDir ".next\BUILD_ID"
+$SplashPath = Join-Path $PSScriptRoot "launch-splash.html"
+$MutexName = "Global\FlowDesktopLauncher"
 
 $NodeDir = "C:\Program Files\nodejs"
 if (Test-Path $NodeDir) {
@@ -18,30 +18,36 @@ if (Test-Path $NodeDir) {
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
-function Get-CurrentBuildId {
-    if (Test-Path $CurrentBuildIdPath) {
-        return (Get-Content $CurrentBuildIdPath -Raw).Trim()
-    }
-    return $null
-}
+function Test-FlowReady {
+    param([int]$TimeoutSec = 2)
 
-function Get-RunningBuildId {
-    if (Test-Path $BuildIdFile) {
-        return (Get-Content $BuildIdFile -Raw).Trim()
-    }
-    return $null
-}
-
-function Test-FlowServer {
     try {
-        $response = Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec 8
+        $response = Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec $TimeoutSec
         return $response.StatusCode -lt 500
     }
     catch {
-        if ($_.Exception.Response) {
-            $code = [int]$_.Exception.Response.StatusCode
-            return $code -ge 200 -and $code -lt 500
+        return $false
+    }
+}
+
+function Test-FlowStylesOk {
+    try {
+        $page = Invoke-WebRequest -Uri $AppUrl -UseBasicParsing -TimeoutSec 8
+        $cssPaths = [regex]::Matches($page.Content, 'href="(/_next/static/[^"]+\.css[^"]*)"') |
+            ForEach-Object { $_.Groups[1].Value } |
+            Select-Object -Unique
+
+        if ($cssPaths.Count -eq 0) { return $false }
+
+        foreach ($path in $cssPaths) {
+            $css = Invoke-WebRequest -Uri "http://127.0.0.1:$Port$path" -UseBasicParsing -TimeoutSec 8
+            if ($css.StatusCode -ge 400) { return $false }
+            if ($css.Content.Length -ge 50000) { return $true }
         }
+
+        return $false
+    }
+    catch {
         return $false
     }
 }
@@ -49,9 +55,7 @@ function Test-FlowServer {
 function Get-FlowListenerPid {
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -First 1
-    if ($conn) {
-        return $conn.OwningProcess
-    }
+    if ($conn) { return $conn.OwningProcess }
     return $null
 }
 
@@ -64,65 +68,109 @@ function Stop-FlowServer {
         Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
     }
 
-    foreach ($i in 1..3) {
+    foreach ($i in 1..4) {
         $listenerPid = Get-FlowListenerPid
-        if (-not $listenerPid) {
-            break
-        }
+        if (-not $listenerPid) { break }
         Stop-Process -Id $listenerPid -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 1
+        Start-Sleep -Milliseconds 500
     }
-
-    Remove-Item $BuildIdFile -Force -ErrorAction SilentlyContinue
 }
 
-function Ensure-ProductionBuild {
-    $buildId = Get-CurrentBuildId
-    if ($buildId) {
-        return
+function Clear-FlowCache {
+    $nextDir = Join-Path $FlowDir ".next"
+    if (Test-Path $nextDir) {
+        Remove-Item -Recurse -Force $nextDir -ErrorAction SilentlyContinue
     }
+}
 
+function Ensure-Dependencies {
     if (-not (Test-Path (Join-Path $FlowDir "node_modules"))) {
         Push-Location $FlowDir
         & npm.cmd install
         if ($LASTEXITCODE -ne 0) { throw "npm install failed." }
         Pop-Location
     }
-
-    Push-Location $FlowDir
-    & npm.cmd run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed. See $LogDir" }
-    Pop-Location
 }
 
 function Start-FlowServer {
-    Ensure-ProductionBuild
+    Ensure-Dependencies
 
-    $startCmd = "cd /d `"$FlowDir`" && npm run start > `"$ServerLog`" 2>&1"
+    # Dev mode keeps client bundles in sync with source (production start can break clicks).
+    $startCmd = "cd /d `"$FlowDir`" && npm run dev > `"$ServerLog`" 2>&1"
     $server = Start-Process -FilePath "cmd.exe" `
         -ArgumentList "/c", $startCmd `
         -WindowStyle Hidden `
         -PassThru
 
     Set-Content -Path $PidFile -Value $server.Id
+}
 
-    $deadline = (Get-Date).AddMinutes(3)
+function Wait-ForFlowReady {
+    param(
+        [int]$MaxSeconds = 240,
+        [switch]$OpenEarly
+    )
+
+    $deadline = (Get-Date).AddSeconds($MaxSeconds)
+    $opened = $false
+    $attempt = 0
+
     while ((Get-Date) -lt $deadline) {
-        if (Test-FlowServer) {
-            $buildId = Get-CurrentBuildId
-            if ($buildId) {
-                Set-Content -Path $BuildIdFile -Value $buildId
+        if (Test-FlowReady -TimeoutSec 2) {
+            if ($OpenEarly -and -not $opened) {
+                Open-FlowApp
+                $opened = $true
             }
-            return
+            if (Test-FlowStylesOk) { return $true }
         }
-        Start-Sleep -Seconds 1
+
+        $attempt += 1
+        if ($attempt -le 20) {
+            Start-Sleep -Milliseconds 300
+        }
+        elseif ($attempt -le 60) {
+            Start-Sleep -Milliseconds 700
+        }
+        else {
+            Start-Sleep -Seconds 1
+        }
     }
 
-    throw "Flow server did not start in time. Check $ServerLog"
+    return (Test-FlowReady -TimeoutSec 3)
+}
+
+function Open-FlowApp {
+    if (Test-FlowReady -TimeoutSec 1) {
+        Start-Process $AppUrl
+        return
+    }
+
+    if (Test-Path $SplashPath) {
+        Start-Process $SplashPath
+        return
+    }
+
+    Start-Process $AppUrl
+}
+
+function Show-StartingNotice {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        $notify = New-Object System.Windows.Forms.NotifyIcon
+        $notify.Icon = [System.Drawing.SystemIcons]::Information
+        $notify.Visible = $true
+        $notify.ShowBalloonTip(2500, "Flow", "Starting Flow…", [System.Windows.Forms.ToolTipIcon]::Info)
+        Start-Sleep -Milliseconds 350
+        $notify.Dispose()
+    }
+    catch {
+        # Non-critical if toast cannot be shown.
+    }
 }
 
 function Show-LauncherError {
     param([string]$Message)
+
     Add-Type -AssemblyName System.Windows.Forms
     [System.Windows.Forms.MessageBox]::Show(
         $Message,
@@ -132,24 +180,66 @@ function Show-LauncherError {
     ) | Out-Null
 }
 
+function Enter-LauncherLock {
+    $createdNew = $false
+    $mutex = New-Object System.Threading.Mutex($false, $MutexName, [ref]$createdNew)
+    if (-not $mutex.WaitOne(0)) {
+        return @{
+            IsOwner = $false
+            Mutex = $mutex
+        }
+    }
+
+    return @{
+        IsOwner = $true
+        Mutex = $mutex
+    }
+}
+
+$lock = Enter-LauncherLock
+
 try {
-    $currentBuildId = Get-CurrentBuildId
-    $runningBuildId = Get-RunningBuildId
-    $serverHealthy = Test-FlowServer
-    $needsRestart = (-not $serverHealthy) -or ($currentBuildId -ne $runningBuildId)
+    if (Test-FlowReady -TimeoutSec 1) {
+        Open-FlowApp
+        exit 0
+    }
 
-    if ($needsRestart) {
+    if (-not $lock.IsOwner) {
+        Show-StartingNotice
+        if (Wait-ForFlowReady -MaxSeconds 180 -OpenEarly) {
+            exit 0
+        }
+        Open-FlowApp
+        exit 0
+    }
+
+    Show-StartingNotice
+    Open-FlowApp
+
+    $listenerPid = Get-FlowListenerPid
+    if ($listenerPid) {
         Stop-FlowServer
+    }
+
+    Start-FlowServer
+
+    if (-not (Wait-ForFlowReady -MaxSeconds 240)) {
+        Stop-FlowServer
+        Clear-FlowCache
         Start-FlowServer
-    }
 
-    if (-not (Test-FlowServer)) {
-        throw "Flow is not responding on port $Port."
+        if (-not (Wait-ForFlowReady -MaxSeconds 240)) {
+            throw "Flow did not start correctly. Check $ServerLog"
+        }
     }
-
-    Start-Process $AppUrl
 }
 catch {
     Show-LauncherError $_.Exception.Message
     exit 1
+}
+finally {
+    if ($lock.Mutex) {
+        try { $lock.Mutex.ReleaseMutex() | Out-Null } catch {}
+        $lock.Mutex.Dispose()
+    }
 }

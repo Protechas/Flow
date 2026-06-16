@@ -17,7 +17,7 @@ export function ProjectHealthDashboard({ projects }: { projects: ProjectHealth[]
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-3xl font-bold tabular-nums text-violet-400">{ph.overallProgress}%</p>
+                  <p className="text-3xl font-bold tabular-nums text-primary">{ph.overallProgress}%</p>
                   <p className="text-[10px] text-muted-foreground uppercase">Overall</p>
                 </div>
                 {ph.projectedCompletion && (

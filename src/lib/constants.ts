@@ -1,19 +1,9 @@
-import type { QaResult, UserRole, WorkPriority, WorkStatus } from "@/types/flow";
+import type { QaResult, UserRole, WorkPriority, WorkStatus, PayType } from "@/types/flow";
 
 export const APP_NAME = "Flow";
 
-export const NAV_ITEMS = [
-  { href: "/executive", label: "Executive", icon: "LayoutDashboard" },
-  { href: "/operations", label: "Operations Board", icon: "Kanban" },
-  { href: "/projects", label: "Projects", icon: "FolderKanban" },
-  { href: "/people", label: "People", icon: "Users" },
-  { href: "/project-health", label: "Project Health", icon: "Activity" },
-  { href: "/qa-center", label: "QA Center", icon: "ShieldCheck" },
-  { href: "/reports", label: "Reports", icon: "BarChart3" },
-  { href: "/settings", label: "Settings", icon: "Settings" },
-] as const;
-
 export const PROJECT_TYPES = [
+  { value: "board", label: "Operations Board" },
   { value: "special_functions", label: "Special Functions" },
   { value: "adas", label: "ADAS" },
   { value: "si_corrections", label: "SI Corrections" },
@@ -29,11 +19,26 @@ export const PROJECT_STATUSES = [
 ];
 
 export const USER_ROLES: { value: UserRole; label: string }[] = [
+  { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
+  { value: "senior_manager", label: "Senior Manager" },
   { value: "manager", label: "Manager" },
-  { value: "qa", label: "QA" },
+  { value: "teamlead", label: "Team Lead" },
   { value: "employee", label: "Employee" },
   { value: "viewer", label: "Viewer" },
+];
+
+export const PAY_TYPES: { value: PayType; label: string; description: string }[] = [
+  {
+    value: "hourly",
+    label: "Hourly",
+    description: "Shift clock required — track punches and shift time",
+  },
+  {
+    value: "salary",
+    label: "Salary",
+    description: "Exempt from shift clock — productivity tracked via tasks",
+  },
 ];
 
 export const WORK_STATUSES: {
@@ -45,65 +50,88 @@ export const WORK_STATUSES: {
   {
     value: "not_started",
     label: "Not Started",
-    color: "bg-slate-500/20 text-slate-300 border border-slate-500/30",
+    color: "bg-slate-500/10 text-slate-400 border border-slate-500/20",
     dot: "bg-slate-400",
   },
   {
     value: "assigned",
     label: "Assigned",
-    color: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+    color: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
     dot: "bg-blue-400",
   },
   {
     value: "working_on_it",
     label: "In Progress",
-    color: "bg-sky-500/20 text-sky-300 border border-sky-500/30",
+    color: "bg-sky-500/10 text-sky-400 border border-sky-500/20",
     dot: "bg-sky-400",
   },
   {
     value: "waiting",
     label: "Waiting",
-    color: "bg-slate-500/15 text-slate-400 border border-slate-500/25",
+    color: "bg-slate-500/8 text-slate-500 border border-slate-500/15",
     dot: "bg-slate-500",
   },
   {
     value: "ready_for_qa",
-    label: "Ready For QA",
-    color: "bg-violet-500/20 text-violet-300 border border-violet-500/30",
-    dot: "bg-violet-400",
+    label: "Submitted for Review",
+    color: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
+    dot: "bg-indigo-400",
   },
   {
     value: "in_qa",
     label: "In QA",
-    color: "bg-violet-500/20 text-violet-300 border border-violet-500/30",
-    dot: "bg-violet-400",
+    color: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
+    dot: "bg-indigo-400",
   },
   {
     value: "correction_needed",
-    label: "Correction Required",
-    color: "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+    label: "Needs Correction",
+    color: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
     dot: "bg-amber-400",
   },
   {
     value: "stuck",
     label: "Blocked",
-    color: "bg-red-500/20 text-red-300 border border-red-500/30",
+    color: "bg-red-500/10 text-red-400 border border-red-500/20",
     dot: "bg-red-400",
   },
   {
     value: "done",
-    label: "Completed",
-    color: "bg-green-500/20 text-green-300 border border-green-500/30",
-    dot: "bg-green-400",
+    label: "Approved",
+    color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+    dot: "bg-emerald-400",
   },
 ];
 
 export const WORK_PRIORITIES: { value: WorkPriority; label: string; color: string }[] = [
   { value: "low", label: "Low", color: "text-slate-400" },
-  { value: "medium", label: "Medium", color: "text-blue-400" },
+  { value: "medium", label: "Medium", color: "text-slate-300" },
   { value: "high", label: "High", color: "text-amber-400" },
   { value: "urgent", label: "Urgent", color: "text-red-400" },
 ];
+
+export type EmployeeClockStatus = "on_shift" | "on_lunch" | "off_shift";
+
+export const CLOCK_STATUS_STYLES: Record<
+  EmployeeClockStatus,
+  { label: string; color: string; dot: string }
+> = {
+  on_shift: {
+    label: "Clocked In",
+    color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+    dot: "bg-emerald-400",
+  },
+  on_lunch: {
+    label: "On Lunch",
+    color: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+    dot: "bg-amber-400",
+  },
+  off_shift: {
+    label: "Clocked Out",
+    color: "bg-slate-500/10 text-slate-400 border border-slate-500/20",
+    dot: "bg-slate-500",
+  },
+};
 
 export const QA_RESULTS: { value: QaResult; label: string }[] = [
   { value: "pass", label: "Pass" },
@@ -154,4 +182,13 @@ export function qaStatusLabel(status: string): string {
     rejected: "Rejected",
   };
   return map[status] ?? status;
+}
+
+export function roleLabel(role: UserRole | string): string {
+  const normalized = role === "qa" ? "teamlead" : role;
+  return USER_ROLES.find((r) => r.value === normalized)?.label ?? String(role);
+}
+
+export function payTypeLabelConstant(payType: PayType | null | undefined): string {
+  return PAY_TYPES.find((p) => p.value === payType)?.label ?? "Hourly";
 }

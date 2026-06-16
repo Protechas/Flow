@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { USER_ROLES } from "@/lib/constants";
-import type { Team, User, UserRole } from "@/types/flow";
+import { USER_ROLES, PAY_TYPES } from "@/lib/constants";
+import type { PayType, Team, User, UserRole } from "@/types/flow";
 
 export function CreateUserForm({
   teams,
@@ -26,6 +26,7 @@ export function CreateUserForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole>("employee");
+  const [payType, setPayType] = useState<PayType>("hourly");
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [managerId, setManagerId] = useState("");
 
@@ -46,10 +47,12 @@ export function CreateUserForm({
           team_id: teamId || null,
           manager_id: managerId || null,
           hire_date: (fd.get("hire_date") as string) || null,
+          pay_type: role === "employee" ? payType : "salary",
         });
         setSuccess(`User created: ${(fd.get("email") as string).trim()}`);
         form.reset();
         setRole("employee");
+        setPayType("hourly");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Create failed");
       }
@@ -103,6 +106,26 @@ export function CreateUserForm({
             </SelectContent>
           </Select>
         </div>
+        {role === "employee" && (
+          <div className="space-y-2">
+            <Label>Pay type</Label>
+            <Select value={payType} onValueChange={(v) => v && setPayType(v as PayType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAY_TYPES.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Hourly employees clock in/out; salary employees track time via tasks only.
+            </p>
+          </div>
+        )}
         <div className="space-y-2">
           <Label>Team</Label>
           <Select value={teamId} onValueChange={(v) => v && setTeamId(v)}>

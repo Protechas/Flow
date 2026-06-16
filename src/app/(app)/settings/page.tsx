@@ -1,5 +1,6 @@
 import { DemoRoleSwitcher } from "@/components/auth/demo-role-switcher";
 import { PageHeader } from "@/components/layout/page-header";
+import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -21,6 +22,9 @@ export default async function SettingsPage() {
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="text-base">Profile</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Read-only — contact an administrator to update name, email, or role.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
@@ -47,6 +51,18 @@ export default async function SettingsPage() {
 
         <Card className="border-border/60">
           <CardHeader>
+            <CardTitle className="text-base">Appearance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="flow-helper mb-3">
+              Flow Executive Dark is the default premium operations theme. A soft green accent is used sparingly for focus and actions.
+            </p>
+            <ThemeSwitcher />
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60">
+          <CardHeader>
             <CardTitle className="text-base">Platform</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -58,10 +74,21 @@ export default async function SettingsPage() {
               <span className="text-muted-foreground">Roles</span>
               <span className="text-muted-foreground text-right">{USER_ROLES.map((r) => r.label).join(", ")}</span>
             </div>
-            {user.role === "admin" && (
-              <Button variant="outline" size="sm" render={<Link href="/settings/users" />}>
-                Manage users
-              </Button>
+            {(user.role === "admin" || user.role === "super_admin") && (
+              <>
+                <Button variant="outline" size="sm" render={<Link href="/settings/users" />}>
+                  Manage users
+                </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/departments" />}>
+                  Manage departments
+                </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/forecasting" />}>
+                  Forecasting settings
+                </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/workload-alerts" />}>
+                  Workload alerts
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>

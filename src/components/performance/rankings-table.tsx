@@ -22,9 +22,9 @@ export function RankingsTable({ rankings }: { rankings: EmployeeRanking[] }) {
         <tbody>
           {rankings.map((r) => (
             <tr key={r.userId} className="border-t border-border/40 hover:bg-muted/20">
-              <td className="py-3 px-4 font-bold text-violet-400">{r.rank}</td>
+              <td className="py-3 px-4 font-bold text-primary">{r.rank}</td>
               <td className="py-3 px-4">
-                <Link href={`/people/${r.userId}`} className="font-medium hover:text-violet-400">
+                <Link href={`/people/${r.userId}`} className="font-medium hover:text-primary">
                   {r.name}
                 </Link>
               </td>

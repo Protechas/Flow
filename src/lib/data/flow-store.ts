@@ -9,13 +9,18 @@ import type {
   Comment,
   Correction,
   DailyWrapUp,
+  DailyWrapUpOverride,
+  Department,
+  DepartmentUser,
   FlowFile,
+  ForecastSettings,
   Manufacturer,
   ManufacturerInput,
   Project,
   ProjectInput,
   QaResult,
   QaReview,
+  Team,
   TimeLog,
   User,
   WorkPackage,
@@ -26,19 +31,48 @@ import type {
   YearWorkItemInput,
 } from "@/types/flow";
 import {
+  aggregateProjectForecast,
+  calculateProjectPlanningForecast,
+} from "@/lib/forecast/engine";
+import { applyTaskLiveForecast } from "@/lib/forecast/live";
+import {
+  defaultForecastSettings,
+  readGlobalForecastSettings,
+  writeGlobalForecastSettings,
+} from "@/lib/forecast/settings-persistence";
+import {
   buildWorkflowContext,
   dispatchWorkflow,
 } from "@/lib/workflow/workflow-engine";
 import {
   MOCK_ACTIVITY,
+  MOCK_DAILY_WRAP_UPS,
+  MOCK_DEPARTMENTS,
+  MOCK_DEPARTMENT_USERS,
   MOCK_FILES,
   MOCK_MANUFACTURERS,
   MOCK_PROJECTS,
   MOCK_QA_REVIEWS,
+  MOCK_TEAMS,
   MOCK_TIME_LOGS,
   MOCK_USERS,
   MOCK_WORK_PACKAGES,
+  DEFAULT_DEPARTMENT_ID,
 } from "./mock-data";
+import { assignmentUpdates, defaultPackageTitle } from "@/lib/data/work-assign";
+import {
+  readPersistedWorkPackages,
+  readPersistedYearWorkItems,
+  writePersistedWorkPackages,
+  writePersistedYearWorkItems,
+} from "@/lib/data/work-store-persistence";
+import { initHierarchyFromStore } from "@/lib/auth/team-scope";
+import { resolveDepartmentForProject, resolveDepartmentForUser } from "@/lib/departments/resolve";
+
+function persistTaskStore() {
+  writePersistedWorkPackages(workPackages);
+  writePersistedYearWorkItems(yearWorkItems);
+}
 
 function workflowCtx() {
   return buildWorkflowContext({
@@ -59,6 +93,12 @@ let comments: Comment[] = [];
 let files: FlowFile[] = [];
 let activity: ActivityEvent[] = [];
 let dailyWrapUps: DailyWrapUp[] = [];
+let dailyWrapUpOverrides: DailyWrapUpOverride[] = [];
+let wrapUpBlockAttempts: { user_id: string; wrap_date: string; blocked_at: string }[] = [];
+let departments: Department[] = [];
+let teams: Team[] = [];
+let departmentUsers: DepartmentUser[] = [];
+let forecastSettings: ForecastSettings = readGlobalForecastSettings() ?? defaultForecastSettings();
 let initialized = false;
 
 function uid(prefix: string) {
@@ -79,6 +119,17 @@ function logActivity(
     { id: uid("act"), user_id: userId, work_package_id: workPackageId, type, summary, created_at: ts() },
     ...activity,
   ];
+}
+
+/** Exported for production-tracking module */
+export function logActivityBridge(
+  userId: string,
+  type: ActivityEventType,
+  summary: string,
+  workPackageId?: string
+) {
+  initFlowStore();
+  logActivity(userId, type, summary, workPackageId);
 }
 
 function syncPackageHours(packageId: string) {
@@ -169,17 +220,205 @@ export function initFlowStore() {
     year_work_item_id: `yr-${pkg.manufacturer_id}-${pkg.year}`,
   }));
 
+  const savedPackages = readPersistedWorkPackages();
+  const savedYears = readPersistedYearWorkItems();
+  if (savedPackages?.length) workPackages = savedPackages;
+  if (savedYears?.length) yearWorkItems = savedYears;
+
   timeLogs = [...MOCK_TIME_LOGS];
   qaReviews = [...MOCK_QA_REVIEWS];
   files = [...MOCK_FILES];
   activity = [...MOCK_ACTIVITY];
   corrections = [];
+  departments = [...MOCK_DEPARTMENTS];
+  teams = [...MOCK_TEAMS];
+  departmentUsers = [...MOCK_DEPARTMENT_USERS];
+  dailyWrapUps = [...MOCK_DAILY_WRAP_UPS];
 
   for (const y of yearWorkItems) syncYearFromPackages(y.id);
   for (const p of workPackages) {
     syncPackageHours(p.id);
     syncPackageFileCount(p.id);
   }
+  const persisted = readGlobalForecastSettings();
+  if (!persisted) {
+    forecastSettings = defaultForecastSettings();
+    writeGlobalForecastSettings(forecastSettings);
+  } else {
+    forecastSettings = persisted;
+  }
+  recalculateAllForecasts();
+  persistTaskStore();
+  initHierarchyFromStore(MOCK_USERS);
+}
+
+export function applyForecastSettingsSnapshot(snapshot: ForecastSettings): ForecastSettings {
+  initFlowStore();
+  forecastSettings = { ...forecastSettings, ...snapshot };
+  writeGlobalForecastSettings(forecastSettings);
+  recalculateAllForecasts();
+  return forecastSettings;
+}
+
+export function getForecastSettings(): ForecastSettings {
+  initFlowStore();
+  return forecastSettings;
+}
+
+export function updateForecastSettings(
+  updates: Partial<Pick<ForecastSettings, "minutes_per_document" | "productive_hours_per_day" | "working_days">>,
+  userId: string
+): ForecastSettings {
+  initFlowStore();
+  forecastSettings = {
+    ...forecastSettings,
+    ...updates,
+    updated_at: ts(),
+    updated_by: userId,
+  };
+  writeGlobalForecastSettings(forecastSettings);
+  recalculateAllForecasts();
+  return forecastSettings;
+}
+
+function buildForecastFields(
+  pkg: WorkPackage,
+  taskActiveMinutes?: number
+): Partial<WorkPackage> {
+  return applyTaskLiveForecast(pkg, {
+    settings: forecastSettings,
+    taskActiveMinutes,
+  });
+}
+
+export function refreshTaskLiveForecast(
+  taskId: string,
+  taskActiveMinutes?: number
+): WorkPackage | null {
+  initFlowStore();
+  const idx = workPackages.findIndex((p) => p.id === taskId);
+  if (idx < 0) return null;
+  const updated = {
+    ...workPackages[idx],
+    ...buildForecastFields(workPackages[idx], taskActiveMinutes),
+    updated_at: ts(),
+  };
+  workPackages[idx] = updated;
+  recalculateProjectForecast(updated.project_id);
+  return updated;
+}
+
+export function activateTaskLiveForecast(
+  taskId: string,
+  startedAtIso: string
+): WorkPackage | null {
+  initFlowStore();
+  const idx = workPackages.findIndex((p) => p.id === taskId);
+  if (idx < 0) return null;
+  const pkg = workPackages[idx];
+  const startDate = startedAtIso.split("T")[0];
+  const base: WorkPackage = {
+    ...pkg,
+    status: "working_on_it",
+    started_at: pkg.started_at ?? startedAtIso,
+    forecast_start_date: pkg.forecast_start_date ?? startDate,
+    forecast_mode: "active",
+    current_documents_completed: pkg.current_documents_completed ?? pkg.file_count ?? 0,
+  };
+  if (!base.assigned_at && base.assigned_to) {
+    base.assigned_at = base.created_at;
+  }
+  const updated = {
+    ...base,
+    ...buildForecastFields(base, 0),
+    updated_at: ts(),
+  };
+  workPackages[idx] = updated;
+  syncYearFromPackages(updated.year_work_item_id);
+  recalculateProjectForecast(updated.project_id);
+  return updated;
+}
+
+export function recalculateProjectForecast(projectId: string) {
+  const idx = projects.findIndex((p) => p.id === projectId);
+  if (idx < 0) return;
+  const pkgs = workPackages.filter((p) => p.project_id === projectId);
+  const project = projects[idx];
+  const rollup = aggregateProjectForecast(
+    pkgs,
+    project.manual_project_due_date,
+    project.due_date
+  );
+
+  if (rollup.estimated_total_documents != null) {
+    projects[idx] = {
+      ...project,
+      estimated_total_documents: rollup.estimated_total_documents,
+      estimated_total_hours: rollup.estimated_total_hours,
+      estimated_total_work_days: rollup.estimated_total_work_days,
+      suggested_project_due_date: rollup.suggested_project_due_date,
+      planning_project_due_date: rollup.planning_project_due_date,
+      active_project_due_date: rollup.active_project_due_date,
+      project_due_date_status: rollup.project_due_date_status,
+      forecast_confidence: rollup.forecast_confidence,
+      updated_at: ts(),
+    };
+    return;
+  }
+
+  if (project.estimated_total_documents && project.estimated_total_documents > 0) {
+    const refreshed = calculateProjectPlanningForecast(
+      {
+        estimated_total_documents: project.estimated_total_documents,
+        complexity_level: project.planning_complexity_level,
+        start_date: project.start_date,
+        manual_project_due_date: project.manual_project_due_date,
+        due_date: project.due_date,
+      },
+      { settings: forecastSettings }
+    );
+    projects[idx] = {
+      ...project,
+      estimated_total_hours: refreshed.estimated_total_hours,
+      estimated_total_work_days: refreshed.estimated_total_work_days,
+      suggested_project_due_date: refreshed.suggested_project_due_date,
+      planning_project_due_date: refreshed.planning_project_due_date,
+      active_project_due_date: refreshed.active_project_due_date,
+      project_due_date_status: refreshed.project_due_date_status,
+      forecast_confidence: refreshed.forecast_confidence,
+      due_date: refreshed.due_date ?? project.due_date,
+      updated_at: ts(),
+    };
+    return;
+  }
+
+  projects[idx] = {
+    ...project,
+    estimated_total_documents: rollup.estimated_total_documents,
+    estimated_total_hours: rollup.estimated_total_hours,
+    estimated_total_work_days: rollup.estimated_total_work_days,
+    suggested_project_due_date: rollup.suggested_project_due_date,
+    planning_project_due_date: rollup.planning_project_due_date,
+    active_project_due_date: rollup.active_project_due_date,
+    project_due_date_status: rollup.project_due_date_status,
+    forecast_confidence: rollup.forecast_confidence,
+    updated_at: ts(),
+  };
+}
+
+function recalculateAllForecasts() {
+  workPackages = workPackages.map((pkg) => applyForecastToPackage(pkg));
+  for (const p of projects) {
+    recalculateProjectForecast(p.id);
+  }
+}
+
+function applyForecastToPackage(
+  pkg: WorkPackage,
+  taskActiveMinutes?: number
+): WorkPackage {
+  const fields = buildForecastFields(pkg, taskActiveMinutes);
+  return { ...pkg, ...fields };
 }
 
 export function getFlowStore() {
@@ -197,6 +436,12 @@ export function getFlowStore() {
     files,
     activity,
     dailyWrapUps,
+    dailyWrapUpOverrides,
+    wrapUpBlockAttempts,
+    departments,
+    teams,
+    departmentUsers,
+    forecastSettings,
   };
 }
 
@@ -211,26 +456,61 @@ export function enrichPackages(items: WorkPackage[]): WorkPackage[] {
 }
 
 // ——— Projects ———
+function applyProjectPlanning(input: ProjectInput): Partial<Project> {
+  const planning = calculateProjectPlanningForecast(
+    {
+      estimated_total_documents: input.estimated_total_documents,
+      complexity_level: input.planning_complexity_level,
+      start_date: input.start_date,
+      manual_project_due_date: input.manual_project_due_date ?? input.due_date,
+      due_date: input.due_date,
+    },
+    { settings: forecastSettings }
+  );
+  return {
+    estimated_total_documents: planning.estimated_total_documents,
+    estimated_total_hours: planning.estimated_total_hours,
+    estimated_total_work_days: planning.estimated_total_work_days,
+    suggested_project_due_date: planning.suggested_project_due_date,
+    planning_project_due_date: planning.planning_project_due_date,
+    active_project_due_date: planning.active_project_due_date,
+    manual_project_due_date: planning.manual_project_due_date,
+    project_due_date_status: planning.project_due_date_status,
+    forecast_confidence: planning.forecast_confidence,
+    planning_complexity_level: input.estimated_total_documents
+      ? (input.planning_complexity_level ?? "standard")
+      : null,
+    due_date: planning.due_date,
+  };
+}
+
 export function createProject(input: ProjectInput, templateId?: ProjectTemplateId): Project {
   initFlowStore();
+  const teamId = input.team_id ?? "team-1";
+  const team = teams.find((t) => t.id === teamId);
+  const planningFields = applyProjectPlanning(input);
   const project: Project = {
     id: uid("proj"),
     name: input.name,
     description: input.description ?? null,
     project_type: input.project_type,
-    team_id: "team-1",
+    department_id: input.department_id ?? team?.department_id ?? DEFAULT_DEPARTMENT_ID,
+    team_id: teamId,
+    is_cross_department: input.is_cross_department ?? false,
     status: input.status,
     priority: input.priority,
     start_date: input.start_date ?? null,
-    due_date: input.due_date ?? null,
+    due_date: planningFields.due_date ?? input.due_date ?? null,
     end_date: null,
     project_owner_id: input.project_owner_id ?? null,
     created_by: input.project_owner_id ?? null,
+    ...planningFields,
     created_at: ts(),
     updated_at: ts(),
   };
   projects = [project, ...projects];
   logActivity(input.project_owner_id ?? "user-manager", "status_change", `Created project ${project.name}`);
+  persistTaskStore();
 
   if (templateId && templateId !== "custom") {
     const tpl = PROJECT_TEMPLATES.find((t) => t.id === templateId);
@@ -252,16 +532,50 @@ export function createProject(input: ProjectInput, templateId?: ProjectTemplateI
   return project;
 }
 
-export function updateProject(id: string, updates: Partial<Project>) {
+export function updateProject(id: string, updates: Partial<Project> & Partial<ProjectInput>) {
   const idx = projects.findIndex((p) => p.id === id);
   if (idx < 0) return null;
-  projects[idx] = { ...projects[idx], ...updates, updated_at: ts() };
+
+  const prev = projects[idx];
+  const merged = { ...prev, ...updates };
+  const planningTouched =
+    updates.estimated_total_documents !== undefined ||
+    updates.planning_complexity_level !== undefined ||
+    updates.start_date !== undefined ||
+    updates.manual_project_due_date !== undefined ||
+    updates.due_date !== undefined;
+
+  let next: Project = { ...merged, updated_at: ts() };
+
+  if (planningTouched) {
+    const planning = applyProjectPlanning({
+      name: next.name,
+      description: next.description,
+      project_type: next.project_type,
+      status: next.status,
+      priority: next.priority,
+      start_date: next.start_date,
+      due_date: next.due_date,
+      manual_project_due_date: next.manual_project_due_date ?? next.due_date,
+      project_owner_id: next.project_owner_id,
+      estimated_total_documents: next.estimated_total_documents,
+      planning_complexity_level: next.planning_complexity_level,
+    });
+    next = { ...next, ...planning };
+  }
+
+  projects[idx] = next;
   logActivity(
     projects[idx].project_owner_id ?? "user-manager",
     "status_change",
     `Updated project ${projects[idx].name}`,
   );
-  rebuildAllRollups();
+
+  if (planningTouched) {
+    recalculateProjectForecast(id);
+  } else {
+    rebuildAllRollups();
+  }
   return projects[idx];
 }
 
@@ -371,6 +685,7 @@ export function createYearWorkItem(input: YearWorkItemInput): YearWorkItem {
   };
   yearWorkItems = [item, ...yearWorkItems];
   rebuildAllRollups();
+  persistTaskStore();
   return item;
 }
 
@@ -405,15 +720,40 @@ export function updateYearWorkItem(id: string, updates: Partial<YearWorkItem>) {
       updateWorkPackage(pkgId, { status: updates.status! });
     }
   } else if (updates.assigned_to !== undefined) {
-    workPackages = workPackages.map((p) =>
-      p.year_work_item_id === id
-        ? { ...p, assigned_to: updates.assigned_to, updated_at: ts() }
-        : p
-    );
+    const year = yearWorkItems[idx];
+    let pkgIds = workPackages
+      .filter((p) => p.year_work_item_id === id)
+      .map((p) => p.id);
+
+    if (pkgIds.length === 0 && updates.assigned_to) {
+      const mfr = manufacturers.find((m) => m.id === year.manufacturer_id);
+      const project = projects.find((p) => p.id === year.project_id);
+      const created = createWorkPackage({
+        project_id: year.project_id,
+        manufacturer_id: year.manufacturer_id,
+        year_work_item_id: year.id,
+        year: year.year,
+        title: defaultPackageTitle(year, mfr?.name),
+        assigned_to: updates.assigned_to,
+        status: "assigned",
+        priority: year.priority,
+        due_date: year.due_date,
+        estimated_hours: year.estimated_hours,
+        department_id: project ? resolveDepartmentForProject(project) : DEFAULT_DEPARTMENT_ID,
+      });
+      pkgIds = [created.id];
+    } else {
+      for (const pkgId of pkgIds) {
+        const pkg = workPackages.find((p) => p.id === pkgId);
+        if (!pkg) continue;
+        updateWorkPackage(pkgId, assignmentUpdates(updates.assigned_to, pkg.status));
+      }
+    }
     rebuildAllRollups();
   } else {
     rebuildAllRollups();
   }
+  persistTaskStore();
   return yearWorkItems[idx];
 }
 
@@ -432,45 +772,118 @@ export function deleteYearWorkItem(id: string) {
 // ——— Work packages ———
 export function createWorkPackage(input: WorkPackageInput): WorkPackage {
   initFlowStore();
+  const project = projects.find((p) => p.id === input.project_id);
   const pkg: WorkPackage = {
     id: uid("wp"),
     ...input,
+    department_id: input.department_id ?? (project ? resolveDepartmentForProject(project) : DEFAULT_DEPARTMENT_ID),
     notes: input.notes ?? null,
     description: input.description ?? null,
     assigned_to: input.assigned_to ?? null,
-    due_date: input.due_date ?? null,
-    start_date: input.start_date ?? null,
+    due_date: input.manual_due_date ?? input.due_date ?? null,
+    manual_due_date: input.manual_due_date ?? input.due_date ?? null,
+    start_date: input.start_date ?? new Date().toISOString().split("T")[0],
+    estimated_document_count: input.estimated_document_count ?? null,
+    complexity_level: input.complexity_level ?? "standard",
     completed_date: null,
     actual_hours: 0,
     file_count: 0,
     qa_status: "pending",
     correction_count: 0,
+    forecast_mode: "planning",
+    assigned_at: input.assigned_to ? ts() : null,
+    started_at: null,
+    planning_due_date: null,
+    active_due_date: null,
+    forecast_start_date: null,
+    completed_at: null,
+    current_documents_completed: 0,
+    estimated_remaining_documents: input.estimated_document_count ?? null,
+    current_production_rate: null,
+    forecast_last_updated: null,
+    live_forecast_status: null,
+    forecast_variance_days: null,
     created_at: ts(),
     updated_at: ts(),
   };
-  workPackages = [pkg, ...workPackages];
-  syncYearFromPackages(pkg.year_work_item_id);
-  logActivity(pkg.assigned_to ?? "user-manager", "status_change", `Created task ${pkg.title}`, pkg.id);
-  if (pkg.assigned_to) {
+  const forecasted = applyForecastToPackage(pkg);
+  workPackages = [forecasted, ...workPackages];
+  syncYearFromPackages(forecasted.year_work_item_id);
+  recalculateProjectForecast(forecasted.project_id);
+  logActivity(forecasted.assigned_to ?? "user-manager", "status_change", `Created task ${forecasted.title}`, forecasted.id);
+  if (forecasted.assigned_to) {
     dispatchWorkflow(
-      { type: "assignment", pkgId: pkg.id, prevAssignee: null, actorId: pkg.assigned_to },
+      { type: "assignment", pkgId: forecasted.id, prevAssignee: null, actorId: forecasted.assigned_to },
       workflowCtx()
     );
   }
-  return pkg;
+
+  persistTaskStore();
+  return forecasted;
+}
+
+function mergeAssignmentUpdates(
+  prev: WorkPackage,
+  updates: Partial<WorkPackage>
+): Partial<WorkPackage> {
+  if (updates.assigned_to === undefined || updates.status !== undefined) return updates;
+  return { ...updates, ...assignmentUpdates(updates.assigned_to, prev.status) };
 }
 
 export function updateWorkPackage(id: string, updates: Partial<WorkPackage>) {
   const idx = workPackages.findIndex((w) => w.id === id);
   if (idx < 0) return null;
   const prev = workPackages[idx];
-  const updated = { ...prev, ...updates, updated_at: ts() };
-  if (updates.status === "done" && !updated.completed_date) {
-    updated.completed_date = new Date().toISOString().split("T")[0];
+  updates = mergeAssignmentUpdates(prev, updates);
+  let updated = { ...prev, ...updates, updated_at: ts() };
+  if (updates.due_date !== undefined && updates.manual_due_date === undefined) {
+    updated.manual_due_date = updates.due_date;
+  }
+  if (updates.assigned_to !== undefined && updates.assigned_to !== prev.assigned_to) {
+    updated.assigned_at = updates.assigned_to ? ts() : null;
+    if (updates.assigned_to && updated.forecast_mode !== "active") {
+      updated.forecast_mode = "planning";
+    }
+  }
+  if (updates.file_count !== undefined && updates.file_count !== prev.file_count) {
+    updated.current_documents_completed = updates.file_count;
+  }
+  if (updates.status === "done") {
+    if (!updated.completed_date) {
+      updated.completed_date = new Date().toISOString().split("T")[0];
+    }
+    if (!updated.completed_at) {
+      updated.completed_at = ts();
+    }
   }
   if (updates.status === "ready_for_qa") updated.qa_status = "pending";
+
+  const forecastFields = [
+    "estimated_document_count",
+    "complexity_level",
+    "estimated_minutes_per_document",
+    "start_date",
+    "manual_due_date",
+    "due_date",
+    "assigned_to",
+    "assigned_at",
+    "started_at",
+    "forecast_mode",
+    "forecast_start_date",
+    "current_documents_completed",
+    "file_count",
+    "status",
+  ] as const;
+  const needsForecast = forecastFields.some((k) => updates[k] !== undefined);
+  if (needsForecast) {
+    updated = applyForecastToPackage(updated);
+  }
+
   workPackages[idx] = updated;
   syncYearFromPackages(updated.year_work_item_id);
+  if (needsForecast || updates.status !== undefined) {
+    recalculateProjectForecast(updated.project_id);
+  }
 
   const actor = updated.assigned_to ?? prev.assigned_to ?? "user-manager";
   if (updates.status && updates.status !== prev.status) {
@@ -505,6 +918,7 @@ export function updateWorkPackage(id: string, updates: Partial<WorkPackage>) {
     );
   }
 
+  persistTaskStore();
   return updated;
 }
 
@@ -516,7 +930,11 @@ export function deleteWorkPackage(id: string) {
   corrections = corrections.filter((c) => c.work_package_id !== id);
   comments = comments.filter((c) => c.work_package_id !== id);
   files = files.filter((f) => f.work_package_id !== id);
-  if (pkg) syncYearFromPackages(pkg.year_work_item_id);
+  if (pkg) {
+    syncYearFromPackages(pkg.year_work_item_id);
+    recalculateProjectForecast(pkg.project_id);
+  }
+  persistTaskStore();
   return true;
 }
 
@@ -794,6 +1212,7 @@ export function deleteCorrection(id: string) {
 export function createDailyWrapUp(input: {
   user_id: string;
   wrap_date: string;
+  department_id?: string | null;
   completed_summary?: string | null;
   blockers?: string | null;
   needs_support?: boolean;
@@ -806,12 +1225,18 @@ export function createDailyWrapUp(input: {
   const entry: DailyWrapUp = {
     id: uid("wrap"),
     user_id: input.user_id,
+    department_id: input.department_id ?? resolveDepartmentForUser(input.user_id),
     wrap_date: input.wrap_date,
     completed_summary: input.completed_summary ?? null,
     blockers: input.blockers ?? null,
     needs_support: input.needs_support ?? false,
     needs_support_note: input.needs_support_note ?? null,
     created_at: ts(),
+    reviewed_at: null,
+    reviewed_by: null,
+    internal_notes: null,
+    follow_up_needed: false,
+    follow_up_notes: null,
   };
   if (existing >= 0) {
     dailyWrapUps[existing] = entry;
@@ -824,4 +1249,200 @@ export function createDailyWrapUp(input: {
 export function getDailyWrapUp(userId: string, wrapDate: string): DailyWrapUp | null {
   initFlowStore();
   return dailyWrapUps.find((w) => w.user_id === userId && w.wrap_date === wrapDate) ?? null;
+}
+
+export function getDailyWrapUpById(id: string): DailyWrapUp | null {
+  initFlowStore();
+  return dailyWrapUps.find((w) => w.id === id) ?? null;
+}
+
+export function updateDailyWrapUpReview(
+  id: string,
+  updates: Partial<
+    Pick<
+      DailyWrapUp,
+      | "reviewed_at"
+      | "reviewed_by"
+      | "internal_notes"
+      | "follow_up_needed"
+      | "follow_up_notes"
+    >
+  >
+): DailyWrapUp | null {
+  initFlowStore();
+  const idx = dailyWrapUps.findIndex((w) => w.id === id);
+  if (idx < 0) return null;
+  dailyWrapUps[idx] = { ...dailyWrapUps[idx], ...updates };
+  return dailyWrapUps[idx];
+}
+
+export function getWrapUpOverride(userId: string, wrapDate: string): DailyWrapUpOverride | null {
+  initFlowStore();
+  return (
+    dailyWrapUpOverrides.find((o) => o.user_id === userId && o.wrap_date === wrapDate) ?? null
+  );
+}
+
+export function createWrapUpOverride(input: {
+  user_id: string;
+  wrap_date: string;
+  reason: string;
+  overridden_by: string;
+}): DailyWrapUpOverride {
+  initFlowStore();
+  const existing = dailyWrapUpOverrides.findIndex(
+    (o) => o.user_id === input.user_id && o.wrap_date === input.wrap_date
+  );
+  const entry: DailyWrapUpOverride = {
+    id: uid("wrap-override"),
+    user_id: input.user_id,
+    wrap_date: input.wrap_date,
+    reason: input.reason,
+    overridden_by: input.overridden_by,
+    overridden_at: ts(),
+  };
+  if (existing >= 0) {
+    dailyWrapUpOverrides[existing] = entry;
+  } else {
+    dailyWrapUpOverrides = [entry, ...dailyWrapUpOverrides];
+  }
+  return entry;
+}
+
+export function recordWrapUpBlockAttempt(userId: string, wrapDate: string): void {
+  initFlowStore();
+  wrapUpBlockAttempts = [
+    { user_id: userId, wrap_date: wrapDate, blocked_at: ts() },
+    ...wrapUpBlockAttempts.filter(
+      (b) => !(b.user_id === userId && b.wrap_date === wrapDate)
+    ),
+  ];
+}
+
+export function getWrapUpBlockAttempt(
+  userId: string,
+  wrapDate: string
+): { blocked_at: string } | null {
+  initFlowStore();
+  return (
+    wrapUpBlockAttempts.find((b) => b.user_id === userId && b.wrap_date === wrapDate) ?? null
+  );
+}
+
+// ——— Departments ———
+
+export function listDepartments(): Department[] {
+  initFlowStore();
+  return [...departments];
+}
+
+export function listTeamsStore(): Team[] {
+  initFlowStore();
+  return [...teams];
+}
+
+export function listDepartmentUsers(): DepartmentUser[] {
+  initFlowStore();
+  return [...departmentUsers];
+}
+
+export function createTeam(input: {
+  name: string;
+  description?: string | null;
+  department_id?: string | null;
+  manager_id?: string | null;
+}): Team {
+  initFlowStore();
+  const team: Team = {
+    id: uid("team"),
+    name: input.name,
+    description: input.description ?? null,
+    department_id: input.department_id ?? null,
+    manager_id: input.manager_id ?? null,
+    created_at: ts(),
+    updated_at: ts(),
+  };
+  teams = [team, ...teams];
+  return team;
+}
+
+export function updateTeam(
+  id: string,
+  updates: Partial<Pick<Team, "name" | "description" | "department_id" | "manager_id">>
+): Team | null {
+  initFlowStore();
+  const idx = teams.findIndex((t) => t.id === id);
+  if (idx < 0) return null;
+  teams[idx] = { ...teams[idx], ...updates, updated_at: ts() };
+  return teams[idx];
+}
+
+export function createDepartment(input: {
+  name: string;
+  description?: string | null;
+  lead_user_id?: string | null;
+}): Department {
+  initFlowStore();
+  const dept: Department = {
+    id: uid("dept"),
+    name: input.name,
+    description: input.description ?? null,
+    lead_user_id: input.lead_user_id ?? null,
+    status: "active",
+    created_at: ts(),
+    updated_at: ts(),
+  };
+  departments = [dept, ...departments];
+  return dept;
+}
+
+export function updateDepartment(
+  id: string,
+  updates: Partial<Pick<Department, "name" | "description" | "lead_user_id" | "status">>
+): Department | null {
+  initFlowStore();
+  const idx = departments.findIndex((d) => d.id === id);
+  if (idx < 0) return null;
+  departments[idx] = { ...departments[idx], ...updates, updated_at: ts() };
+  return departments[idx];
+}
+
+export function setUserDepartmentMembership(
+  userId: string,
+  departmentId: string,
+  opts: { is_primary?: boolean; role_in_department?: DepartmentUser["role_in_department"] } = {}
+): DepartmentUser {
+  initFlowStore();
+  if (opts.is_primary) {
+    departmentUsers = departmentUsers.map((du) =>
+      du.user_id === userId ? { ...du, is_primary: du.department_id === departmentId } : du
+    );
+  }
+  const existing = departmentUsers.findIndex(
+    (du) => du.user_id === userId && du.department_id === departmentId
+  );
+  const entry: DepartmentUser = {
+    id: existing >= 0 ? departmentUsers[existing].id : uid("du"),
+    department_id: departmentId,
+    user_id: userId,
+    role_in_department: opts.role_in_department ?? "member",
+    is_primary: opts.is_primary ?? (existing >= 0 ? departmentUsers[existing].is_primary : false),
+    created_at: existing >= 0 ? departmentUsers[existing].created_at : ts(),
+    updated_at: ts(),
+  };
+  if (existing >= 0) {
+    departmentUsers[existing] = entry;
+  } else {
+    departmentUsers = [entry, ...departmentUsers];
+  }
+  return entry;
+}
+
+export function removeUserDepartmentMembership(userId: string, departmentId: string): boolean {
+  initFlowStore();
+  const before = departmentUsers.length;
+  departmentUsers = departmentUsers.filter(
+    (du) => !(du.user_id === userId && du.department_id === departmentId)
+  );
+  return departmentUsers.length < before;
 }

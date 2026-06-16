@@ -36,6 +36,12 @@ export async function demoLoginAction(userId: string, rememberMe = false) {
   redirect(getDefaultRoute(normalizeRole(user.role)));
 }
 
+export async function demoLoginFormAction(formData: FormData) {
+  const userId = String(formData.get("userId") ?? "");
+  const rememberMe = formData.get("rememberMe") === "true";
+  await demoLoginAction(userId, rememberMe);
+}
+
 export async function supabaseLoginAction(
   email: string,
   password: string,
@@ -204,4 +210,9 @@ export async function switchDemoUserAction(userId: string) {
   await setDemoUserCookie(userId, true);
   revalidatePath("/", "layout");
   redirect(getDefaultRoute(normalizeRole(user.role)));
+}
+
+export async function switchDemoUserFormAction(formData: FormData) {
+  const userId = String(formData.get("userId") ?? "");
+  await switchDemoUserAction(userId);
 }

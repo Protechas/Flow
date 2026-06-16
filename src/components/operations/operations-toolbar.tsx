@@ -113,7 +113,7 @@ export function OperationsToolbar({
         >
           <Filter className="h-3.5 w-3.5 mr-1" />
           Filters
-          {hasExtraFilters && <span className="ml-1 text-violet-400">•</span>}
+          {hasExtraFilters && <span className="ml-1 text-primary">•</span>}
         </Button>
 
         {hasExtraFilters && (
@@ -134,7 +134,7 @@ export function OperationsToolbar({
       </div>
 
       {showFilters && (
-        <div className="flex flex-wrap gap-2 p-3 rounded-lg border border-border/60 bg-muted/20">
+        <div className="flex flex-wrap gap-2 p-3 rounded-md border border-border bg-secondary/30">
           <Select
             value={filters.projectId ?? "__all__"}
             onValueChange={(v) =>
@@ -288,8 +288,8 @@ export function OperationsToolbar({
       )}
 
       {canBulk && selectedCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-violet-500/30 bg-violet-500/5">
-          <span className="text-xs font-medium text-violet-300">{selectedCount} selected</span>
+        <div className="flex flex-wrap items-center gap-2 p-2 rounded-md border border-primary/25 bg-primary/5">
+          <span className="text-xs font-medium text-primary">{selectedCount} selected</span>
           {onBulkAssign && (
             <Select onValueChange={(v) => onBulkAssign(typeof v === "string" && v !== "__none__" ? v : null)}>
               <SelectTrigger className="h-7 w-[130px] text-xs">

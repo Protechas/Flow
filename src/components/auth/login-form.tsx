@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { demoLoginAction, supabaseLoginAction } from "@/app/actions/auth";
+import {
+  demoLoginFormAction,
+  supabaseLoginAction,
+} from "@/app/actions/auth";
+import { rethrowNextNavigation } from "@/lib/navigation/rethrow-server-navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,21 +18,26 @@ interface LoginFormProps {
   supabaseEnabled: boolean;
 }
 
+function DemoUserSubmitButton({ user }: { user: User }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      variant="outline"
+      className="justify-start h-auto py-2 w-full"
+      disabled={pending}
+    >
+      <span className="font-medium">{user.full_name}</span>
+      <span className="text-xs text-muted-foreground ml-2">{user.email}</span>
+    </Button>
+  );
+}
+
 export function LoginForm({ demoUsers, supabaseEnabled }: LoginFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
-
-  function handleDemoLogin(userId: string) {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await demoLoginAction(userId, rememberMe);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Login failed");
-      }
-    });
-  }
 
   function handleSupabaseLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,12 +51,13 @@ export function LoginForm({ demoUsers, supabaseEnabled }: LoginFormProps) {
           rememberMe
         );
       } catch (err) {
+        rethrowNextNavigation(err);
         setError(err instanceof Error ? err.message : "Login failed");
       }
     });
   }
 
-  const byRole = ["admin", "manager", "qa", "employee", "viewer"] as const;
+  const byRole = ["admin", "manager", "teamlead", "employee", "viewer"] as const;
 
   return (
     <div className="space-y-6">
@@ -73,7 +84,7 @@ export function LoginForm({ demoUsers, supabaseEnabled }: LoginFormProps) {
             {pending ? "Signing in…" : "Sign in"}
           </Button>
           <p className="text-center text-sm">
-            <Link href="/auth/forgot-password" className="text-violet-400 hover:underline">
+            <Link href="/auth/forgot-password" className="text-primary hover:underline">
               Forgot password?
             </Link>
           </p>
@@ -104,17 +115,15 @@ export function LoginForm({ demoUsers, supabaseEnabled }: LoginFormProps) {
                 </p>
                 <div className="grid gap-2">
                   {users.map((u) => (
-                    <Button
-                      key={u.id}
-                      type="button"
-                      variant="outline"
-                      className="justify-start h-auto py-2"
-                      disabled={pending}
-                      onClick={() => handleDemoLogin(u.id)}
-                    >
-                      <span className="font-medium">{u.full_name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{u.email}</span>
-                    </Button>
+                    <form key={u.id} action={demoLoginFormAction}>
+                      <input type="hidden" name="userId" value={u.id} />
+                      <input
+                        type="hidden"
+                        name="rememberMe"
+                        value={rememberMe ? "true" : "false"}
+                      />
+                      <DemoUserSubmitButton user={u} />
+                    </form>
                   ))}
                 </div>
               </div>

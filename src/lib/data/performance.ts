@@ -1,5 +1,4 @@
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
-import { MOCK_TEAM } from "@/lib/data/mock-data";
+import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import {
   buildAccountabilityReport,
   buildCoachingReport,
@@ -20,7 +19,7 @@ function getPerformanceStore(): PerformanceStoreSlice {
   const store = getFlowStore();
   return {
     users: store.users,
-    teams: [MOCK_TEAM],
+    teams: listTeamsStore(),
     workPackages: store.workPackages,
     timeLogs: store.timeLogs,
     qaReviews: store.qaReviews,

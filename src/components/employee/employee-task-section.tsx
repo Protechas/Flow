@@ -30,20 +30,19 @@ export function EmployeeTaskSection({
   return (
     <section
       className={cn(
-        "rounded-xl border overflow-hidden",
-        urgent && tasks.length > 0 && "border-orange-500/40 bg-orange-500/5",
-        highlight && tasks.length > 0 && "border-indigo-500/40 bg-indigo-500/5",
-        !urgent && !highlight && "border-border/60 bg-card/40"
+        "enterprise-panel overflow-hidden",
+        urgent && tasks.length > 0 && "border-amber-500/30",
+        highlight && tasks.length > 0 && "border-primary/30"
       )}
     >
       <button
         type="button"
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left enterprise-row-hover transition-colors"
         onClick={() => setOpen((o) => !o)}
       >
         <div>
-          <h2 className="font-semibold text-base">{title}</h2>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <h2 className="flow-section-title">{title}</h2>
+          <p className="flow-meta">{description}</p>
         </div>
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="tabular-nums font-medium text-foreground">{tasks.length}</span>
@@ -51,24 +50,24 @@ export function EmployeeTaskSection({
         </span>
       </button>
       {open && (
-        <ul className="border-t border-border/40 divide-y divide-border/30">
+        <ul className="border-t border-border divide-y divide-border">
           {tasks.length === 0 ? (
-            <li className="px-4 py-6 text-sm text-muted-foreground text-center">{emptyLabel}</li>
+            <li className="px-4 py-6 flow-helper text-center">{emptyLabel}</li>
           ) : (
             tasks.map((t) => (
               <li key={t.id}>
                 <Link
                   href={`/work/${t.id}`}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 enterprise-row-hover transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{t.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-sm font-medium truncate">{t.title}</p>
+                    <p className="flow-meta truncate">
                       {t.project?.name} · {t.manufacturer?.name} · {t.year}
                     </p>
                   </div>
                   <PriorityBadge priority={t.priority} />
-                  <StatusBadge status={t.status} />
+                  <StatusBadge status={t.status} size="sm" />
                 </Link>
               </li>
             ))

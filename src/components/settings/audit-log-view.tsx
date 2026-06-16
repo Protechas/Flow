@@ -28,7 +28,7 @@ export function AuditLogView({ entries }: { entries: AuditLogEntry[] }) {
               </td>
               <td className="py-2 px-4 text-xs">{e.actor_email ?? "System"}</td>
               <td className="py-2 px-4">
-                <span className="text-xs capitalize text-violet-400">
+                <span className="text-xs capitalize text-primary">
                   {e.action.replace(/_/g, " ")}
                 </span>
               </td>

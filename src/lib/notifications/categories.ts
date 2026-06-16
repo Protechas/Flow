@@ -1,0 +1,93 @@
+import type { NotificationCategory, NotificationType } from "@/types/flow";
+
+export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
+  help: "Needs Help",
+  workload: "Running Out of Work",
+  wrap_up: "Wrap-Ups",
+  forecast: "Forecast Risk",
+  qa: "QA",
+  task: "Tasks",
+  project: "Projects",
+  assignment: "Assignments",
+  department: "Departments",
+  other: "Other",
+};
+
+export const NOTIFICATION_TYPE_CATEGORY: Record<NotificationType, NotificationCategory> = {
+  help_flag_raised: "help",
+  help_flag_escalated: "help",
+  help_flag_acknowledged: "help",
+  help_flag_resolved: "help",
+  workload_low: "workload",
+  workload_empty: "workload",
+  workload_needs_estimate: "workload",
+  workload_clocked_idle: "workload",
+  missing_wrap_up: "wrap_up",
+  forecast_risk: "forecast",
+  qa_review_needed: "qa",
+  qa_passed: "qa",
+  qa_rejected: "qa",
+  correction_issued: "qa",
+  correction_resolved: "qa",
+  task_due_soon: "task",
+  task_overdue: "task",
+  work_stuck: "task",
+  employee_overloaded: "task",
+  project_at_risk: "project",
+  new_assignment: "assignment",
+  assignment_changed: "assignment",
+  department_alert: "department",
+  comment_mention: "other",
+  file_uploaded: "other",
+};
+
+export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>> = {
+  help_flag_raised: "Employee needs help",
+  help_flag_escalated: "Help flag escalated",
+  help_flag_acknowledged: "Help acknowledged",
+  help_flag_resolved: "Help resolved",
+  workload_low: "Running low on work",
+  workload_empty: "No assigned work",
+  workload_needs_estimate: "Needs work estimate",
+  workload_clocked_idle: "Clocked in without work",
+  missing_wrap_up: "Missing wrap-up",
+  forecast_risk: "Forecast at risk",
+  qa_review_needed: "QA review needed",
+  qa_passed: "QA passed",
+  qa_rejected: "QA rejected",
+  correction_issued: "Correction needed",
+  correction_resolved: "Correction resolved",
+  task_due_soon: "Task due soon",
+  task_overdue: "Task overdue",
+  work_stuck: "Task stuck",
+  employee_overloaded: "Employee overloaded",
+  project_at_risk: "Project at risk",
+  new_assignment: "New assignment",
+  assignment_changed: "Assignment changed",
+  department_alert: "Department alert",
+  comment_mention: "Mention",
+  file_uploaded: "File uploaded",
+};
+
+export function categoryForType(type: NotificationType): NotificationCategory {
+  return NOTIFICATION_TYPE_CATEGORY[type] ?? "other";
+}
+
+export function typesForCategory(category: NotificationCategory): NotificationType[] {
+  return (Object.entries(NOTIFICATION_TYPE_CATEGORY) as [NotificationType, NotificationCategory][])
+    .filter(([, cat]) => cat === category)
+    .map(([type]) => type);
+}
+
+export const NOTIFICATION_CENTER_CATEGORIES: NotificationCategory[] = [
+  "help",
+  "workload",
+  "wrap_up",
+  "forecast",
+  "qa",
+  "task",
+  "project",
+  "assignment",
+  "department",
+  "other",
+];

@@ -4,23 +4,28 @@ import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import { ManagerScorecardOverview } from "@/components/scorecard/manager-scorecard-overview";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
+import { normalizePayType } from "@/lib/users/pay-type";
 import type { EmployeeScorecard, TeamScorecardSummary } from "@/types/flow";
 
 export function PeopleDashboard({
   profiles,
   teamSummary,
+  analyticsHref,
 }: {
   profiles: EmployeeScorecard[];
   teamSummary: TeamScorecardSummary;
+  analyticsHref?: string;
 }) {
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" render={<Link href="/performance" />}>
-          Analytics
-        </Button>
-      </div>
+      {analyticsHref && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" render={<Link href={analyticsHref} />}>
+            Analytics
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <EnterpriseKpi
@@ -60,6 +65,7 @@ export function PeopleDashboard({
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTh>Employee</EnterpriseTh>
+              <EnterpriseTh>Pay</EnterpriseTh>
               <EnterpriseTh align="right">Flow Score</EnterpriseTh>
               <EnterpriseTh align="right">Productivity</EnterpriseTh>
               <EnterpriseTh align="right">Quality</EnterpriseTh>
@@ -78,6 +84,13 @@ export function PeopleDashboard({
                     {p.user.full_name}
                   </Link>
                   <p className="text-xs text-muted-foreground">Rank #{p.rank}</p>
+                </EnterpriseTd>
+                <EnterpriseTd>
+                  {p.user.role === "employee" ? (
+                    <PayTypeBadge payType={normalizePayType(p.user.pay_type, p.user.role)} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </EnterpriseTd>
                 <EnterpriseTd align="right">
                   <span className="font-semibold">{p.flowScore}</span>

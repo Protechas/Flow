@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateProjectAction } from "@/app/actions/crud";
+import { ProjectForecastSection } from "@/components/forecast/project-forecast-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,23 +22,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PROJECT_STATUSES, PROJECT_TYPES, WORK_PRIORITIES } from "@/lib/constants";
-import type { Project, User, WorkPriority } from "@/types/flow";
+import type {
+  ForecastComplexityLevel,
+  ForecastSettings,
+  Project,
+  User,
+  WorkPriority,
+} from "@/types/flow";
 import { Pencil } from "lucide-react";
 
 export function EditProjectDialog({
   project,
   managers,
+  forecastSettings,
 }: {
   project: Project;
   managers: User[];
+  forecastSettings: ForecastSettings;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [docCount, setDocCount] = useState(
+    project.estimated_total_documents != null ? String(project.estimated_total_documents) : ""
+  );
+  const [complexity, setComplexity] = useState<ForecastComplexityLevel>(
+    project.planning_complexity_level ?? "standard"
+  );
+  const [manualDue, setManualDue] = useState(
+    project.manual_project_due_date ?? project.due_date ?? ""
+  );
+  const [startDate, setStartDate] = useState(project.start_date ?? "");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const owner = fd.get("project_owner_id") as string;
+    const docs = Number(fd.get("estimated_total_documents")) || null;
     startTransition(async () => {
       await updateProjectAction(project.id, {
         name: fd.get("name") as string,
@@ -47,6 +67,10 @@ export function EditProjectDialog({
         priority: fd.get("priority") as WorkPriority,
         start_date: (fd.get("start_date") as string) || null,
         due_date: (fd.get("due_date") as string) || null,
+        manual_project_due_date: (fd.get("manual_project_due_date") as string) || null,
+        estimated_total_documents: docs,
+        planning_complexity_level:
+          (fd.get("planning_complexity_level") as ForecastComplexityLevel) || "standard",
         project_owner_id: owner && owner !== "__none__" ? owner : null,
       });
       setOpen(false);
@@ -120,16 +144,27 @@ export function EditProjectDialog({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Start</Label>
-              <Input name="start_date" type="date" defaultValue={project.start_date ?? ""} />
-            </div>
-            <div className="space-y-2">
-              <Label>Due</Label>
-              <Input name="due_date" type="date" defaultValue={project.due_date ?? ""} />
-            </div>
+          <div className="space-y-2">
+            <Label>Start</Label>
+            <Input
+              name="start_date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
           </div>
+
+          <ProjectForecastSection
+            settings={forecastSettings}
+            documentCount={docCount}
+            onDocumentCountChange={setDocCount}
+            complexity={complexity}
+            onComplexityChange={setComplexity}
+            manualDueDate={manualDue}
+            onManualDueDateChange={setManualDue}
+            startDate={startDate || null}
+          />
+
           <DialogFooter>
             <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
           </DialogFooter>

@@ -1,11 +1,14 @@
 import { DEMO_USER_ID, MOCK_USERS } from "@/lib/data/mock-data";
 import { getDemoUser } from "@/lib/auth/demo-session";
+import { getTeamMemberIds } from "@/lib/auth/team-scope";
+import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
 import { normalizeRole } from "@/lib/auth/permissions";
 import type { Permission } from "@/lib/auth/permissions";
 import { hasPermission } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { listWorkPackages } from "@/lib/data/work-packages";
 import type { User, UserRole } from "@/types/flow";
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -46,11 +49,20 @@ export async function assertCanEditWorkPackage(
   workPackageId: string
 ): Promise<void> {
   const role = normalizeRole(user.role);
+
+  if (role === "teamlead") {
+    initFlowStore();
+    const pkg = listWorkPackages().find((p) => p.id === workPackageId);
+    const teamIds = getTeamMemberIds(user, getFlowStore().users, getFlowStore().teams);
+    if (pkg && (!pkg.assigned_to || teamIds.includes(pkg.assigned_to))) return;
+    throw new Error("FORBIDDEN");
+  }
+
   if (hasPermission(role, "work:edit")) return;
 
   if (hasPermission(role, "work:edit_own")) {
     initFlowStore();
-    const pkg = getFlowStore().workPackages.find((p) => p.id === workPackageId);
+    const pkg = listWorkPackages().find((p) => p.id === workPackageId);
     if (pkg?.assigned_to === user.id) return;
     throw new Error("FORBIDDEN");
   }
@@ -58,11 +70,32 @@ export async function assertCanEditWorkPackage(
   throw new Error("FORBIDDEN");
 }
 
+export async function assertCanViewTaskFile(
+  user: User,
+  taskId: string
+): Promise<void> {
+  const role = normalizeRole(user.role);
+
+  if (hasPermission(role, "work:view_all")) return;
+  if (hasPermission(role, "qa:view") || hasPermission(role, "qa:review")) return;
+
+  await assertCanEditWorkPackage(user, taskId);
+}
+
 export async function assertCanAssignWorkPackage(
   user: User,
   assignedTo: string | null
 ): Promise<void> {
   const role = normalizeRole(user.role);
+
+  if (role === "teamlead" || role === "manager" || role === "senior_manager") {
+    if (!assignedTo) return;
+    initFlowStore();
+    const assignable = getAssignableUserIds(user, getFlowStore().users, getFlowStore().teams);
+    if (assignable.includes(assignedTo)) return;
+    throw new Error("FORBIDDEN");
+  }
+
   if (hasPermission(role, "work:assign")) return;
   if (hasPermission(role, "work:edit_own") && assignedTo === user.id) return;
   throw new Error("FORBIDDEN");
@@ -72,7 +105,7 @@ export { normalizeRole };
 
 export function canManageWork(role: UserRole | string): boolean {
   const r = normalizeRole(role);
-  return ["admin", "manager"].includes(r);
+  return ["admin", "manager", "teamlead"].includes(r);
 }
 
 export function canReviewQa(role: UserRole | string): boolean {

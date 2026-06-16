@@ -1,6 +1,11 @@
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getEmployeeScorecard } from "@/lib/data/performance";
-import { getWorkPackages } from "@/lib/data/work-packages";
+import {
+  getActiveClockEntry,
+  getActiveTaskTimeEntry,
+  getDocumentsUploadedToday,
+  getShiftMinutesToday,
+} from "@/lib/data/production-tracking";
 import {
   bucketEmployeeTasks,
   compareTaskPriority,
@@ -10,10 +15,12 @@ import {
 } from "@/lib/employee/tasks";
 import { completedToday } from "@/lib/scoring/flow-score";
 import type {
+  ActivityEvent,
   DailyWrapUp,
   EmployeeDailySummary,
   EmployeeQaReturn,
   EmployeeScorecard,
+  TaskTimeEntry,
   WorkPackage,
 } from "@/types/flow";
 import { format, isSameDay, parseISO, startOfDay } from "date-fns";
@@ -28,12 +35,14 @@ export interface EmployeeDashboard {
   board: EmployeeTaskBoard;
   nextTask: WorkPackage | null;
   currentTask: WorkPackage | null;
+  activeTaskTimer: TaskTimeEntry | null;
   dueToday: WorkPackage[];
   qaReturns: EmployeeQaReturn[];
   recentlyCompleted: WorkPackage[];
   dailySummary: EmployeeDailySummary;
   scorecard: EmployeeScorecard | null;
   todayWrapUp: DailyWrapUp | null;
+  recentActivity: ActivityEvent[];
 }
 
 function tasksDueToday(tasks: WorkPackage[]): WorkPackage[] {
@@ -91,6 +100,23 @@ function buildQaReturns(
   });
 }
 
+function buildEmployeeRecentActivity(
+  userId: string,
+  packages: WorkPackage[],
+  store: ReturnType<typeof getFlowStore>,
+  limit = 12
+): ActivityEvent[] {
+  const taskIds = new Set(packages.map((p) => p.id));
+  return store.activity
+    .filter(
+      (e) =>
+        e.user_id === userId ||
+        (e.work_package_id != null && taskIds.has(e.work_package_id))
+    )
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, limit);
+}
+
 function buildDailySummary(
   userId: string,
   tasks: WorkPackage[],
@@ -121,34 +147,51 @@ function buildDailySummary(
     hoursWorkedToday: Math.round(hoursWorkedToday * 10) / 10,
     qaPasses,
     correctionsReceived,
+    clockedIn: false,
+    shiftMinutesToday: null,
+    activeTaskId: null,
+    activeTaskTitle: null,
+    documentsUploadedToday: 0,
   };
 }
 
 export async function getEmployeeDashboard(userId: string): Promise<EmployeeDashboard> {
   initFlowStore();
   const store = getFlowStore();
-  const [board, scorecard, packages] = await Promise.all([
-    getEmployeeTasks(userId),
-    getEmployeeScorecard(userId),
-    getWorkPackages({ assignedTo: userId }),
-  ]);
+  const board = getEmployeeTasks(userId);
+  const packages = board.all;
+  const [scorecard] = await Promise.all([getEmployeeScorecard(userId)]);
 
   const nextTask = pickNextTask(board.all);
   const currentTask = board.inProgress[0] ?? null;
   const todayStr = format(new Date(), "yyyy-MM-dd");
+  const activeClock = getActiveClockEntry(userId);
+  const activeTaskTimer = getActiveTaskTimeEntry(userId);
+  const activeTaskPkg = activeTaskTimer
+    ? packages.find((p) => p.id === activeTaskTimer.task_id) ?? null
+    : null;
 
   return {
     board,
     nextTask,
-    currentTask,
+    currentTask: activeTaskPkg ?? currentTask,
+    activeTaskTimer,
     dueToday: tasksDueToday(packages),
     qaReturns: buildQaReturns(board.returned, store),
     recentlyCompleted: recentlyCompleted(packages),
-    dailySummary: buildDailySummary(userId, packages, store),
+    dailySummary: {
+      ...buildDailySummary(userId, packages, store),
+      clockedIn: activeClock != null,
+      shiftMinutesToday: getShiftMinutesToday(userId),
+      activeTaskId: activeTaskTimer?.task_id ?? null,
+      activeTaskTitle: activeTaskPkg?.title ?? null,
+      documentsUploadedToday: getDocumentsUploadedToday(userId),
+    },
     scorecard,
     todayWrapUp: store.dailyWrapUps.find(
       (w) => w.user_id === userId && w.wrap_date === todayStr
     ) ?? null,
+    recentActivity: buildEmployeeRecentActivity(userId, packages, store),
   };
 }
 

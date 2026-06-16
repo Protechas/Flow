@@ -42,7 +42,7 @@ export function GamificationPanel({ scorecards }: { scorecards: EmployeeScorecar
                 .sort((a, b) => b.flowScore - a.flowScore)
                 .map((s, i) => (
                   <tr key={s.user.id} className="border-t border-border/40">
-                    <td className="py-3 px-4 font-bold text-violet-400">{i + 1}</td>
+                    <td className="py-3 px-4 font-bold text-primary">{i + 1}</td>
                     <td className="py-3 px-4 font-medium">{s.user.full_name}</td>
                     <td className="py-3 px-4 text-right font-semibold">{s.flowScore}</td>
                     <td className="py-3 px-4 text-right">
@@ -90,7 +90,7 @@ function BadgeItem({ badge }: { badge: FlowBadge }) {
       className={cn(
         "gap-1 py-1",
         badge.earned
-          ? "border-violet-500/40 bg-violet-500/10 text-violet-300"
+          ? "border-primary/30 bg-primary/10 text-primary"
           : "opacity-40"
       )}
       title={badge.earned ? badge.earnedReason : badge.description}

@@ -57,7 +57,7 @@ export function ScorecardPeriodTrends({
                 onClick={() => setMetric(m.key)}
                 className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                   metric === m.key
-                    ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+                    ? "border-primary/40 bg-primary/10 text-primary"
                     : "border-border/60 text-muted-foreground hover:text-foreground"
                 }`}
               >

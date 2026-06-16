@@ -23,18 +23,20 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        "enterprise-panel px-4 py-3",
-        highlight && "border-primary/30",
-        warn && "border-amber-500/40 bg-amber-500/10",
+        "flow-kpi-card px-4 py-3 relative",
+        warn && "flow-kpi-card-warn",
+        highlight && "border-[var(--border-accent)]",
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="enterprise-label">{title}</p>
-        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+      <div className="relative z-[1]">
+        <div className="flex items-center justify-between gap-2">
+          <p className="enterprise-label">{title}</p>
+          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        </div>
+        <p className={cn("flow-metric-lg mt-1.5", warn && "text-warning")}>{value}</p>
+        {subtitle && <p className="flow-meta mt-1">{subtitle}</p>}
       </div>
-      <p className={cn("enterprise-kpi-value mt-1", warn && "text-amber-400")}>{value}</p>
-      {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
     </div>
   );
 }

@@ -98,7 +98,7 @@ export function ManagerScorecardTable({
           onClick={() => toggleSort(col)}
           className={cn(
             "inline-flex items-center gap-1 hover:text-foreground",
-            active ? "text-violet-400" : ""
+            active ? "text-primary" : ""
           )}
         >
           {label}
@@ -156,7 +156,7 @@ export function ManagerScorecardTable({
               >
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-violet-400 text-xs w-4">
+                    <span className="font-bold text-primary text-xs w-4">
                       {p.rank}
                     </span>
                     <FlowScoreRing score={p.flowScore} size="sm" />
@@ -165,7 +165,7 @@ export function ManagerScorecardTable({
                 <td className="py-3 px-4">
                   <Link
                     href={`/people/${p.user.id}`}
-                    className="font-medium hover:text-violet-400"
+                    className="font-medium hover:text-primary"
                   >
                     {p.user.full_name}
                   </Link>
@@ -190,7 +190,7 @@ export function ManagerScorecardTable({
                 <td className="py-3 px-3 text-right">
                   <Link
                     href={`/people/${p.user.id}`}
-                    className="text-xs text-violet-400 hover:underline"
+                    className="text-xs text-primary hover:underline"
                   >
                     View →
                   </Link>

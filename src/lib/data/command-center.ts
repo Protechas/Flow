@@ -2,7 +2,7 @@ import {
   computeQaTurnaroundHours,
   generateCommandCenterInsights,
 } from "@/lib/insights/command-center-insights";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
 import { getProjectHealthList } from "@/lib/data/project-health";
 import { getWorkPackages } from "@/lib/data/work-packages";
@@ -11,8 +11,29 @@ import {
   isOverdue,
   isStuck,
 } from "@/lib/scoring/flow-score";
-import type { CommandCenterMetrics, EmployeeRanking, EmployeeScorecard } from "@/types/flow";
-import { isSameDay, parseISO, subDays } from "date-fns";
+import type { CommandCenterMetrics, EmployeeRanking, EmployeeScorecard, User } from "@/types/flow";
+import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
+import {
+  buildWorkloadAlertSummary,
+  listWorkloadAlertsForViewer,
+} from "@/lib/workload-alerts/engine";
+import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
+import {
+  buildHelpFlagSummary,
+  listHelpFlagsForViewer,
+} from "@/lib/help-flags/engine";
+import { getVisibleUserIds, isOrgWideRole } from "@/lib/hierarchy/resolver";
+import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
+import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
+import {
+  getProductionStore,
+  initProductionTracking,
+} from "@/lib/data/production-tracking";
+import {
+  healthLevelFromScore,
+  type DepartmentHealthSummary,
+} from "@/lib/design/department-health";
+import { isSameDay, parseISO, subDays, format } from "date-fns";
 
 function trendDeltaFor(sc: EmployeeScorecard, rankings: EmployeeRanking[]): number {
   return rankings.find((r) => r.userId === sc.user.id)?.trendDelta ?? 0;
@@ -93,15 +114,91 @@ function buildAttentionList(
     .slice(0, 12);
 }
 
-export async function getCommandCenterMetrics(): Promise<CommandCenterMetrics> {
+function buildDepartmentHealth(
+  store: ReturnType<typeof getFlowStore>,
+  packages: Awaited<ReturnType<typeof getWorkPackages>>,
+  scorecards: EmployeeScorecard[],
+  wrapUpStats: ReturnType<typeof getWrapUpDashboardStats>
+): DepartmentHealthSummary[] {
+  const departments = listDepartments().filter((d) => d.status === "active");
+
+  return departments.map((dept) => {
+    const teamIds = store.teams.filter((t) => t.department_id === dept.id).map((t) => t.id);
+    const userIds = store.users
+      .filter((u) => u.is_active && u.team_id && teamIds.includes(u.team_id))
+      .map((u) => u.id);
+
+    const deptPackages = packages.filter(
+      (p) =>
+        p.department_id === dept.id ||
+        (p.assigned_to && userIds.includes(p.assigned_to))
+    );
+    const activeTasks = deptPackages.filter((p) => p.status !== "done").length;
+    const overdueTasks = deptPackages.filter(isOverdue).length;
+    const deptScorecards = scorecards.filter((sc) => userIds.includes(sc.user.id));
+    const qaPassRate =
+      deptScorecards.length > 0
+        ? Math.round(
+            deptScorecards.reduce((s, c) => s + c.qaPassRate, 0) / deptScorecards.length
+          )
+        : 100;
+
+    const expectedWrapUps = Math.max(userIds.length, 1);
+    const wrapUpCompletionPct = Math.round(
+      ((wrapUpStats.submittedToday) / expectedWrapUps) * 100
+    );
+
+    let score = 100;
+    const factors: string[] = [];
+    if (overdueTasks > 0) {
+      score -= Math.min(30, overdueTasks * 4);
+      factors.push(`${overdueTasks} overdue`);
+    }
+    if (qaPassRate < 85) {
+      score -= Math.min(20, 85 - qaPassRate);
+      factors.push(`QA ${qaPassRate}%`);
+    }
+    if (wrapUpCompletionPct < 80) {
+      score -= Math.min(15, 80 - wrapUpCompletionPct);
+      factors.push("Wrap-ups incomplete");
+    }
+    if (activeTasks > 0 && overdueTasks / activeTasks > 0.2) {
+      score -= 10;
+      factors.push("High overdue ratio");
+    }
+    score = Math.max(0, Math.min(100, score));
+
+    return {
+      departmentId: dept.id,
+      departmentName: dept.name,
+      score,
+      level: healthLevelFromScore(score),
+      activeTasks,
+      overdueTasks,
+      qaPassRate,
+      wrapUpCompletionPct: Math.min(100, wrapUpCompletionPct),
+      factors: factors.length ? factors : ["Operating normally"],
+    };
+  });
+}
+
+export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCenterMetrics> {
   initFlowStore();
+  await hydrateWorkloadAlertSettings();
+  await hydrateHelpFlagSettings();
   const store = getFlowStore();
   const packages = await getWorkPackages();
-  const [performance, scorecards, projectHealthList] = await Promise.all([
+  const [performance, allScorecards, projectHealthList] = await Promise.all([
     getTeamPerformanceDashboard(),
     getEmployeeScorecards(),
     getProjectHealthList(),
   ]);
+
+  let scorecards = allScorecards;
+  if (viewer && !isOrgWideRole(viewer.role)) {
+    const visible = new Set(getVisibleUserIds(viewer, store.users, store.teams));
+    scorecards = scorecards.filter((sc) => visible.has(sc.user.id));
+  }
 
   const acc = performance.accountabilityDashboard;
   const activePackages = packages.filter((p) => p.status !== "done");
@@ -235,6 +332,43 @@ export async function getCommandCenterMetrics(): Promise<CommandCenterMetrics> {
 
   const n = scorecards.length || 1;
 
+  initProductionTracking();
+  const production = getProductionStore();
+  const clockedIn = production.timeClockEntries.filter(
+    (e) => e.status === "active" && !e.clock_out_at
+  ).length;
+  const activeTaskTimers = production.taskTimeEntries.filter(
+    (e) => e.status === "active" || e.status === "paused"
+  ).length;
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const documentsCompletedToday = production.taskFileUploads.filter((f) =>
+    f.uploaded_at.startsWith(todayStr)
+  ).length;
+  const avgActiveWork = scorecards.reduce((s, c) => s + c.metrics.activeWork, 0) / n;
+  const capacityTarget = 6;
+  const capacityUtilizationPct = Math.min(
+    100,
+    Math.round((avgActiveWork / capacityTarget) * 100)
+  );
+
+  const wrapUpReview = getWrapUpDashboardStats(
+    viewer ?? store.users.find((u) => u.role === "admin") ?? store.users[0]
+  );
+
+  const alertViewer =
+    viewer ??
+    store.users.find((u) => u.role === "admin") ??
+    store.users[0];
+  const workloadAlerts = ["admin", "super_admin", "senior_manager", "manager", "teamlead"].includes(alertViewer.role)
+    ? listWorkloadAlertsForViewer(alertViewer, packages, store.users)
+    : [];
+  const workloadAlertSummary = buildWorkloadAlertSummary(workloadAlerts);
+
+  const helpFlags = ["admin", "super_admin", "senior_manager", "manager", "teamlead"].includes(alertViewer.role)
+    ? listHelpFlagsForViewer(alertViewer, packages, store.users)
+    : [];
+  const helpFlagSummary = buildHelpFlagSummary(helpFlags);
+
   return {
     teamHealth: {
       flowScore: acc.departmentAvgFlowScore,
@@ -335,5 +469,19 @@ export async function getCommandCenterMetrics(): Promise<CommandCenterMetrics> {
     },
     insights,
     trends30: acc.trends30,
+    wrapUpReview,
+    forecast: buildForecastDashboardStats(viewer),
+    workforce: {
+      clockedIn,
+      activeTaskTimers,
+      documentsCompletedToday,
+      capacityUtilizationPct,
+    },
+    departmentHealth: buildDepartmentHealth(store, packages, scorecards, wrapUpReview),
+    recentActivity: store.activity.slice(0, 20),
+    workloadAlerts,
+    workloadAlertSummary,
+    helpFlags,
+    helpFlagSummary,
   };
 }

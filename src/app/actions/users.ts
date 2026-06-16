@@ -2,9 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { listAuditLog, writeAuditLog } from "@/lib/audit/audit-log";
-import { requirePermission } from "@/lib/auth/session";
+import { requirePermission, requireUser } from "@/lib/auth/session";
+import { hasPermission } from "@/lib/auth/permissions";
+import { teamLeadCanViewPerson } from "@/lib/auth/team-scope";
+import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   createUserRecord,
+  getUserById,
   listTeams,
   listUsers,
   setUserActive,
@@ -15,7 +19,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/site-url";
 import { formatFullName } from "@/lib/users/format";
-import type { UserRole } from "@/types/flow";
+import type { PayType, UserRole } from "@/types/flow";
 
 export async function getUsersAction() {
   await requirePermission("users:manage");
@@ -55,6 +59,8 @@ export async function updateUserDetailsAction(
     team_id?: string | null;
     manager_id?: string | null;
     hire_date?: string | null;
+    pay_type?: PayType;
+    branch_view_access?: boolean;
   }
 ) {
   await requirePermission("users:manage");
@@ -81,6 +87,7 @@ export async function createUserManuallyAction(data: {
   team_id?: string | null;
   manager_id?: string | null;
   hire_date?: string | null;
+  pay_type?: PayType;
 }) {
   const actor = await requirePermission("users:manage");
   const fullName = formatFullName(data.first_name, data.last_name);
@@ -97,6 +104,7 @@ export async function createUserManuallyAction(data: {
       team_id: data.team_id ?? "team-1",
       manager_id: data.manager_id ?? null,
       hire_date: data.hire_date ?? null,
+      pay_type: data.pay_type ?? (data.role === "employee" ? "hourly" : "salary"),
       avatar_url: null,
       last_login_at: null,
       is_active: true,
@@ -145,6 +153,7 @@ export async function createUserManuallyAction(data: {
     team_id: data.team_id,
     manager_id: data.manager_id,
     hire_date: data.hire_date,
+    pay_type: data.pay_type ?? (data.role === "employee" ? "hourly" : "salary"),
     is_active: true,
     updated_at: new Date().toISOString(),
   });
@@ -183,4 +192,39 @@ export async function adminResetPasswordAction(userId: string, email: string) {
   });
 
   return { ok: true as const };
+}
+
+export async function updateEmployeePayTypeAction(userId: string, pay_type: PayType) {
+  const actor = await requireUser();
+  const target = await getUserById(userId);
+  if (!target || target.role !== "employee") {
+    throw new Error("Pay type applies to employees only");
+  }
+
+  if (hasPermission(actor.role, "users:manage")) {
+    const user = await updateUserProfile(userId, { pay_type });
+    revalidatePath("/", "layout");
+    return user;
+  }
+
+  if (hasPermission(actor.role, "people:view_team")) {
+    initFlowStore();
+    if (!teamLeadCanViewPerson(actor, userId, getFlowStore().users)) {
+      throw new Error("FORBIDDEN");
+    }
+    const user = await updateUserProfile(userId, { pay_type });
+    await writeAuditLog({
+      action: "assignment_changed",
+      entityType: "user",
+      entityId: userId,
+      summary: `Pay type set to ${pay_type} for ${target.full_name}`,
+      metadata: { pay_type },
+      actorId: actor.id,
+      actorEmail: actor.email,
+    });
+    revalidatePath("/", "layout");
+    return user;
+  }
+
+  throw new Error("FORBIDDEN");
 }

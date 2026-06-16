@@ -1,19 +1,18 @@
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
-import { MOCK_TEAM } from "@/lib/data/mock-data";
+import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import {
   buildEmployeeScorecard,
   rankScorecards,
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
 import { buildTeamScorecardSummary } from "@/lib/scoring/scorecard-periods";
-import type { EmployeeScorecard, TeamScorecardSummary } from "@/types/flow";
+import type { EmployeeScorecard, TeamScorecardSummary, User } from "@/types/flow";
 
 function getPerformanceStore(): PerformanceStoreSlice {
   initFlowStore();
   const store = getFlowStore();
   return {
     users: store.users,
-    teams: [MOCK_TEAM],
+    teams: listTeamsStore(),
     workPackages: store.workPackages,
     timeLogs: store.timeLogs,
     qaReviews: store.qaReviews,
@@ -22,18 +21,38 @@ function getPerformanceStore(): PerformanceStoreSlice {
   };
 }
 
-export async function getPeopleProfiles(): Promise<EmployeeScorecard[]> {
+export async function getPeopleProfiles(teamMemberIds?: string[]): Promise<EmployeeScorecard[]> {
   const store = getPerformanceStore();
-  const employees = store.users.filter((u) => u.role === "employee" && u.is_active);
+  let employees = store.users.filter((u) => u.role === "employee" && u.is_active);
+  if (teamMemberIds?.length) {
+    const ids = new Set(teamMemberIds);
+    employees = employees.filter((u) => ids.has(u.id));
+  }
   return rankScorecards(employees.map((u) => buildEmployeeScorecard(u, store)));
 }
 
 export async function getPeopleProfile(userId: string): Promise<EmployeeScorecard | null> {
+  const store = getPerformanceStore();
+  const user = store.users.find((u) => u.id === userId && u.is_active);
+  if (!user) return null;
+
   const scorecards = await getPeopleProfiles();
-  return scorecards.find((p) => p.user.id === userId) ?? null;
+  const existing = scorecards.find((p) => p.user.id === userId);
+  if (existing) return existing;
+
+  return buildEmployeeScorecard(user, store);
 }
 
-export async function getTeamScorecardSummary(): Promise<TeamScorecardSummary> {
-  const scorecards = await getPeopleProfiles();
+export async function getTeamScorecardSummary(teamMemberIds?: string[]): Promise<TeamScorecardSummary> {
+  const scorecards = await getPeopleProfiles(teamMemberIds);
   return buildTeamScorecardSummary(scorecards);
+}
+
+export function getAnalystsForScope(allUsers: User[], teamMemberIds?: string[]): User[] {
+  let analysts = allUsers.filter((u) => u.role === "employee" && u.is_active);
+  if (teamMemberIds?.length) {
+    const ids = new Set(teamMemberIds);
+    analysts = analysts.filter((u) => ids.has(u.id));
+  }
+  return analysts;
 }

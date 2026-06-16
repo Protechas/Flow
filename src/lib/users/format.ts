@@ -1,4 +1,5 @@
 import type { User } from "@/types/flow";
+import { normalizePayType } from "@/lib/users/pay-type";
 
 export function formatFullName(firstName: string, lastName?: string | null): string {
   return [firstName.trim(), lastName?.trim()].filter(Boolean).join(" ");
@@ -20,12 +21,14 @@ export function normalizeUser(row: Record<string, unknown>): User {
     last_name: last || full_name.split(" ").slice(1).join(" ") || "",
     full_name,
     role: row.role as User["role"],
+    pay_type: normalizePayType(row.pay_type, row.role as User["role"]),
     team_id: (row.team_id as string | null) ?? null,
     manager_id: (row.manager_id as string | null) ?? null,
     avatar_url: (row.avatar_url as string | null) ?? null,
     hire_date: (row.hire_date as string | null) ?? null,
     last_login_at: (row.last_login_at as string | null) ?? null,
     is_active: row.is_active !== false,
+    branch_view_access: row.branch_view_access === true,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };

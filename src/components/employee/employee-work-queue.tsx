@@ -10,6 +10,8 @@ import {
   type EmployeeTaskBoard,
 } from "@/lib/employee/task-utils";
 import type { EmployeeQueueSort, WorkPackage } from "@/types/flow";
+import { EmptyState } from "@/components/enterprise/empty-state";
+import { Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type QueueTab = "assigned" | "in_progress" | "ready_for_qa" | "correction_needed" | "completed";
@@ -61,10 +63,10 @@ export function EmployeeWorkQueue({ board }: { board: EmployeeTaskBoard }) {
   );
 
   return (
-    <section className="rounded-xl border border-border/60 bg-card/40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border/40">
-        <h2 className="font-semibold text-base">My queue</h2>
-        <div className="flex gap-1 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+    <section className="enterprise-panel overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h2 className="flow-section-title">My queue</h2>
+        <div className="flex gap-1 mt-3 overflow-x-auto pb-1">
           {TABS.map((t) => {
             const count = tabTasks(board, t.id).length;
             return (
@@ -73,9 +75,9 @@ export function EmployeeWorkQueue({ board }: { board: EmployeeTaskBoard }) {
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors",
+                  "shrink-0 text-[11px] px-2.5 py-1 rounded-sm font-medium transition-colors",
                   tab === t.id
-                    ? "bg-violet-600 text-white"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -91,7 +93,7 @@ export function EmployeeWorkQueue({ board }: { board: EmployeeTaskBoard }) {
               key={s}
               variant={sort === s ? "secondary" : "ghost"}
               size="sm"
-              className="h-7 text-[10px] px-2"
+              className="h-6 text-[10px] px-2"
               onClick={() => setSort(s)}
             >
               {s === "priority" ? "Priority" : s === "due_date" ? "Due date" : "Assigned"}
@@ -99,27 +101,36 @@ export function EmployeeWorkQueue({ board }: { board: EmployeeTaskBoard }) {
           ))}
         </div>
       </div>
-      <ul className="divide-y divide-border/30">
+      <ul className="divide-y divide-border">
         {tasks.length === 0 ? (
-          <li className="px-4 py-8 text-sm text-muted-foreground text-center">
-            Nothing in this queue.
+          <li>
+            <EmptyState
+              icon={Inbox}
+              title="No tasks in this queue"
+              description={
+                tab === "assigned"
+                  ? "You have no assigned tasks right now. New work from your manager will appear here."
+                  : `Nothing in ${TABS.find((t) => t.id === tab)?.label?.toLowerCase() ?? "this queue"} yet.`
+              }
+              className="border-0 rounded-none bg-transparent py-10"
+            />
           </li>
         ) : (
           tasks.map((t) => (
             <li key={t.id}>
               <Link
                 href={`/work/${t.id}`}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/20 active:bg-muted/30 transition-colors"
+                className="flex items-center gap-3 px-4 py-2.5 enterprise-row-hover transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{t.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-sm font-medium truncate">{t.title}</p>
+                  <p className="flow-meta truncate">
                     {t.project?.name} · {t.manufacturer?.name} · {t.year}
                     {t.due_date && ` · Due ${t.due_date}`}
                   </p>
                 </div>
                 <PriorityBadge priority={t.priority} />
-                <StatusBadge status={t.status} />
+                <StatusBadge status={t.status} size="sm" />
               </Link>
             </li>
           ))

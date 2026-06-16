@@ -15,6 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { EmployeePayTypeSelect } from "@/components/people/employee-pay-type-select";
+import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
+import { normalizePayType } from "@/lib/users/pay-type";
 import type { EmployeeScorecard, TeamScorecardSummary } from "@/types/flow";
 import { Activity, Award, Target, ThumbsUp, Zap } from "lucide-react";
 
@@ -23,13 +26,16 @@ export function EmployeeScorecardView({
   teamSummary,
   showManagerDrillDown = false,
   backHref,
+  canEditPayType = false,
 }: {
   scorecard: EmployeeScorecard;
   teamSummary?: TeamScorecardSummary;
   showManagerDrillDown?: boolean;
   backHref?: string;
+  canEditPayType?: boolean;
 }) {
   const { user } = scorecard;
+  const payType = normalizePayType(user.pay_type, user.role);
 
   return (
     <div className="space-y-8">
@@ -47,6 +53,13 @@ export function EmployeeScorecardView({
             {" · "}Rank #{scorecard.rank} of {scorecard.totalRanked}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
+            {user.role === "employee" && (
+              canEditPayType ? (
+                <EmployeePayTypeSelect user={user} />
+              ) : (
+                <PayTypeBadge payType={payType} />
+              )
+            )}
             <Badge variant="secondary">{scorecard.actionPoints} action pts (7d)</Badge>
             <Badge variant="outline">{scorecard.actionPointsToday} pts today</Badge>
             <Badge variant="outline">{scorecard.velocityPerWeek} done/week</Badge>
@@ -112,7 +125,7 @@ export function EmployeeScorecardView({
       </div>
 
       {scorecard.badges.length > 0 && (
-        <Card className="border-violet-500/20">
+        <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="text-base">Badges & achievements</CardTitle>
           </CardHeader>
@@ -121,7 +134,7 @@ export function EmployeeScorecardView({
               <Badge
                 key={b.id}
                 variant="outline"
-                className={b.earned ? "border-violet-500/40 text-violet-300" : "opacity-40"}
+                className={b.earned ? "border-primary/30 text-primary" : "opacity-40"}
                 title={b.earned ? b.earnedReason : b.description}
               >
                 {b.name}
@@ -191,7 +204,7 @@ export function EmployeeScorecardView({
         </Card>
       )}
 
-      <Card className="border-violet-500/20 bg-violet-500/5">
+      <Card className="border-primary/20 bg-primary/5">
         <CardHeader>
           <CardTitle className="text-base">Coaching insights</CardTitle>
         </CardHeader>

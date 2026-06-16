@@ -1,12 +1,18 @@
 import { getFlowStore, initFlowStore, submitQaReview } from "@/lib/data/flow-store";
+import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
 import type { QaResult, QaReview } from "@/types/flow";
 
-export async function getQaQueue() {
-  const items = await getWorkPackages();
-  return items.filter((i) => ["ready_for_qa", "in_qa"].includes(i.status));
+export async function getQaQueue(teamMemberIds?: string[]) {
+  let items = (await getWorkPackages()).filter((i) =>
+    ["ready_for_qa", "in_qa"].includes(i.status)
+  );
+  if (teamMemberIds?.length) {
+    items = filterWorkPackagesToTeam(items, teamMemberIds);
+  }
+  return items;
 }
 
 export async function getQaReviews(): Promise<QaReview[]> {

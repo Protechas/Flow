@@ -17,9 +17,9 @@ import {
 type SeriesKey = "flowScore" | "productivityScore" | "qualityScore";
 
 const SERIES: { key: SeriesKey; label: string; color: string }[] = [
-  { key: "flowScore", label: "Flow Score", color: "var(--chart-1)" },
-  { key: "productivityScore", label: "Productivity", color: "var(--chart-3)" },
-  { key: "qualityScore", label: "Quality", color: "var(--chart-2)" },
+  { key: "flowScore", label: "Flow Score", color: "var(--chart-2)" },
+  { key: "productivityScore", label: "Productivity", color: "var(--chart-1)" },
+  { key: "qualityScore", label: "Quality", color: "var(--chart-3)" },
 ];
 
 export function PerformanceTrendChart({
@@ -49,7 +49,7 @@ export function PerformanceTrendChart({
           : undefined)
       }
     >
-      <div className="enterprise-panel p-4">
+      <div className="enterprise-panel-elevated p-4">
         <div className="flex flex-wrap gap-2 mb-3">
           {SERIES.map((s) => (
             <button
@@ -57,10 +57,10 @@ export function PerformanceTrendChart({
               type="button"
               onClick={() => setActive(s.key)}
               className={cn(
-                "rounded border px-2.5 py-1 text-xs font-medium transition-colors",
+                "rounded-sm border px-2.5 py-1 text-xs font-medium transition-all duration-150",
                 active === s.key
-                  ? "border-primary bg-primary/15 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:bg-accent"
+                  ? "border-[var(--border-accent)] bg-primary/10 text-primary shadow-[var(--shadow-subtle)]"
+                  : "border-[var(--border-subtle)] bg-card text-muted-foreground hover:border-[var(--border-accent)] hover:bg-accent"
               )}
             >
               {s.label}
@@ -69,7 +69,7 @@ export function PerformanceTrendChart({
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
             <XAxis
               dataKey="label"
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}

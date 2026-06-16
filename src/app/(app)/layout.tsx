@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isEmployeeRole } from "@/lib/auth/permissions";
 import { getCurrentUser } from "@/lib/auth/session";
+import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { redirect } from "next/navigation";
@@ -17,6 +18,14 @@ export default async function AppLayout({
   if (!user) redirect("/login");
   if (isEmployeeRole(user.role)) redirect("/work");
 
+  if (!isSupabaseConfigured()) {
+    await hydrateForecastSettings();
+    const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
+    await hydrateWorkloadAlertSettings();
+    const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
+    await hydrateHelpFlagSettings();
+  }
+
   const demoMode = !isSupabaseConfigured();
   const hasDemoCookie = demoMode ? !!(await getDemoUserId()) : false;
 
@@ -24,9 +33,9 @@ export default async function AppLayout({
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar user={user} />
-        <SidebarInset className="bg-secondary">
+        <SidebarInset className="flow-layer-content min-h-svh">
           <AppHeader user={user} demoMode={demoMode && hasDemoCookie} />
-          <main className="flex-1 p-5 lg:p-6">{children}</main>
+          <main className="flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

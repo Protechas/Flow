@@ -4,36 +4,48 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
+import { ClockStatusBadge } from "@/components/enterprise/clock-status-badge";
+import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
 import { EMPLOYEE_NAV } from "@/lib/auth/permissions";
+import { getEmployeeClockStatus } from "@/lib/time-clock/labels";
+import { requiresShiftClock } from "@/lib/users/pay-type";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { LogOut, Waves } from "lucide-react";
+import { ThemeSwitcher } from "@/components/settings/theme-switcher";
+import { LogOut } from "lucide-react";
 import { userDisplayInitials } from "@/lib/users/format";
 import { cn } from "@/lib/utils";
-import type { User } from "@/types/flow";
+import type { TimeClockEntry, User } from "@/types/flow";
 
 export function EmployeeHeader({
   user,
   demoMode,
+  activeClock,
+  todayClockEntries = [],
 }: {
   user: User;
   demoMode?: boolean;
+  activeClock?: TimeClockEntry | null;
+  todayClockEntries?: TimeClockEntry[];
 }) {
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
+  const clockStatus = getEmployeeClockStatus(activeClock ?? null, todayClockEntries);
+  const useShiftClock = requiresShiftClock(user);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-md">
-      <div className="max-w-3xl mx-auto px-4 py-3 sm:px-6 space-y-3">
+    <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] flow-command-bar">
+      <div className="max-w-4xl mx-auto px-4 py-2.5 sm:px-6">
         <div className="flex items-center gap-3">
           <Link href="/work" className="flex items-center gap-2 shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600">
-              <Waves className="h-5 w-5 text-white" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-primary-foreground text-xs font-bold">
+              F
             </div>
-            <span className="font-semibold text-lg hidden sm:inline">Flow</span>
+            <span className="font-semibold text-sm hidden sm:inline text-foreground">Flow</span>
           </Link>
-          <nav className="flex-1 flex gap-1 justify-center">
+
+          <nav className="flex-1 flex gap-0.5 justify-center">
             {EMPLOYEE_NAV.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
@@ -41,10 +53,10 @@ export function EmployeeHeader({
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "text-sm px-3 py-1.5 rounded-md transition-colors",
+                    "text-xs px-3 py-1.5 rounded-sm transition-colors font-medium",
                     active
-                      ? "bg-violet-500/15 text-violet-300 font-medium"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   {item.label}
@@ -52,19 +64,26 @@ export function EmployeeHeader({
               );
             })}
           </nav>
+
           <div className="flex items-center gap-2 shrink-0">
+            {useShiftClock ? (
+              <ClockStatusBadge status={clockStatus} className="hidden sm:inline-flex" />
+            ) : (
+              <PayTypeBadge payType="salary" className="hidden sm:inline-flex" />
+            )}
+            <ThemeSwitcher compact />
             <NotificationBell />
-            <div className="h-8 w-8 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-semibold hidden sm:flex">
+            <div className="h-7 w-7 rounded-sm bg-muted flex items-center justify-center text-[10px] font-semibold hidden sm:flex text-muted-foreground">
               {userDisplayInitials(user)}
             </div>
             {demoMode && (
-              <Badge variant="outline" className="text-violet-400 border-violet-500/30 text-[10px]">
+              <Badge variant="outline" className="text-primary border-primary/30 text-[10px]">
                 Demo
               </Badge>
             )}
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               disabled={pending}
               onClick={() => startTransition(() => logoutAction())}
               title="Logout"

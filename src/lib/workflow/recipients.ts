@@ -1,11 +1,36 @@
+import { resolveLeadersForEmployee } from "@/lib/hierarchy/resolver";
 import type { Project, User, WorkPackage } from "@/types/flow";
 
+export function getQaReviewers(users: User[]): User[] {
+  return users.filter(
+    (u) =>
+      u.is_active &&
+      (u.role === "teamlead" ||
+        u.role === "admin" ||
+        u.role === "super_admin" ||
+        u.role === "manager" ||
+        u.role === "senior_manager")
+  );
+}
+
+/** @deprecated Use getQaReviewers */
 export function getQaUsers(users: User[]): User[] {
-  return users.filter((u) => u.is_active && u.role === "qa");
+  return getQaReviewers(users);
 }
 
 export function getManagers(users: User[]): User[] {
-  return users.filter((u) => u.is_active && (u.role === "manager" || u.role === "admin"));
+  return users.filter(
+    (u) =>
+      u.is_active &&
+      (u.role === "manager" ||
+        u.role === "senior_manager" ||
+        u.role === "admin" ||
+        u.role === "super_admin")
+  );
+}
+
+export function getTeamLeads(users: User[]): User[] {
+  return users.filter((u) => u.is_active && u.role === "teamlead");
 }
 
 export function getManagerForEmployee(employeeId: string, users: User[]): User | null {
@@ -29,11 +54,15 @@ export function getManagersForPackage(
   const owner = getProjectOwner(pkg.project_id, projects, users);
   if (owner) out.set(owner.id, owner);
   if (pkg.assigned_to) {
-    const mgr = getManagerForEmployee(pkg.assigned_to, users);
-    if (mgr) out.set(mgr.id, mgr);
+    const employee = users.find((u) => u.id === pkg.assigned_to);
+    if (employee) {
+      for (const leader of resolveLeadersForEmployee(employee, users)) {
+        out.set(leader.id, leader);
+      }
+    }
   }
   for (const m of getManagers(users)) {
-    if (m.role === "admin") out.set(m.id, m);
+    if (m.role === "admin" || m.role === "super_admin") out.set(m.id, m);
   }
   return [...out.values()];
 }
@@ -55,6 +84,6 @@ export function parseMentionedUserIds(body: string, users: User[]): string[] {
 
 export function workPackageLink(pkgId: string, role: User["role"]): string {
   if (role === "employee") return `/work/${pkgId}`;
-  if (role === "qa") return "/qa-center";
+  if (role === "teamlead") return "/qa-center";
   return "/operations";
 }

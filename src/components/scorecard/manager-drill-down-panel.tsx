@@ -47,7 +47,7 @@ export function ManagerDrillDownPanel({
   const avg = teamSummary.averages;
 
   return (
-    <Card className="border-violet-500/25 bg-violet-500/5">
+    <Card className="border-primary/25 bg-primary/5">
       <CardHeader>
         <CardTitle className="text-base">Manager drill-down</CardTitle>
         <p className="text-xs text-muted-foreground">

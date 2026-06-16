@@ -1,8 +1,10 @@
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { formatFullName, normalizeUser } from "@/lib/users/format";
-import { getAllUsers, updateUser } from "@/lib/data/flow-store";
-import { MOCK_TEAM } from "@/lib/data/mock-data";
+import { getAllUsers, updateUser, initFlowStore, getFlowStore } from "@/lib/data/flow-store";
+import { syncHierarchyOnManagerChange } from "@/lib/hierarchy/resolver";
+import { MOCK_TEAMS } from "@/lib/data/mock-data";
+import { listTeamsStore } from "@/lib/data/flow-store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -13,7 +15,7 @@ function mapDbUser(row: Record<string, unknown>): User {
 }
 
 export async function listTeams(): Promise<Team[]> {
-  return [MOCK_TEAM];
+  return listTeamsStore();
 }
 
 export async function listUsers(): Promise<User[]> {
@@ -35,7 +37,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function updateUserProfile(
   userId: string,
   updates: Partial<
-    Pick<User, "first_name" | "last_name" | "role" | "team_id" | "manager_id" | "hire_date" | "is_active" | "avatar_url">
+    Pick<User, "first_name" | "last_name" | "role" | "team_id" | "manager_id" | "hire_date" | "is_active" | "avatar_url" | "pay_type" | "branch_view_access">
   >
 ): Promise<User | null> {
   const full_name =
@@ -53,7 +55,17 @@ export async function updateUserProfile(
   };
 
   if (!isSupabaseConfigured()) {
-    return updateUser(userId, payload);
+    const updated = updateUser(userId, payload);
+    if (updated && updates.manager_id !== undefined) {
+      initFlowStore();
+      syncHierarchyOnManagerChange(
+        userId,
+        updates.manager_id,
+        getFlowStore().users,
+        updates.team_id ?? updated.team_id
+      );
+    }
+    return updated;
   }
 
   const client = isAdminConfigured() ? createAdminClient() : await createClient();

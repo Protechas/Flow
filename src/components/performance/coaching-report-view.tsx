@@ -9,7 +9,7 @@ export function CoachingReportView({ report }: { report: CoachingReport }) {
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Team average Flow Score:{" "}
-        <strong className="text-violet-400">{report.teamAverageScore}</strong>
+        <strong className="text-primary">{report.teamAverageScore}</strong>
         {" · "}
         {report.entries.length} employees
       </p>
@@ -19,11 +19,11 @@ export function CoachingReportView({ report }: { report: CoachingReport }) {
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">
-                <Link href={`/people/${e.userId}`} className="hover:text-violet-400">
+                <Link href={`/people/${e.userId}`} className="hover:text-primary">
                   #{e.rank} {e.name}
                 </Link>
               </CardTitle>
-              <span className="text-2xl font-bold text-violet-400 tabular-nums">{e.flowScore}</span>
+              <span className="text-2xl font-bold text-primary tabular-nums">{e.flowScore}</span>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -67,7 +67,7 @@ export function CoachingReportView({ report }: { report: CoachingReport }) {
                   className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-1"
                 >
                   <div className="flex items-center gap-2">
-                    <Lightbulb className="h-3.5 w-3.5 text-violet-400" />
+                    <Lightbulb className="h-3.5 w-3.5 text-primary" />
                     <span className="font-medium text-sm">{ins.title}</span>
                     <Badge variant="outline" className="text-[10px] ml-auto capitalize">
                       {ins.priority}

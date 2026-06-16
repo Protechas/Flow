@@ -13,10 +13,12 @@ import {
   unarchiveProjectAction,
   updateYearAction,
 } from "@/app/actions/crud";
+import { ProjectForecastPanel } from "@/components/forecast/project-forecast-panel";
+import { DueDateStatusBadge } from "@/components/forecast/due-date-status-badge";
 import { AddWorkPackageDialog } from "@/components/projects/add-work-package-dialog";
 import { EditManufacturerDialog } from "@/components/projects/edit-manufacturer-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
-import { NewProjectDialog } from "@/components/projects/new-project-dialog";
+import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +44,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
 import { YEAR_RANGE } from "@/lib/templates/project-templates";
-import type { Manufacturer, Project, User, WorkPackage, WorkStatus, YearWorkItem } from "@/types/flow";
+import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import type { Department, ForecastSettings, Manufacturer, Project, Team, User, WorkPackage, WorkStatus, YearWorkItem } from "@/types/flow";
 import { Archive, ArchiveRestore, ChevronDown, ChevronRight, Factory, Plus, Trash2 } from "lucide-react";
 
 type ProjectWithStats = Project & {
@@ -59,8 +62,12 @@ interface ProjectWorkspaceProps {
   workPackages: WorkPackage[];
   managers: User[];
   analysts: User[];
+  forecastSettings: ForecastSettings;
   canEdit: boolean;
   canDelete: boolean;
+  user?: User;
+  departments?: Department[];
+  teams?: Team[];
 }
 
 export function ProjectWorkspace({
@@ -71,8 +78,12 @@ export function ProjectWorkspace({
   workPackages,
   managers,
   analysts,
+  forecastSettings,
   canEdit,
   canDelete,
+  user,
+  departments = [],
+  teams = [],
 }: ProjectWorkspaceProps) {
   const [expandedProject, setExpandedProject] = useState<string | null>(
     activeProjects[0]?.id ?? null
@@ -84,6 +95,8 @@ export function ProjectWorkspace({
     ? [...activeProjects, ...archivedProjects]
     : activeProjects;
 
+  const allowedModes = user ? getAllowedCreationModes(user.role) : [];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -91,7 +104,17 @@ export function ProjectWorkspace({
           <Checkbox checked={showArchived} onCheckedChange={(c) => setShowArchived(!!c)} />
           Show archived projects
         </label>
-        {canEdit && <NewProjectDialog managers={managers} />}
+        {canEdit && user && allowedModes.length > 0 && (
+          <NewWorkWizard
+            user={user}
+            departments={departments}
+            teams={teams}
+            projects={activeProjects}
+            analysts={analysts}
+            managers={managers}
+            forecastSettings={forecastSettings}
+          />
+        )}
       </div>
 
       {displayProjects.map((project) => {
@@ -122,9 +145,10 @@ export function ProjectWorkspace({
                   <span className="text-sm text-muted-foreground hidden md:inline">
                     {project.completedPct}% · {mfrs.length} mfr
                   </span>
+                  <DueDateStatusBadge status={project.project_due_date_status} />
                   {canEdit && (
                     <>
-                      <EditProjectDialog project={project} managers={managers} />
+                      <EditProjectDialog project={project} managers={managers} forecastSettings={forecastSettings} />
                       {archived ? (
                         <Button
                           variant="ghost"
@@ -180,6 +204,7 @@ export function ProjectWorkspace({
 
             {open && !archived && (
               <CardContent className="space-y-4 border-t border-border/40 pt-4">
+                <ProjectForecastPanel project={project} />
                 {canEdit && <AddManufacturerDialog projectId={project.id} analysts={analysts} />}
                 {mfrs.map((mfr) => (
                   <ManufacturerPanel
@@ -188,6 +213,7 @@ export function ProjectWorkspace({
                     years={yearItems.filter((y) => y.manufacturer_id === mfr.id)}
                     packages={workPackages.filter((p) => p.manufacturer_id === mfr.id)}
                     analysts={analysts}
+                    forecastSettings={forecastSettings}
                     canEdit={canEdit}
                     canDelete={canDelete}
                     pending={pending}
@@ -213,6 +239,7 @@ function ManufacturerPanel({
   years,
   packages,
   analysts,
+  forecastSettings,
   canEdit,
   canDelete,
   pending,
@@ -222,6 +249,7 @@ function ManufacturerPanel({
   years: YearWorkItem[];
   packages: WorkPackage[];
   analysts: User[];
+  forecastSettings: ForecastSettings;
   canEdit: boolean;
   canDelete: boolean;
   pending: boolean;
@@ -285,8 +313,10 @@ function ManufacturerPanel({
             <YearRow
               key={y.id}
               yearItem={y}
+              manufacturerName={mfr.name}
               packages={packages.filter((p) => p.year_work_item_id === y.id)}
               analysts={analysts}
+              forecastSettings={forecastSettings}
               canEdit={canEdit}
               canDelete={canDelete}
               pending={pending}
@@ -300,16 +330,20 @@ function ManufacturerPanel({
 
 function YearRow({
   yearItem,
+  manufacturerName,
   packages,
   analysts,
+  forecastSettings,
   canEdit,
   canDelete,
   pending,
   startTransition,
 }: {
   yearItem: YearWorkItem;
+  manufacturerName: string;
   packages: WorkPackage[];
   analysts: User[];
+  forecastSettings: ForecastSettings;
   canEdit: boolean;
   canDelete: boolean;
   pending: boolean;
@@ -364,7 +398,12 @@ function YearRow({
                 ))}
               </SelectContent>
             </Select>
-            <AddWorkPackageDialog yearItem={yearItem} analysts={analysts} />
+            <AddWorkPackageDialog
+              yearItem={yearItem}
+              manufacturerName={manufacturerName}
+              analysts={analysts}
+              forecastSettings={forecastSettings}
+            />
           </>
         )}
         {canDelete && (

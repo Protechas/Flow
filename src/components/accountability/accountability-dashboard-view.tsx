@@ -82,7 +82,7 @@ export function AccountabilityDashboardView({
             ) : (
               dashboard.needsAttention.map((e) => (
                 <div key={e.userId} className="flex justify-between text-sm">
-                  <Link href={`/people/${e.userId}`} className="font-medium hover:text-violet-400">
+                  <Link href={`/people/${e.userId}`} className="font-medium hover:text-primary">
                     {e.name}
                   </Link>
                   <span className="text-muted-foreground">
@@ -101,7 +101,7 @@ export function AccountabilityDashboardView({
           <CardContent className="space-y-2">
             {dashboard.highestCorrectionRate.map((e) => (
               <div key={e.userId} className="flex justify-between text-sm">
-                <Link href={`/people/${e.userId}`} className="hover:text-violet-400">
+                <Link href={`/people/${e.userId}`} className="hover:text-primary">
                   {e.name}
                 </Link>
                 <span className="text-muted-foreground">
@@ -122,7 +122,7 @@ export function AccountabilityDashboardView({
             ) : (
               dashboard.mostOverdue.map((e) => (
                 <div key={e.userId} className="flex justify-between text-sm">
-                  <Link href={`/people/${e.userId}`} className="hover:text-violet-400">
+                  <Link href={`/people/${e.userId}`} className="hover:text-primary">
                     {e.name}
                   </Link>
                   <span className="text-red-400">{e.count} overdue</span>
@@ -139,7 +139,7 @@ export function AccountabilityDashboardView({
           <CardContent className="space-y-2">
             {dashboard.workloadDistribution.map((e) => (
               <div key={e.userId} className="flex justify-between text-sm">
-                <Link href={`/people/${e.userId}`} className="hover:text-violet-400">
+                <Link href={`/people/${e.userId}`} className="hover:text-primary">
                   {e.name}
                 </Link>
                 <span className="text-muted-foreground tabular-nums">
@@ -172,15 +172,15 @@ function HighlightList({
     <Card className="border-border/60">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Icon className="h-4 w-4 text-violet-400" />
+          <Icon className="h-4 w-4 text-primary" />
           {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {items.map((item, i) => (
           <div key={item.id} className="flex justify-between text-sm">
-            <Link href={item.href} className="hover:text-violet-400">
-              <span className="text-violet-400 font-bold mr-2">#{i + 1}</span>
+            <Link href={item.href} className="hover:text-primary">
+              <span className="text-primary font-bold mr-2">#{i + 1}</span>
               {item.label}
             </Link>
             <span className="font-semibold tabular-nums">{item.value}</span>

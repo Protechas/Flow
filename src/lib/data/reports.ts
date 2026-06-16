@@ -1,6 +1,7 @@
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
-import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
+import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
 import { getWorkPackages } from "@/lib/data/work-packages";
+import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
 import {
   completedThisWeek,
   completedToday,
@@ -8,16 +9,30 @@ import {
   computeQaPassRate,
 } from "@/lib/scoring/flow-score";
 import { isOverdue, isStuck } from "@/lib/scoring/flow-score";
+import { buildForecastReportMetrics } from "@/lib/forecast/metrics";
+import { buildWorkloadAlertReportMetrics } from "@/lib/workload-alerts/engine";
+import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
+import { buildHelpFlagReportMetrics } from "@/lib/help-flags/engine";
+import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import type { ReportMetrics } from "@/types/flow";
 
-export async function getReportMetrics(): Promise<ReportMetrics> {
+export async function getReportMetrics(teamMemberIds?: string[]): Promise<ReportMetrics> {
   initFlowStore();
+  await hydrateWorkloadAlertSettings();
+  await hydrateHelpFlagSettings();
   const store = getFlowStore();
-  const packages = await getWorkPackages();
-  const [scorecards, teamPerf] = await Promise.all([
-    getEmployeeScorecards(),
-    getTeamPerformanceDashboard(),
-  ]);
+  let packages = await getWorkPackages();
+  if (teamMemberIds?.length) {
+    packages = filterWorkPackagesToTeam(packages, teamMemberIds);
+  }
+
+  let scorecards = await getEmployeeScorecards();
+  if (teamMemberIds?.length) {
+    const ids = new Set(teamMemberIds);
+    scorecards = scorecards.filter((s) => ids.has(s.user.id));
+  }
+
+  const teamPerf = await getTeamPerformanceDashboard();
 
   const productivityByAnalyst = scorecards.map((s) => ({
     name: s.user.full_name,
@@ -31,23 +46,35 @@ export async function getReportMetrics(): Promise<ReportMetrics> {
     hours: s.hoursLogged,
   }));
 
-  const efficiencyByProject = store.projects.map((p) => {
-    const projectPkgs = packages.filter((pkg) => pkg.project_id === p.id && pkg.status === "done");
-    return {
-      name: p.name,
-      completed: projectPkgs.length,
-      avgHours: computeAvgCompletionHours(projectPkgs),
-    };
-  });
+  const projectIds = new Set(packages.map((p) => p.project_id));
+  const mfrIds = new Set(packages.map((p) => p.manufacturer_id));
 
-  const efficiencyByManufacturer = store.manufacturers.slice(0, 6).map((m) => {
-    const mfrPkgs = packages.filter((pkg) => pkg.manufacturer_id === m.id && pkg.status === "done");
-    return {
-      name: m.name,
-      completed: mfrPkgs.length,
-      avgHours: computeAvgCompletionHours(mfrPkgs),
-    };
-  });
+  const efficiencyByProject = store.projects
+    .filter((p) => projectIds.has(p.id))
+    .map((p) => {
+      const projectPkgs = packages.filter((pkg) => pkg.project_id === p.id && pkg.status === "done");
+      return {
+        name: p.name,
+        completed: projectPkgs.length,
+        avgHours: computeAvgCompletionHours(projectPkgs),
+      };
+    });
+
+  const efficiencyByManufacturer = store.manufacturers
+    .filter((m) => mfrIds.has(m.id))
+    .slice(0, 6)
+    .map((m) => {
+      const mfrPkgs = packages.filter((pkg) => pkg.manufacturer_id === m.id && pkg.status === "done");
+      return {
+        name: m.name,
+        completed: mfrPkgs.length,
+        avgHours: computeAvgCompletionHours(mfrPkgs),
+      };
+    });
+
+  const qaReviews = teamMemberIds?.length
+    ? store.qaReviews.filter((r) => teamMemberIds.includes(r.analyst_id))
+    : store.qaReviews;
 
   const performanceTrends = teamPerf.trends.map((t) => ({
     date: t.label,
@@ -56,7 +83,7 @@ export async function getReportMetrics(): Promise<ReportMetrics> {
 
   return {
     productivityByAnalyst,
-    qaPassRate: computeQaPassRate(store.qaReviews),
+    qaPassRate: computeQaPassRate(qaReviews),
     totalCorrections: packages.reduce((s, p) => s + p.correction_count, 0),
     avgTimePerPackage: computeAvgCompletionHours(packages.filter((p) => p.status === "done")),
     overdueCount: packages.filter(isOverdue).length,
@@ -71,10 +98,17 @@ export async function getReportMetrics(): Promise<ReportMetrics> {
     efficiencyByManufacturer,
     performanceTrends,
     hierarchySummary: {
-      projects: store.projects.length,
-      manufacturers: store.manufacturers.length,
-      years: store.yearWorkItems.length,
+      projects: new Set(packages.map((p) => p.project_id)).size,
+      manufacturers: new Set(packages.map((p) => p.manufacturer_id)).size,
+      years: new Set(packages.map((p) => `${p.manufacturer_id}-${p.year}`)).size,
       packages: packages.length,
     },
+    forecast: buildForecastReportMetrics(teamMemberIds),
+    workloadAlerts: buildWorkloadAlertReportMetrics(
+      packages,
+      store.users,
+      teamMemberIds
+    ),
+    helpFlags: buildHelpFlagReportMetrics(store.users, teamMemberIds),
   };
 }

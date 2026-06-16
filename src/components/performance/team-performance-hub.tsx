@@ -89,7 +89,7 @@ function OverviewTab({ dashboard }: { dashboard: TeamPerformanceDashboard }) {
           <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 space-y-2">
             {dashboard.needsAttention.map((e) => (
               <div key={e.userId} className="flex justify-between text-sm">
-                <Link href={`/people/${e.userId}`} className="font-medium hover:text-violet-400">
+                <Link href={`/people/${e.userId}`} className="font-medium hover:text-primary">
                   {e.name}
                 </Link>
                 <span className="text-muted-foreground">

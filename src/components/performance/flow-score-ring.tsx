@@ -47,7 +47,7 @@ export function FlowScoreRing({
       </svg>
       <span
         className={cn(
-          "absolute font-bold tabular-nums text-violet-400",
+          "absolute font-bold tabular-nums text-primary",
           size === "lg" ? "text-3xl" : size === "sm" ? "text-lg" : "text-2xl"
         )}
       >

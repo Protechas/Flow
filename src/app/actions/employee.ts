@@ -8,11 +8,10 @@ import {
 } from "@/lib/auth/session";
 import { isEmployeeRole } from "@/lib/auth/permissions";
 import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
-import {
-  createDailyWrapUp,
-  createTimeLog,
-  updateWorkPackage,
-} from "@/lib/data/flow-store";
+import { startTaskTimer } from "@/lib/data/production-tracking";
+import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
+import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
+import { raiseHelpFlag } from "@/lib/help-flags/engine";
 import { format } from "date-fns";
 
 function revalidateWork() {
@@ -36,7 +35,7 @@ async function requireOwnTask(taskId: string) {
 
 export async function startNextTaskAction() {
   const user = await requireEmployee();
-  const board = await getEmployeeTasks(user.id);
+  const board = getEmployeeTasks(user.id);
   const next = pickNextTask(board.all);
   if (!next) {
     redirect("/work");
@@ -44,39 +43,15 @@ export async function startNextTaskAction() {
 
   if (next.status !== "working_on_it") {
     updateWorkPackage(next.id, { status: "working_on_it" });
-    revalidateWork();
   }
+  try {
+    startTaskTimer(user.id, next.id);
+  } catch {
+    // Active timer on another task — still navigate
+  }
+  revalidateWork();
 
   redirect(`/work/${next.id}?autostart=1`);
-}
-
-export async function employeeStartTaskAction(taskId: string) {
-  const user = await requireOwnTask(taskId);
-  updateWorkPackage(taskId, {
-    status: "working_on_it",
-  });
-  revalidateWork();
-  return { ok: true as const, userId: user.id };
-}
-
-export async function employeeSubmitToQaAction(taskId: string) {
-  await requireOwnTask(taskId);
-  updateWorkPackage(taskId, {
-    status: "ready_for_qa",
-    qa_status: "pending",
-  });
-  revalidateWork();
-}
-
-export async function employeeMarkCompleteAction(taskId: string) {
-  await requireOwnTask(taskId);
-  const today = format(new Date(), "yyyy-MM-dd");
-  updateWorkPackage(taskId, {
-    status: "done",
-    completed_date: today,
-    qa_status: "passed",
-  });
-  revalidateWork();
 }
 
 export async function employeeUpdateNotesAction(taskId: string, notes: string) {
@@ -84,19 +59,6 @@ export async function employeeUpdateNotesAction(taskId: string, notes: string) {
   updateWorkPackage(taskId, { notes: notes || null });
   revalidateWork();
   return user.id;
-}
-
-export async function employeeLogTimerAction(taskId: string, hours: number) {
-  const user = await requireOwnTask(taskId);
-  if (hours <= 0) return;
-  createTimeLog({
-    work_package_id: taskId,
-    user_id: user.id,
-    hours,
-    log_date: format(new Date(), "yyyy-MM-dd"),
-    notes: "Timer session",
-  });
-  revalidateWork();
 }
 
 export async function employeeReopenTaskAction(taskId: string) {
@@ -112,7 +74,7 @@ export async function submitDailyWrapUpAction(input: {
   needs_support_note?: string;
 }) {
   const user = await requireEmployee();
-  createDailyWrapUp({
+  const wrapUp = createDailyWrapUp({
     user_id: user.id,
     wrap_date: format(new Date(), "yyyy-MM-dd"),
     completed_summary: input.completed_summary || null,
@@ -120,6 +82,26 @@ export async function submitDailyWrapUpAction(input: {
     needs_support: input.needs_support,
     needs_support_note: input.needs_support_note ?? null,
   });
+
+  const hasBlockers = !!input.blockers?.trim();
+  if (input.needs_support || hasBlockers) {
+    await hydrateHelpFlagSettings();
+    initFlowStore();
+    const notes = [input.needs_support_note, input.blockers]
+      .filter((s) => s?.trim())
+      .join(" · ");
+    raiseHelpFlag({
+      employee: user,
+      reason: input.needs_support ? "workload_concern" : "stuck_on_task",
+      notes: notes || null,
+      source: "wrap_up",
+      wrapUpId: wrapUp.id,
+    });
+  }
+
   revalidateWork();
-  revalidatePath("/scorecard");
+  revalidatePath("/time-clock");
+  revalidatePath("/executive");
+  revalidatePath("/operations");
+  return { ok: true as const };
 }

@@ -39,6 +39,7 @@ import {
   unarchiveManufacturer,
   duplicateWorkPackage,
 } from "@/lib/data/flow-store";
+import { uploadTaskFile } from "@/lib/data/production-tracking";
 import type {
   ManufacturerInput,
   ProjectInput,
@@ -46,6 +47,8 @@ import type {
   WorkPackage,
 } from "@/types/flow";
 import type { ProjectTemplateId } from "@/lib/templates/project-templates";
+import { createQuickTask, type QuickTaskInput } from "@/lib/data/create-work-setup";
+import type { ForecastComplexityLevel } from "@/types/flow";
 
 const PATHS = [
   "/operations",
@@ -84,13 +87,16 @@ export async function createProjectAction(
   input: ProjectInput,
   templateId?: ProjectTemplateId
 ) {
-  await requirePermission("projects:create");
+  const user = await requirePermission("projects:create");
+  const ownerId =
+    input.project_owner_id && input.project_owner_id !== "__none__"
+      ? input.project_owner_id
+      : normalizeRole(user.role) === "teamlead"
+        ? user.id
+        : null;
   const sanitized = {
     ...input,
-    project_owner_id:
-      input.project_owner_id && input.project_owner_id !== "__none__"
-        ? input.project_owner_id
-        : null,
+    project_owner_id: ownerId,
   };
   const project = createProject(sanitized, templateId);
   await writeAuditLog({
@@ -101,6 +107,157 @@ export async function createProjectAction(
   });
   revalidateAll();
   return project;
+}
+
+export async function createBoardAction(input: {
+  name: string;
+  description?: string | null;
+  departmentId: string;
+  teamId: string;
+  templateId?: string;
+}) {
+  const user = await requirePermission("projects:create");
+  const tplPurpose = input.description?.trim();
+  const project = createProject(
+    {
+      name: input.name.trim(),
+      description: tplPurpose || null,
+      project_type: "board",
+      status: "active",
+      priority: "medium",
+      start_date: new Date().toISOString().split("T")[0],
+      due_date: null,
+      department_id: input.departmentId,
+      team_id: input.teamId,
+      project_owner_id:
+        normalizeRole(user.role) === "teamlead" ? user.id : user.id,
+      estimated_total_documents: null,
+      planning_complexity_level: "standard",
+    },
+    "custom"
+  );
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "project",
+    entityId: project.id,
+    summary: `Created board ${project.name}`,
+    metadata: { project_type: "board", template: input.templateId },
+  });
+  revalidateAll();
+  return project;
+}
+
+export async function createProjectWizardAction(input: {
+  name: string;
+  templateId: ProjectTemplateId;
+  departmentId: string;
+  teamId: string;
+  boardProjectId?: string | null;
+  boardName?: string | null;
+  estimatedDocuments?: number | null;
+  manualDueDate?: string | null;
+  ownerId?: string | null;
+  complexity?: ForecastComplexityLevel;
+  priority?: import("@/types/flow").WorkPriority;
+  description?: string | null;
+}) {
+  const user = await requirePermission("projects:create");
+  const tpl = input.templateId;
+  const tplMeta = (await import("@/lib/templates/project-templates")).PROJECT_TEMPLATES.find(
+    (t) => t.id === tpl
+  );
+  const descParts = [
+    input.boardName ? `Board: ${input.boardName}` : null,
+    input.description?.trim() || null,
+  ].filter(Boolean);
+
+  const ownerId =
+    input.ownerId && input.ownerId !== "__none__"
+      ? input.ownerId
+      : normalizeRole(user.role) === "teamlead"
+        ? user.id
+        : null;
+
+  const project = createProject(
+    {
+      name: input.name.trim(),
+      description: descParts.length ? descParts.join(" · ") : null,
+      project_type: tplMeta?.projectType ?? "custom",
+      status: "active",
+      priority: input.priority ?? "medium",
+      start_date: new Date().toISOString().split("T")[0],
+      due_date: input.manualDueDate ?? null,
+      manual_project_due_date: input.manualDueDate ?? null,
+      department_id: input.departmentId,
+      team_id: input.teamId,
+      project_owner_id: ownerId,
+      estimated_total_documents: input.estimatedDocuments ?? null,
+      planning_complexity_level: input.complexity ?? "standard",
+    },
+    tpl
+  );
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "project",
+    entityId: project.id,
+    summary: `Created project ${project.name}`,
+    metadata: { template: tpl, board_id: input.boardProjectId },
+  });
+  revalidateAll();
+  return project;
+}
+
+export async function createQuickTaskAction(input: {
+  projectId?: string | null;
+  newProjectName?: string | null;
+  manufacturerName?: string;
+  year?: number;
+  taskTitle?: string | null;
+  assignedTo?: string | null;
+  estimatedDocumentCount?: number | null;
+  complexityLevel?: ForecastComplexityLevel;
+  projectDocumentEstimate?: number | null;
+  priority?: import("@/types/flow").WorkPriority;
+  departmentId?: string;
+  teamId?: string;
+}) {
+  const user = await requireUser();
+  if (!hasPermission(user.role, "projects:edit")) {
+    throw new Error("FORBIDDEN");
+  }
+  if (input.assignedTo) {
+    await assertCanAssignWorkPackage(user, input.assignedTo);
+  }
+
+  const quickInput: QuickTaskInput = {
+    projectId: input.projectId,
+    newProjectName: input.newProjectName,
+    manufacturerName: input.manufacturerName ?? "General",
+    year: input.year ?? new Date().getFullYear(),
+    taskTitle: input.taskTitle,
+    assignedTo: input.assignedTo,
+    estimatedDocumentCount: input.estimatedDocumentCount,
+    complexityLevel: input.complexityLevel,
+    projectDocumentEstimate: input.projectDocumentEstimate,
+    priority: input.priority,
+    projectOwnerId:
+      normalizeRole(user.role) === "teamlead" ? user.id : null,
+  };
+
+  const task = createQuickTask(quickInput);
+  const assigneeName = input.assignedTo
+    ? getFlowStore().users.find((u) => u.id === input.assignedTo)?.full_name ?? input.assignedTo
+    : "unassigned";
+
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "work_package",
+    entityId: task.id,
+    summary: `Created task ${task.title} → ${assigneeName}`,
+    metadata: { project_id: task.project_id, assigned_to: input.assignedTo },
+  });
+  revalidateAll();
+  return task;
 }
 
 export async function updateProjectAction(id: string, updates: Partial<ProjectInput & { status?: string }>) {
@@ -366,6 +523,13 @@ export async function createFileAction(input: {
   }
   await assertCanEditWorkPackage(user, input.work_package_id);
   const f = createFile(input);
+  uploadTaskFile({
+    task_id: input.work_package_id,
+    user_id: input.uploaded_by,
+    file_name: input.file_name,
+    file_type: f.mime_type ?? "application/octet-stream",
+    file_size: f.file_size ?? 0,
+  });
   revalidateAll();
   return f;
 }
@@ -428,10 +592,7 @@ export async function bulkUpdateWorkPackagesAction(
 }
 
 export async function bulkAssignWorkPackagesAction(ids: string[], assignedTo: string | null) {
-  return bulkUpdateWorkPackagesAction(ids, {
-    assigned_to: assignedTo,
-    ...(assignedTo ? { status: "assigned" as const } : {}),
-  });
+  return bulkUpdateWorkPackagesAction(ids, { assigned_to: assignedTo });
 }
 
 export async function bulkSubmitQaAction(ids: string[]) {

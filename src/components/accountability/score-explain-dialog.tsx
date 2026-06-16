@@ -46,7 +46,7 @@ export function ScoreExplainDialog({
             >
               <div className="flex justify-between font-medium">
                 <span>{f.label}</span>
-                <span className="tabular-nums text-violet-400">{f.normalizedScore}</span>
+                <span className="tabular-nums text-primary">{f.normalizedScore}</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Raw: {f.rawValue}</span>
@@ -96,7 +96,7 @@ export function FlowScoreExplainDialog({
             <div key={name} className="rounded-lg border border-border/60 p-3">
               <p className="font-medium mb-2">
                 {name}{" "}
-                <span className="text-violet-400 tabular-nums">{comp.score}</span>
+                <span className="text-primary tabular-nums">{comp.score}</span>
                 <span className="text-xs text-muted-foreground ml-1">
                   ({Math.round(comp.weight * 100)}%)
                 </span>

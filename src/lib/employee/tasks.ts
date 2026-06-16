@@ -1,4 +1,4 @@
-import { getWorkPackages } from "@/lib/data/work-packages";
+import { listWorkPackages } from "@/lib/data/work-packages";
 import {
   compareTaskPriority,
   type EmployeeTaskBoard,
@@ -31,11 +31,7 @@ export function bucketEmployeeTasks(tasks: WorkPackage[]): EmployeeTaskBoard {
         inProgress.push(t);
         break;
       default:
-        if (["not_started", "assigned", "waiting", "stuck"].includes(t.status)) {
-          myTasks.push(t);
-        } else {
-          myTasks.push(t);
-        }
+        myTasks.push(t);
     }
   }
 
@@ -75,15 +71,11 @@ export function pickNextTask(tasks: WorkPackage[]): WorkPackage | null {
   })[0];
 }
 
-export async function getEmployeeTasks(userId: string): Promise<EmployeeTaskBoard> {
-  const tasks = await getWorkPackages({ assignedTo: userId });
+export function getEmployeeTasks(userId: string): EmployeeTaskBoard {
+  const tasks = listWorkPackages({ assignedTo: userId });
   return bucketEmployeeTasks(tasks);
 }
 
-export async function getEmployeeTaskForUser(
-  userId: string,
-  taskId: string
-): Promise<WorkPackage | null> {
-  const tasks = await getWorkPackages({ assignedTo: userId });
-  return tasks.find((t) => t.id === taskId) ?? null;
+export function getEmployeeTaskForUser(userId: string, taskId: string): WorkPackage | null {
+  return listWorkPackages({ assignedTo: userId }).find((t) => t.id === taskId) ?? null;
 }

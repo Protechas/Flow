@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { createWorkPackageAction } from "@/app/actions/crud";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,21 +20,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { WORK_PRIORITIES } from "@/lib/constants";
-import type { User, WorkPriority, YearWorkItem } from "@/types/flow";
+import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
+import { calculateTaskForecast, formatForecastDays } from "@/lib/forecast/engine";
+import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
+import type {
+  ForecastComplexityLevel,
+  ForecastSettings,
+  User,
+  YearWorkItem,
+} from "@/types/flow";
 import { Plus } from "lucide-react";
 
 export function AddWorkPackageDialog({
   yearItem,
+  manufacturerName,
   analysts,
+  forecastSettings,
   trigger,
 }: {
   yearItem: YearWorkItem;
+  manufacturerName?: string;
   analysts: User[];
+  forecastSettings: ForecastSettings;
   trigger?: React.ReactElement;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [docCount, setDocCount] = useState("");
+  const [complexity, setComplexity] = useState<ForecastComplexityLevel>("standard");
+  const [assignee, setAssignee] = useState(yearItem.assigned_to ?? "__none__");
+  const [taskTitle, setTaskTitle] = useState("");
+
+  const mfr = manufacturerName ?? "Work";
+  const defaultTitle = `${mfr} ${yearItem.year}`;
+  const title = taskTitle.trim() || defaultTitle;
+
+  const settings = useLiveForecastSettings(forecastSettings);
+  const docs = Number(docCount) || 0;
+  const forecast = useMemo(
+    () =>
+      calculateTaskForecast(
+        {
+          estimated_document_count: docs > 0 ? docs : null,
+          complexity_level: complexity,
+          start_date: new Date().toISOString().split("T")[0],
+          manual_due_date: null,
+          due_date: null,
+        },
+        { settings }
+      ),
+    [docs, complexity, settings]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,73 +86,100 @@ export function AddWorkPackageDialog({
       />
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add work package — {yearItem.year}</DialogTitle>
+          <DialogTitle>Add task</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {mfr} · {yearItem.year}
+          </p>
         </DialogHeader>
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            const a = fd.get("assigned_to") as string;
             startTransition(async () => {
               await createWorkPackageAction({
                 project_id: yearItem.project_id,
                 manufacturer_id: yearItem.manufacturer_id,
                 year_work_item_id: yearItem.id,
                 year: yearItem.year,
-                title: fd.get("title") as string,
-                assigned_to: a && a !== "__none__" ? a : null,
-                status: "assigned",
-                priority: fd.get("priority") as WorkPriority,
-                due_date: (fd.get("due_date") as string) || null,
-                estimated_hours: Number(fd.get("estimated_hours")) || 8,
-                notes: (fd.get("notes") as string) || null,
+                title,
+                assigned_to: assignee && assignee !== "__none__" ? assignee : null,
+                status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
+                priority: yearItem.priority,
+                due_date: yearItem.due_date,
+                estimated_hours: yearItem.estimated_hours ?? 8,
+                estimated_document_count: docs > 0 ? docs : null,
+                complexity_level: complexity,
+                notes: null,
               });
               setOpen(false);
+              setDocCount("");
+              setTaskTitle("");
+              setAssignee(yearItem.assigned_to ?? "__none__");
+              setComplexity("standard");
             });
           }}
         >
           <div className="space-y-2">
-            <Label>Title *</Label>
-            <Input name="title" required />
+            <Label className="text-xs">Assign to</Label>
+            <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "__none__")}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Unassigned</SelectItem>
+                {analysts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-2">
-              <Label>Assign to</Label>
-              <Select name="assigned_to" defaultValue={yearItem.assigned_to ?? "__none__"}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label className="text-xs">Est. documents</Label>
+              <Input
+                type="number"
+                min={0}
+                value={docCount}
+                onChange={(e) => setDocCount(e.target.value)}
+                placeholder="180"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Complexity</Label>
+              <Select
+                value={complexity}
+                onValueChange={(v) => v && setComplexity(v as ForecastComplexityLevel)}
+              >
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {analysts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>
+                  {COMPLEXITY_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select name="priority" defaultValue="medium">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {WORK_PRIORITIES.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-2">
-              <Label>Due</Label>
-              <Input name="due_date" type="date" />
-            </div>
-            <div className="space-y-2">
-              <Label>Est. hours</Label>
-              <Input name="estimated_hours" type="number" step="0.5" defaultValue={8} />
-            </div>
+
+          {docs > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Planning due for <strong className="text-foreground">{title}</strong>:{" "}
+              {forecast.suggested_due_date ?? "—"}
+              {forecast.estimated_work_days != null && ` · ${formatForecastDays(forecast.estimated_work_days)}`}
+            </p>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-xs">Title (optional)</Label>
+            <Input
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder={defaultTitle}
+            />
           </div>
+
           <DialogFooter>
-            <Button type="submit" disabled={pending} size="sm">Create</Button>
+            <Button type="submit" disabled={pending} size="sm">
+              {pending ? "Creating…" : "Create task"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

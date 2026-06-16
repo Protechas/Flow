@@ -7,7 +7,7 @@ export function EmployeeScoreStrip({ scorecard }: { scorecard: EmployeeScorecard
   return (
     <Link
       href="/scorecard"
-      className="flex items-center gap-4 rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3 hover:border-violet-500/40 transition-colors mb-6"
+      className="flex items-center gap-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 hover:border-primary/30 transition-colors mb-6"
     >
       <FlowScoreRing score={scorecard.flowScore} size="sm" />
       <div className="flex-1 min-w-0">
@@ -16,7 +16,7 @@ export function EmployeeScoreStrip({ scorecard }: { scorecard: EmployeeScorecard
           {scorecard.actionPointsToday} pts today · {scorecard.completedThisWeek} done this week
         </p>
       </div>
-      <span className="text-xs text-violet-400 shrink-0">View →</span>
+      <span className="text-xs text-primary shrink-0">View →</span>
     </Link>
   );
 }

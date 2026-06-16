@@ -1,4 +1,109 @@
-export type UserRole = "admin" | "manager" | "qa" | "employee" | "viewer";
+export type UserRole =
+  | "super_admin"
+  | "admin"
+  | "senior_manager"
+  | "manager"
+  | "teamlead"
+  | "employee"
+  | "viewer";
+
+/** Future roles — extend permissions when activated */
+export type FutureUserRole =
+  | "qa_lead"
+  | "trainer"
+  | "auditor"
+  | "department_coordinator";
+
+export type HierarchyLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface UserHierarchyRecord {
+  id: string;
+  user_id: string;
+  parent_user_id: string;
+  hierarchy_level: HierarchyLevel;
+  department_id?: string | null;
+  team_id?: string | null;
+  is_active: boolean;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgChartNode {
+  user: User;
+  children: OrgChartNode[];
+  department_name?: string | null;
+  team_name?: string | null;
+}
+
+export type OrgChartStatusFlag =
+  | "active"
+  | "inactive"
+  | "clocked_in"
+  | "clocked_out"
+  | "needs_work"
+  | "needs_help"
+  | "missing_wrap_up";
+
+export interface OrgChartUserOps {
+  userId: string;
+  flags: OrgChartStatusFlag[];
+  clockLabel?: string;
+  clockStatus?: "in" | "out" | "na";
+  activeTaskTitle?: string | null;
+  remainingHours?: number | null;
+  openHelpCount: number;
+  helpFlagStatus?: string | null;
+  workloadStatus?: string | null;
+  wrapUpStatus?: WrapUpComplianceStatus;
+  flowScore?: number | null;
+  engagementLevel?: "high" | "medium" | "low" | null;
+  tasksCompleted?: number;
+}
+
+export interface OrgChartActiveTask {
+  id: string;
+  title: string;
+  status: WorkStatus;
+}
+
+export interface OrgChartProfileDetail {
+  userId: string;
+  departmentName: string;
+  teamName: string;
+  reportsTo: { id: string; name: string; role: UserRole } | null;
+  directReports: { id: string; name: string; role: UserRole }[];
+  reportingChain: ReportingChainEntry[];
+  activeTasks: OrgChartActiveTask[];
+  ops: OrgChartUserOps;
+  helpFlags: {
+    id: string;
+    reason: string;
+    status: string;
+    notes?: string | null;
+    created_at: string;
+  }[];
+  workloadSummary: string | null;
+}
+
+export interface OrgChartViewerPermissions {
+  canViewProfile: boolean;
+  canAssignTask: boolean;
+  canViewWorkload: boolean;
+  canViewWrapUps: boolean;
+  canViewHelpFlags: boolean;
+  canViewTimeclock: boolean;
+  canEditReportingChain: boolean;
+}
+
+export interface ReportingChainEntry {
+  user_id: string;
+  full_name: string;
+  role: UserRole;
+  relationship: "direct_supervisor" | "manager" | "senior_manager" | "admin";
+}
+
+export type PayType = "hourly" | "salary";
 
 export type WorkStatus =
   | "not_started"
@@ -13,6 +118,122 @@ export type WorkStatus =
 
 export type WorkPriority = "low" | "medium" | "high" | "urgent";
 
+/** Document-volume complexity tier for due-date forecasting */
+export type ForecastComplexityLevel = "simple" | "standard" | "complex" | "very_complex";
+
+/** Forecast vs committed due date alignment */
+export type DueDateStatus =
+  | "on_track"
+  | "at_risk"
+  | "behind_capacity"
+  | "needs_review"
+  | "no_forecast";
+
+/** Planning vs live production forecasting */
+export type ForecastMode = "planning" | "active";
+
+/** Task-level live forecast lifecycle badge */
+export type LiveForecastStatus =
+  | "assigned"
+  | "forecast_pending"
+  | "planning_forecast"
+  | "active_forecast"
+  | "on_track"
+  | "at_risk"
+  | "behind_forecast"
+  | "completed";
+
+/** Scope for future production-rate overrides (v1 uses company defaults) */
+export type ForecastRateScope = "company" | "department" | "employee";
+
+export const FORECAST_COMPLEXITY_MULTIPLIERS: Record<ForecastComplexityLevel, number> = {
+  simple: 0.8,
+  standard: 1,
+  complex: 1.3,
+  very_complex: 1.5,
+};
+
+export interface ForecastSettings {
+  id: string;
+  minutes_per_document: number;
+  productive_hours_per_day: number;
+  /** 0=Sunday … 6=Saturday */
+  working_days: number[];
+  updated_at: string;
+  updated_by?: string | null;
+}
+
+export interface TaskForecastInput {
+  estimated_document_count?: number | null;
+  complexity_level?: ForecastComplexityLevel | null;
+  estimated_minutes_per_document?: number | null;
+  start_date?: string | null;
+  manual_due_date?: string | null;
+  due_date?: string | null;
+  status?: WorkStatus;
+}
+
+export interface TaskForecastResult {
+  complexity_level: ForecastComplexityLevel;
+  complexity_multiplier: number;
+  estimated_minutes_per_document: number;
+  estimated_work_minutes: number | null;
+  estimated_work_hours: number | null;
+  estimated_work_days: number | null;
+  suggested_due_date: string | null;
+  due_date_status: DueDateStatus;
+  forecast_last_calculated: string;
+}
+
+export interface ProjectForecastRollup {
+  estimated_total_documents: number | null;
+  estimated_total_hours: number | null;
+  estimated_total_work_days: number | null;
+  suggested_project_due_date: string | null;
+  planning_project_due_date: string | null;
+  active_project_due_date: string | null;
+  project_due_date_status: DueDateStatus;
+  forecast_confidence: number;
+}
+
+export interface ForecastDashboardStats {
+  projectsAtRisk: number;
+  tasksAtRisk: number;
+  missingEstimates: number;
+  upcomingDueDates: number;
+  behindCapacity: number;
+  needsReview: number;
+  tasksWaitingToStart: number;
+  activeForecasts: number;
+  tasksBehindForecast: number;
+  projectsBehindForecast: number;
+  departmentLoad: { departmentId: string; departmentName: string; activeTasks: number; estimatedHours: number }[];
+}
+
+export interface ForecastReportMetrics {
+  totalEstimatedDocuments: number;
+  totalEstimatedHours: number;
+  totalEstimatedWorkDays: number;
+  tasksMissingEstimates: number;
+  projectsMissingEstimates: number;
+  tasksAtRisk: number;
+  projectsAtRisk: number;
+  tasksOnTrack: number;
+  forecastVarianceAvgDays: number;
+  byDepartment: {
+    departmentId: string;
+    departmentName: string;
+    estimatedHours: number;
+    activeTasks: number;
+    atRisk: number;
+  }[];
+  atRiskTasks: { id: string; title: string; employeeName: string; suggestedDueDate: string | null; manualDueDate: string | null; status: DueDateStatus }[];
+  atRiskProjects: { id: string; name: string; suggestedDueDate: string | null; manualDueDate: string | null; status: DueDateStatus }[];
+  planningVsActiveVarianceAvgDays: number;
+  activeForecastCount: number;
+  tasksBehindActiveForecast: number;
+}
+
 export type QaStatus =
   | "pending"
   | "passed"
@@ -26,10 +247,33 @@ export type QaResult =
   | "major_correction"
   | "rejected";
 
+export interface Department {
+  id: string;
+  name: string;
+  description?: string | null;
+  lead_user_id?: string | null;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
+export type DepartmentRoleInDepartment = "member" | "lead" | "manager";
+
+export interface DepartmentUser {
+  id: string;
+  department_id: string;
+  user_id: string;
+  role_in_department: DepartmentRoleInDepartment;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Team {
   id: string;
   name: string;
   description?: string | null;
+  department_id?: string | null;
   manager_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -68,8 +312,10 @@ export interface User {
   last_name: string;
   full_name: string;
   role: UserRole;
+  pay_type?: PayType | null;
   team_id?: string | null;
   manager_id?: string | null;
+  branch_view_access?: boolean | null;
   avatar_url?: string | null;
   hire_date?: string | null;
   last_login_at?: string | null;
@@ -83,7 +329,9 @@ export interface Project {
   name: string;
   description?: string | null;
   project_type: string;
+  department_id?: string | null;
   team_id?: string | null;
+  is_cross_department?: boolean;
   status: string;
   priority: WorkPriority;
   start_date?: string | null;
@@ -91,6 +339,17 @@ export interface Project {
   end_date?: string | null;
   project_owner_id?: string | null;
   created_by?: string | null;
+  estimated_total_documents?: number | null;
+  estimated_total_hours?: number | null;
+  estimated_total_work_days?: number | null;
+  suggested_project_due_date?: string | null;
+  manual_project_due_date?: string | null;
+  planning_project_due_date?: string | null;
+  active_project_due_date?: string | null;
+  project_due_date_status?: DueDateStatus | null;
+  forecast_confidence?: number | null;
+  /** Complexity used for project-level planning before task estimates exist */
+  planning_complexity_level?: ForecastComplexityLevel | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +393,7 @@ export interface WorkPackage {
   manufacturer_id: string;
   year_work_item_id: string;
   year: number;
+  department_id?: string | null;
   title: string;
   notes?: string | null;
   description?: string | null;
@@ -145,6 +405,30 @@ export interface WorkPackage {
   completed_date?: string | null;
   estimated_hours: number;
   actual_hours: number;
+  estimated_document_count?: number | null;
+  complexity_level?: ForecastComplexityLevel | null;
+  complexity_multiplier?: number | null;
+  estimated_minutes_per_document?: number | null;
+  estimated_work_minutes?: number | null;
+  estimated_work_hours?: number | null;
+  estimated_work_days?: number | null;
+  suggested_due_date?: string | null;
+  manual_due_date?: string | null;
+  due_date_status?: DueDateStatus | null;
+  forecast_last_calculated?: string | null;
+  assigned_at?: string | null;
+  started_at?: string | null;
+  forecast_mode?: ForecastMode | null;
+  planning_due_date?: string | null;
+  active_due_date?: string | null;
+  forecast_start_date?: string | null;
+  completed_at?: string | null;
+  estimated_remaining_documents?: number | null;
+  current_documents_completed?: number | null;
+  current_production_rate?: number | null;
+  forecast_last_updated?: string | null;
+  live_forecast_status?: LiveForecastStatus | null;
+  forecast_variance_days?: number | null;
   file_count: number;
   qa_status: QaStatus;
   correction_count: number;
@@ -166,6 +450,149 @@ export interface TimeLog {
   log_date: string;
   notes?: string | null;
   created_at: string;
+}
+
+export type TimeClockStatus = "active" | "completed" | "edited";
+
+export type TimeClockOutType = "lunch" | "out";
+
+export interface TimeClockEntry {
+  id: string;
+  user_id: string;
+  department_id?: string | null;
+  clock_in_at: string;
+  clock_out_at: string | null;
+  total_minutes: number | null;
+  clock_out_type: TimeClockOutType | null;
+  status: TimeClockStatus;
+  edited_by: string | null;
+  edit_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TaskTimeEntryStatus = "active" | "paused" | "completed";
+
+export interface TaskTimePauseEvent {
+  paused_at: string;
+  resumed_at: string | null;
+}
+
+export interface TaskTimeEntry {
+  id: string;
+  user_id: string;
+  task_id: string;
+  department_id?: string | null;
+  project_id: string;
+  manufacturer_id: string;
+  year_work_item_id: string;
+  started_at: string;
+  paused_at: string | null;
+  resumed_at: string | null;
+  completed_at: string | null;
+  total_active_minutes: number;
+  pause_events: TaskTimePauseEvent[];
+  status: TaskTimeEntryStatus;
+  is_correction_session: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskFileUpload {
+  id: string;
+  task_id: string;
+  project_id: string;
+  department_id?: string | null;
+  user_id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  file_url_or_path: string;
+  file_data_base64?: string;
+  uploaded_at: string;
+  created_at: string;
+}
+
+export type TaskSubmissionStatus = "submitted" | "in_review" | "approved" | "correction_requested" | "rejected";
+
+export interface TaskSubmissionRecord {
+  id: string;
+  task_id: string;
+  project_id: string;
+  user_id: string;
+  submitted_at: string;
+  uploaded_file_count: number;
+  total_task_minutes: number;
+  average_minutes_per_document: number;
+  documents_per_hour: number;
+  original_task_minutes: number;
+  correction_task_minutes: number;
+  status: TaskSubmissionStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QaReviewRecord {
+  id: string;
+  task_id: string;
+  submission_id: string | null;
+  reviewer_id: string;
+  reviewed_at: string;
+  status: QaResult;
+  notes: string | null;
+  correction_required: boolean;
+  correction_reason: string | null;
+  created_at: string;
+}
+
+export interface ProductionMetrics {
+  totalTaskMinutes: number;
+  uploadedFileCount: number;
+  averageMinutesPerDocument: number;
+  documentsPerHour: number;
+  productivityRate: number;
+}
+
+export interface ProductionReportFilters {
+  startDate?: string;
+  endDate?: string;
+  departmentId?: string;
+  userId?: string;
+  userIds?: string[];
+  projectId?: string;
+  manufacturerId?: string;
+  status?: TaskSubmissionStatus | WorkStatus;
+}
+
+export interface ProductionReportRow {
+  taskId: string;
+  taskTitle: string;
+  projectName: string;
+  manufacturerName: string;
+  employeeName: string;
+  employeeId: string;
+  submittedAt: string | null;
+  totalTaskMinutes: number;
+  fileCount: number;
+  averageMinutesPerDocument: number;
+  documentsPerHour: number;
+  status: string;
+  awaitingQa: boolean;
+}
+
+export interface ProductionReportSummary {
+  totalSubmissions: number;
+  awaitingQa: number;
+  avgMinutesPerDocument: number;
+  avgDocumentsPerHour: number;
+  totalTaskHours: number;
+  rows: ProductionReportRow[];
+  byEmployee: { userId: string; name: string; submissions: number; totalMinutes: number; fileCount: number; docsPerHour: number }[];
+  byDepartment: { departmentId: string; name: string; submissions: number; totalMinutes: number; fileCount: number; hoursWorked: number }[];
+  byProject: { projectId: string; name: string; submissions: number; totalMinutes: number; fileCount: number }[];
+  byManufacturer: { manufacturerId: string; name: string; submissions: number; totalMinutes: number; fileCount: number }[];
+  trends: { date: string; submissions: number; avgDocsPerHour: number; totalMinutes: number }[];
 }
 
 export interface QaReview {
@@ -226,7 +653,8 @@ export type ActivityEventType =
   | "submit_qa"
   | "task_complete"
   | "correction_received"
-  | "correction_resolved";
+  | "correction_resolved"
+  | "help_flag";
 
 export interface ActivityEvent {
   id: string;
@@ -249,7 +677,182 @@ export type NotificationType =
   | "file_uploaded"
   | "project_at_risk"
   | "employee_overloaded"
-  | "work_stuck";
+  | "work_stuck"
+  | "workload_low"
+  | "workload_empty"
+  | "workload_needs_estimate"
+  | "workload_clocked_idle"
+  | "help_flag_raised"
+  | "help_flag_escalated"
+  | "help_flag_acknowledged"
+  | "help_flag_resolved"
+  | "missing_wrap_up"
+  | "forecast_risk"
+  | "qa_rejected"
+  | "assignment_changed"
+  | "department_alert";
+
+/** High-level buckets for Notification Center filters */
+export type NotificationCategory =
+  | "help"
+  | "workload"
+  | "wrap_up"
+  | "forecast"
+  | "qa"
+  | "task"
+  | "project"
+  | "assignment"
+  | "department"
+  | "other";
+
+export type NotificationReadFilter = "all" | "unread" | "read";
+
+export type HelpFlagReason =
+  | "need_clarification"
+  | "stuck_on_task"
+  | "missing_information"
+  | "system_issue"
+  | "need_qa_guidance"
+  | "workload_concern"
+  | "other";
+
+export type HelpFlagStatus =
+  | "open"
+  | "acknowledged"
+  | "in_progress"
+  | "resolved"
+  | "dismissed";
+
+export type HelpFlagSeverity = "warning" | "critical";
+
+export interface HelpFlagRecord {
+  id: string;
+  employee_id: string;
+  department_id?: string | null;
+  team_id?: string | null;
+  board_id?: string | null;
+  project_id?: string | null;
+  task_id?: string | null;
+  reason: HelpFlagReason;
+  notes?: string | null;
+  status: HelpFlagStatus;
+  severity: HelpFlagSeverity;
+  source: "task" | "dashboard" | "timer" | "wrap_up";
+  created_at: string;
+  updated_at: string;
+  acknowledged_by?: string | null;
+  acknowledged_at?: string | null;
+  leader_note?: string | null;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
+  resolution_notes?: string | null;
+  dismissed_by?: string | null;
+  dismissed_at?: string | null;
+  dismissal_reason?: string | null;
+  escalated_at?: string | null;
+  wrap_up_id?: string | null;
+}
+
+export interface HelpFlagView extends HelpFlagRecord {
+  employee_name: string;
+  department_name?: string | null;
+  team_name?: string | null;
+  task_title?: string | null;
+  project_name?: string | null;
+  acknowledged_by_name?: string | null;
+  resolved_by_name?: string | null;
+  can_respond: boolean;
+  can_assign: boolean;
+}
+
+export interface HelpFlagSettings {
+  id: string;
+  enabled: boolean;
+  escalation_minutes: number;
+  critical_idle_minutes: number;
+  updated_at: string;
+  updated_by?: string | null;
+}
+
+export interface HelpFlagReportMetrics {
+  totalRequests: number;
+  openCount: number;
+  byDepartment: { departmentId: string; departmentName: string; count: number }[];
+  byReason: { reason: HelpFlagReason; count: number }[];
+  avgResponseTimeMinutes: number;
+  avgResolutionTimeMinutes: number;
+  repeatedBlockers: { userId: string; name: string; count: number }[];
+  unresolvedCount: number;
+}
+
+export type WorkloadAlertType =
+  | "running_out_of_work"
+  | "no_assigned_work"
+  | "needs_more_work_soon"
+  | "task_almost_complete"
+  | "needs_estimate";
+
+export type WorkloadAlertSeverity = "info" | "warning" | "critical" | "needs_review";
+
+export type WorkloadAlertStatus = "open" | "snoozed" | "dismissed" | "reviewed";
+
+export interface WorkloadAlertRecord {
+  id: string;
+  employee_id: string;
+  department_id?: string | null;
+  team_id?: string | null;
+  alert_type: WorkloadAlertType;
+  severity: WorkloadAlertSeverity;
+  remaining_hours?: number | null;
+  current_task_id?: string | null;
+  status: WorkloadAlertStatus;
+  recommended_action: string;
+  created_at: string;
+  updated_at: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  snoozed_until?: string | null;
+  dismissed_by?: string | null;
+  dismissed_at?: string | null;
+}
+
+export interface WorkloadAlertView extends WorkloadAlertRecord {
+  employee_name: string;
+  department_name?: string | null;
+  team_name?: string | null;
+  current_task_title?: string | null;
+  upcoming_task_count: number;
+  upcoming_task_titles: string[];
+  is_clocked_in: boolean;
+  has_active_timer: boolean;
+  can_assign: boolean;
+}
+
+export interface WorkloadAlertSettings {
+  id: string;
+  enabled: boolean;
+  work_remaining_threshold_hours: number;
+  snooze_duration_hours: number;
+  department_ids: string[];
+  team_ids: string[];
+  updated_at: string;
+  updated_by?: string | null;
+}
+
+export interface WorkloadAlertReportMetrics {
+  lowWorkloadCount: number;
+  noWorkCount: number;
+  avgUnusedCapacityHours: number;
+  byDepartment: {
+    departmentId: string;
+    departmentName: string;
+    alertCount: number;
+    criticalCount: number;
+  }[];
+  avgResponseTimeHours: number;
+  repeatedLowWorkload: { userId: string; name: string; alertCount: number }[];
+  openAlerts: number;
+}
 
 export interface Notification {
   id: string;
@@ -666,17 +1269,130 @@ export interface CommandCenterMetrics {
   };
   insights: CommandCenterInsight[];
   trends30: FlowScoreTrendPoint[];
+  wrapUpReview: WrapUpReviewDashboardStats;
+  forecast: ForecastDashboardStats;
+  workforce: {
+    clockedIn: number;
+    activeTaskTimers: number;
+    documentsCompletedToday: number;
+    capacityUtilizationPct: number;
+  };
+  departmentHealth: import("@/lib/design/department-health").DepartmentHealthSummary[];
+  recentActivity: ActivityEvent[];
+  workloadAlerts: WorkloadAlertView[];
+  workloadAlertSummary: {
+    open: number;
+    critical: number;
+    warning: number;
+    needsReview: number;
+  };
+  helpFlags: HelpFlagView[];
+  helpFlagSummary: {
+    open: number;
+    critical: number;
+    escalated: number;
+  };
 }
 
 export interface DailyWrapUp {
   id: string;
   user_id: string;
+  department_id?: string | null;
   wrap_date: string;
   completed_summary: string | null;
   blockers: string | null;
   needs_support: boolean;
   needs_support_note: string | null;
   created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  internal_notes: string | null;
+  follow_up_needed: boolean;
+  follow_up_notes: string | null;
+}
+
+export type WrapUpComplianceStatus = "submitted" | "missing" | "overridden";
+
+export interface DailyWrapUpOverride {
+  id: string;
+  user_id: string;
+  wrap_date: string;
+  reason: string;
+  overridden_by: string;
+  overridden_at: string;
+}
+
+export interface DailyWrapUpComplianceRow {
+  userId: string;
+  userName: string;
+  departmentId: string;
+  departmentName: string;
+  wrapDate: string;
+  wrapUpStatus: WrapUpComplianceStatus;
+  clockedIn: boolean;
+  clockedOutToday: boolean;
+  clockOutAt: string | null;
+  overrideReason: string | null;
+  overriddenByName: string | null;
+  blockedAttemptAt: string | null;
+}
+
+export type WrapUpClockOutStatus = "clocked_out" | "on_shift" | "not_clocked";
+
+export interface WrapUpReviewRow {
+  id: string;
+  userId: string;
+  employeeName: string;
+  departmentId: string;
+  departmentName: string;
+  teamId: string | null;
+  teamName: string | null;
+  wrapDate: string;
+  submittedAt: string | null;
+  clockOutStatus: WrapUpClockOutStatus;
+  clockOutAt: string | null;
+  wrapUpStatus: WrapUpComplianceStatus;
+  blockersPreview: string | null;
+  notesPreview: string | null;
+  hasBlockers: boolean;
+  needsSupport: boolean;
+  reviewed: boolean;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  followUpNeeded: boolean;
+}
+
+export interface WrapUpReviewDetail {
+  wrapUp: DailyWrapUp;
+  employeeName: string;
+  departmentName: string;
+  teamName: string | null;
+  reviewedByName: string | null;
+  wrapUpStatus: WrapUpComplianceStatus;
+  clockOutStatus: WrapUpClockOutStatus;
+  clockOutAt: string | null;
+  shiftMinutesToday: number;
+  clockEntries: TimeClockEntry[];
+  tasksCompleted: WorkPackage[];
+}
+
+export interface WrapUpReviewDashboardStats {
+  submittedToday: number;
+  missingToday: number;
+  unreviewed: number;
+  withBlockers: number;
+  followUpsNeeded: number;
+}
+
+export interface WrapUpReviewFilters {
+  startDate?: string;
+  endDate?: string;
+  userId?: string;
+  departmentId?: string;
+  teamId?: string;
+  status?: WrapUpComplianceStatus | "all";
+  reviewed?: "all" | "reviewed" | "unreviewed";
+  followUpNeeded?: boolean;
 }
 
 export interface EmployeeQaReturn {
@@ -692,6 +1408,11 @@ export interface EmployeeDailySummary {
   hoursWorkedToday: number;
   qaPasses: number;
   correctionsReceived: number;
+  clockedIn: boolean;
+  shiftMinutesToday: number | null;
+  activeTaskId: string | null;
+  activeTaskTitle: string | null;
+  documentsUploadedToday: number;
 }
 
 export type EmployeeQueueSort = "priority" | "due_date" | "assigned_date";
@@ -745,6 +1466,9 @@ export interface ReportMetrics {
   efficiencyByManufacturer: { name: string; completed: number; avgHours: number }[];
   performanceTrends: { date: string; flowScore: number }[];
   hierarchySummary: { projects: number; manufacturers: number; years: number; packages: number };
+  forecast: ForecastReportMetrics;
+  workloadAlerts: WorkloadAlertReportMetrics;
+  helpFlags: HelpFlagReportMetrics;
 }
 
 export type ProjectInput = Pick<
@@ -757,6 +1481,12 @@ export type ProjectInput = Pick<
   | "start_date"
   | "due_date"
   | "project_owner_id"
+  | "department_id"
+  | "team_id"
+  | "is_cross_department"
+  | "manual_project_due_date"
+  | "estimated_total_documents"
+  | "planning_complexity_level"
 >;
 
 export type ManufacturerInput = Pick<
@@ -783,6 +1513,7 @@ export type WorkPackageInput = Pick<
   | "manufacturer_id"
   | "year_work_item_id"
   | "year"
+  | "department_id"
   | "title"
   | "notes"
   | "description"
@@ -792,6 +1523,9 @@ export type WorkPackageInput = Pick<
   | "due_date"
   | "start_date"
   | "estimated_hours"
+  | "estimated_document_count"
+  | "complexity_level"
+  | "manual_due_date"
 >;
 
 export type WorkItemInput = WorkPackageInput;

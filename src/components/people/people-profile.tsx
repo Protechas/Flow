@@ -20,7 +20,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
       </Link>
 
       <div className="flex items-center gap-4">
-        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-violet-500/40 to-indigo-500/40 flex items-center justify-center text-xl font-bold">
+        <div className="h-14 w-14 rounded-sm bg-muted flex items-center justify-center text-lg font-semibold text-muted-foreground">
           {user.full_name.slice(0, 2).toUpperCase()}
         </div>
         <div>
@@ -29,7 +29,7 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
         </div>
         <div className="ml-auto text-right">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Flow Score</p>
-          <p className="text-4xl font-bold text-violet-400 tabular-nums">{profile.flowScore}</p>
+          <p className="text-4xl font-bold text-primary tabular-nums">{profile.flowScore}</p>
         </div>
       </div>
 

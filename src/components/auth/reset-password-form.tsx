@@ -67,7 +67,7 @@ export function ResetPasswordForm() {
       </Button>
       {error && <p className="text-sm text-red-400 text-center">{error}</p>}
       <p className="text-center text-sm">
-        <Link href="/login" className="text-violet-400 hover:underline">
+        <Link href="/login" className="text-primary hover:underline">
           Back to login
         </Link>
       </p>

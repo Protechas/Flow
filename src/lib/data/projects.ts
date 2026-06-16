@@ -14,6 +14,7 @@ import {
 } from "@/lib/data/flow-store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeRole } from "@/lib/auth/permissions";
 import type { Manufacturer, Project, YearWorkItem } from "@/types/flow";
 import { isActiveProject } from "@/lib/data/entity-filters";
 import { getWorkPackages } from "./work-packages";
@@ -69,12 +70,12 @@ export async function getUsers() {
 
 export async function getAnalysts() {
   const users = await getUsers();
-  return users.filter((u) => u.role === "employee");
+  return users.filter((u) => normalizeRole(u.role) === "employee");
 }
 
 export async function getManagers() {
   const users = await getUsers();
-  return users.filter((u) => ["admin", "manager"].includes(u.role));
+  return users.filter((u) => ["admin", "manager", "teamlead"].includes(u.role) && u.is_active);
 }
 
 export async function getProjectsWithStats(includeArchived = true) {

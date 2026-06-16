@@ -27,10 +27,10 @@ interface FlowToastContextValue {
 const FlowToastContext = createContext<FlowToastContextValue | null>(null);
 
 const VARIANT_STYLES: Record<ToastVariant, { icon: typeof Info; className: string }> = {
-  success: { icon: CheckCircle2, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
-  error: { icon: AlertTriangle, className: "border-red-500/30 bg-red-500/10 text-red-400" },
-  warning: { icon: AlertTriangle, className: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
-  info: { icon: Info, className: "border-primary/30 bg-primary/10 text-primary" },
+  success: { icon: CheckCircle2, className: "border-success/30 bg-success/10 text-success" },
+  error: { icon: AlertTriangle, className: "border-danger/30 bg-danger/10 text-danger" },
+  warning: { icon: AlertTriangle, className: "border-warning/30 bg-warning/10 text-warning" },
+  info: { icon: Info, className: "border-info/30 bg-info/10 text-info" },
 };
 
 export function FlowToastProvider({ children }: { children: ReactNode }) {
@@ -65,7 +65,7 @@ export function FlowToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               className={cn(
-                "pointer-events-auto animate-slide-in-right rounded-xl border px-4 py-3 shadow-xl shadow-black/20 backdrop-blur-md",
+                "pointer-events-auto animate-slide-in-right rounded-md border px-4 py-3 shadow-lg shadow-black/15",
                 style.className
               )}
             >

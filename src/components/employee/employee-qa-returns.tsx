@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { employeeReopenTaskAction } from "@/app/actions/employee";
 import { PriorityBadge } from "@/components/work-tracker/priority-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { EmployeeQaReturn } from "@/types/flow";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
@@ -13,9 +14,9 @@ export function EmployeeQaReturns({ returns }: { returns: EmployeeQaReturn[] }) 
   if (returns.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-orange-500/40 bg-orange-500/5 overflow-hidden">
-      <div className="px-4 py-3 border-b border-orange-500/20">
-        <h2 className="font-semibold flex items-center gap-2 text-orange-300">
+    <section className="enterprise-panel border-amber-500/30 overflow-hidden">
+      <div className="px-4 py-3 border-b border-amber-500/20 bg-amber-500/5">
+        <h2 className="flow-section-title flex items-center gap-2 text-amber-400">
           <AlertTriangle className="h-4 w-4" />
           Work returned by QA
         </h2>
@@ -23,7 +24,7 @@ export function EmployeeQaReturns({ returns }: { returns: EmployeeQaReturn[] }) 
           {returns.length} package{returns.length !== 1 ? "s" : ""} need corrections
         </p>
       </div>
-      <ul className="divide-y divide-orange-500/10">
+      <ul className="divide-y divide-border">
         {returns.map((item) => (
           <QaReturnRow key={item.package.id} item={item} />
         ))}
@@ -86,14 +87,12 @@ function QaReturnRow({ item }: { item: EmployeeQaReturn }) {
           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
           Reopen & fix
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-10"
-          render={<Link href={`/work/${pkg.id}`} />}
+        <Link
+          href={`/work/${pkg.id}`}
+          className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-10")}
         >
           View
-        </Button>
+        </Link>
       </div>
     </li>
   );

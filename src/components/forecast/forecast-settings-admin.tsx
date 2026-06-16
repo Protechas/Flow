@@ -1,0 +1,112 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getForecastSettingsAction, updateForecastSettingsAction } from "@/app/actions/forecast-settings";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { WORKING_DAY_LABELS } from "@/lib/forecast/constants";
+import type { ForecastSettings } from "@/types/flow";
+
+export function ForecastSettingsAdmin({ settings }: { settings: ForecastSettings }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [live, setLive] = useState(settings);
+  const [days, setDays] = useState<number[]>(settings.working_days);
+
+  useEffect(() => {
+    setLive(settings);
+    setDays(settings.working_days);
+  }, [settings]);
+
+  function toggleDay(day: number) {
+    setDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
+  }
+
+  return (
+    <form
+      key={live.updated_at}
+      className="space-y-4 max-w-md"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        setPending(true);
+        setSaved(false);
+        void updateForecastSettingsAction({
+          minutes_per_document: Number(fd.get("minutes_per_document")),
+          productive_hours_per_day: Number(fd.get("productive_hours_per_day")),
+          working_days: days,
+        })
+          .then((next) => {
+            setLive(next);
+            setDays(next.working_days);
+            setSaved(true);
+            router.refresh();
+            return getForecastSettingsAction();
+          })
+          .then(setLive)
+          .finally(() => setPending(false));
+      }}
+    >
+      <div className="space-y-2">
+        <Label htmlFor="minutes_per_document">Default minutes per document</Label>
+        <Input
+          id="minutes_per_document"
+          name="minutes_per_document"
+          type="number"
+          step="0.5"
+          min={0.5}
+          defaultValue={live.minutes_per_document}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="productive_hours_per_day">Productive hours per day</Label>
+        <Input
+          id="productive_hours_per_day"
+          name="productive_hours_per_day"
+          type="number"
+          step="0.25"
+          min={1}
+          max={24}
+          defaultValue={live.productive_hours_per_day}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Working days</Label>
+        <div className="flex flex-wrap gap-3">
+          {WORKING_DAY_LABELS.map((d) => (
+            <label key={d.value} className="flex items-center gap-1.5 text-sm">
+              <Checkbox
+                checked={days.includes(d.value)}
+                onCheckedChange={() => toggleDay(d.value)}
+              />
+              {d.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Last updated {new Date(live.updated_at).toLocaleString()}
+        {live.updated_by ? ` · saved to demo session` : ""}
+      </p>
+      {saved && (
+        <p className="text-xs text-emerald-400">
+          Settings saved. Forecasts across Operations, Projects, and Reports have been recalculated.
+        </p>
+      )}
+      <Button type="submit" size="sm" disabled={pending || days.length === 0}>
+        {pending ? "Saving…" : "Save forecasting settings"}
+      </Button>
+      {days.length === 0 && (
+        <p className="text-xs text-amber-400">Select at least one working day to enable save.</p>
+      )}
+    </form>
+  );
+}

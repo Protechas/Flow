@@ -8,42 +8,31 @@ import {
   updateWorkPackage,
   deleteWorkPackage,
 } from "@/lib/data/flow-store";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { createClient } from "@/lib/supabase/server";
 import type { OperationsTree, WorkPackage, WorkPackageInput } from "@/types/flow";
 
-export async function getWorkPackages(filters?: {
+export type WorkPackageFilters = {
   status?: string;
   assignedTo?: string;
   projectId?: string;
-}): Promise<WorkPackage[]> {
-  if (!isSupabaseConfigured()) {
-    initFlowStore();
-    const store = getFlowStore();
-    let items = filterActiveWorkPackages(
-      store.workPackages,
-      store.projects,
-      store.manufacturers
-    );
-    if (filters?.status) items = items.filter((i) => i.status === filters.status);
-    if (filters?.assignedTo) items = items.filter((i) => i.assigned_to === filters.assignedTo);
-    if (filters?.projectId) items = items.filter((i) => i.project_id === filters.projectId);
-    return enrichPackages(items);
-  }
+};
 
-  const supabase = await createClient();
-  let query = supabase
-    .from("work_items")
-    .select("*, project:projects(*), manufacturer:manufacturers(*)")
-    .order("updated_at", { ascending: false });
+/** Single read path for tasks — managers and employees use the same store. */
+export function listWorkPackages(filters?: WorkPackageFilters): WorkPackage[] {
+  initFlowStore();
+  const store = getFlowStore();
+  let items = filterActiveWorkPackages(
+    store.workPackages,
+    store.projects,
+    store.manufacturers
+  );
+  if (filters?.status) items = items.filter((i) => i.status === filters.status);
+  if (filters?.assignedTo) items = items.filter((i) => i.assigned_to === filters.assignedTo);
+  if (filters?.projectId) items = items.filter((i) => i.project_id === filters.projectId);
+  return enrichPackages(items);
+}
 
-  if (filters?.status) query = query.eq("status", filters.status);
-  if (filters?.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
-  if (filters?.projectId) query = query.eq("project_id", filters.projectId);
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as WorkPackage[];
+export async function getWorkPackages(filters?: WorkPackageFilters): Promise<WorkPackage[]> {
+  return listWorkPackages(filters);
 }
 
 export async function getOperationsTree(filters?: {
@@ -72,8 +61,7 @@ export async function getOperationsTree(filters?: {
 }
 
 export async function getWorkPackageById(id: string) {
-  const items = await getWorkPackages();
-  return items.find((i) => i.id === id) ?? null;
+  return listWorkPackages().find((i) => i.id === id) ?? null;
 }
 
 export {
