@@ -50,6 +50,7 @@ import {
 
 } from "@/components/ui/sidebar";
 
+import { AppVersionBadge } from "@/components/layout/app-version-badge";
 import { roleLabel } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 
@@ -235,6 +236,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </div>
 
         </div>
+
+        <AppVersionBadge />
 
       </SidebarFooter>
 

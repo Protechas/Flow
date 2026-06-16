@@ -498,7 +498,7 @@ export type NavGroupId = "command" | "operations" | "reports" | "administration"
 
 export const NAV_GROUP_LABELS: Record<NavGroupId, string> = {
 
-  command: "Command Center",
+  command: "Dashboard",
 
   operations: "Operations",
 
@@ -528,7 +528,7 @@ export const NAV_CONFIG: {
 
 }[] = [
 
-  { id: "command-center", href: "/executive", label: "Command Center", icon: "LayoutDashboard", group: "command", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
+  { id: "command-center", href: "/executive", label: "Dashboard", icon: "LayoutDashboard", group: "command", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 

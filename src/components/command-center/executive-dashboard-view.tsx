@@ -126,7 +126,7 @@ export function ExecutiveDashboardView({
             <div className="flex items-center gap-2 text-primary">
               <LayoutDashboard className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-widest">
-                Executive Command Center
+                Dashboard
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
