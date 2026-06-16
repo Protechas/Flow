@@ -47,19 +47,32 @@ export function HelpFlagDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        {tile ? (
-          <button type="button" className="flow-employee-action-tile flow-employee-action-tile-warn w-full min-w-0">
-            <LifeBuoy className="h-5 w-5 shrink-0" />
-            <span className="text-xs font-medium leading-tight">{triggerLabel}</span>
-          </button>
-        ) : (
-          <Button variant="outline" size="sm" className="border-warning/40 text-warning hover:bg-warning/10">
-            <LifeBuoy className="h-4 w-4 mr-1.5" />
-            {triggerLabel}
-          </Button>
-        )}
-      </DialogTrigger>
+      {tile ? (
+        <DialogTrigger
+          render={
+            <button
+              type="button"
+              className="flow-employee-action-tile flow-employee-action-tile-warn w-full min-w-0"
+            />
+          }
+        >
+          <LifeBuoy className="h-5 w-5 shrink-0" />
+          <span className="text-xs font-medium leading-tight">{triggerLabel}</span>
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-warning/40 text-warning hover:bg-warning/10"
+            />
+          }
+        >
+          <LifeBuoy className="h-4 w-4 mr-1.5" />
+          {triggerLabel}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Flag for help</DialogTitle>

@@ -15,14 +15,17 @@ import {
   type OpsBoardFilters,
   type OpsSavedViewId,
 } from "@/lib/operations/board-filters";
+import { OPS_LAYOUT_MODES, type OpsLayoutMode } from "@/lib/operations/layout";
 import { QA_STATUSES, WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
 import type { Project, User } from "@/types/flow";
-import { ChevronDown, ChevronUp, Filter, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Filter, LayoutGrid, Search, Table2, X } from "lucide-react";
 import { useState } from "react";
 
 interface OperationsToolbarProps {
   filters: OpsBoardFilters;
   onFiltersChange: (f: OpsBoardFilters) => void;
+  layoutMode: OpsLayoutMode;
+  onLayoutModeChange: (mode: OpsLayoutMode) => void;
   projects: Project[];
   manufacturers: { id: string; name: string; projectId: string }[];
   analysts: User[];
@@ -42,6 +45,8 @@ interface OperationsToolbarProps {
 export function OperationsToolbar({
   filters,
   onFiltersChange,
+  layoutMode,
+  onLayoutModeChange,
   projects,
   manufacturers,
   analysts,
@@ -81,6 +86,26 @@ export function OperationsToolbar({
   return (
     <div className="space-y-3 mb-4">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-md border border-border/60 p-0.5 bg-muted/20">
+          {OPS_LAYOUT_MODES.map((mode) => (
+            <Button
+              key={mode.id}
+              variant={layoutMode === mode.id ? "default" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              title={mode.description}
+              onClick={() => onLayoutModeChange(mode.id)}
+            >
+              {mode.id === "browser" ? (
+                <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+              ) : (
+                <Table2 className="h-3.5 w-3.5 mr-1" />
+              )}
+              {mode.label}
+            </Button>
+          ))}
+        </div>
+
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input

@@ -9,6 +9,7 @@ import { recordWrapUpBlockAttemptAction } from "@/app/actions/wrap-up";
 import { resumeTaskTimerAction } from "@/app/actions/production";
 import { HelpFlagDialog } from "@/components/help-flags/help-flag-dialog";
 import { EmployeeWrapUp } from "@/components/employee/employee-wrap-up";
+import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatActionError } from "@/lib/errors/action-messages";
+import type { WorkEligibility } from "@/lib/work-eligibility";
 import { getEmployeeClockStatus } from "@/lib/time-clock/labels";
 import { cn } from "@/lib/utils";
 import type {
@@ -28,6 +31,7 @@ import type {
   WrapUpComplianceStatus,
 } from "@/types/flow";
 import {
+  Coffee,
   FileUp,
   LogIn,
   LogOut,
@@ -91,6 +95,7 @@ export function EmployeePrimaryActions({
   todayClockEntries,
   wrapUpStatus,
   todayWrapUp,
+  workEligibility,
 }: {
   currentTask: WorkPackage | null;
   nextTask: WorkPackage | null;
@@ -100,6 +105,7 @@ export function EmployeePrimaryActions({
   todayClockEntries: TimeClockEntry[];
   wrapUpStatus: WrapUpComplianceStatus;
   todayWrapUp: DailyWrapUp | null;
+  workEligibility: WorkEligibility;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -108,14 +114,62 @@ export function EmployeePrimaryActions({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingClockOut, setPendingClockOut] = useState(false);
   const [clockError, setClockError] = useState<string | null>(null);
+  const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
+  const [eligibilityMessage, setEligibilityMessage] = useState(
+    "You must be clocked in before starting work."
+  );
 
   const clockState = getEmployeeClockStatus(activeClock, todayClockEntries);
   const onShift = clockState === "on_shift";
+  const onLunch = clockState === "on_lunch";
+  const canPerformWork = workEligibility.eligible;
   const taskForActions = currentTask ?? nextTask;
   const timerPaused = activeTaskTimer?.status === "paused";
   const timerActive = activeTaskTimer?.status === "active";
   const wrapUpComplete = wrapUpStatus === "submitted" || wrapUpStatus === "overridden";
   const canStart = (!!nextTask || !!currentTask) && !(timerActive && !!currentTask);
+
+  function openEligibilityGate(message?: string) {
+    if (workEligibility.status === "needs_setup") {
+      setEligibilityMessage(
+        message ??
+          "Your account setup is not complete. Please contact your manager or administrator."
+      );
+    } else {
+      setEligibilityMessage(message ?? "You must be clocked in before starting work.");
+    }
+    setEligibilityGateOpen(true);
+  }
+
+  function handleStartTask() {
+    if (!canPerformWork) {
+      openEligibilityGate();
+      return;
+    }
+    setClockError(null);
+    startTransition(async () => {
+      try {
+        await startNextTaskAction();
+      } catch (e) {
+        setClockError(formatActionError(e));
+      }
+    });
+  }
+
+  function handleResumeTimer() {
+    if (!canPerformWork) {
+      openEligibilityGate("You must be clocked in before resuming work.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await resumeTaskTimerAction();
+      if (!res.ok && "message" in res && res.message) {
+        openEligibilityGate(res.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   function performClockOut() {
     setClockError(null);
@@ -151,18 +205,28 @@ export function EmployeePrimaryActions({
     setGateOpen(true);
   }
 
+  function handleLunchClick() {
+    setClockError(null);
+    startTransition(async () => {
+      try {
+        await clockOutAction("lunch");
+        router.refresh();
+      } catch (e) {
+        setClockError(formatActionError(e));
+      }
+    });
+  }
+
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <form action={startNextTaskAction} className="min-w-0">
-          <ActionTile
-            label="Start Task"
-            icon={Play}
-            variant="primary"
-            type="submit"
-            disabled={pending || !canStart}
-          />
-        </form>
+        <ActionTile
+          label="Start Task"
+          icon={Play}
+          variant="primary"
+          disabled={pending || !canStart}
+          onClick={handleStartTask}
+        />
 
         {timerPaused && currentTask ? (
           <ActionTile
@@ -170,27 +234,32 @@ export function EmployeePrimaryActions({
             icon={RotateCcw}
             variant="primary"
             disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await resumeTaskTimerAction();
-                router.refresh();
-              })
-            }
+            onClick={handleResumeTimer}
           />
         ) : (
           <ActionTile
             label="Resume Task"
             icon={RotateCcw}
-            href={currentTask ? `/work/${currentTask.id}` : undefined}
-            disabled={!currentTask}
+            href={currentTask && canPerformWork ? `/work/${currentTask.id}` : undefined}
+            disabled={!currentTask || !canPerformWork}
+            onClick={
+              currentTask && !canPerformWork
+                ? () => openEligibilityGate("You must be clocked in before resuming work.")
+                : undefined
+            }
           />
         )}
 
         <ActionTile
           label="Upload Files"
           icon={FileUp}
-          href={taskForActions ? `/work/${taskForActions.id}` : undefined}
+          href={taskForActions && canPerformWork ? `/work/${taskForActions.id}` : undefined}
           disabled={!taskForActions}
+          onClick={
+            taskForActions && !canPerformWork
+              ? () => openEligibilityGate("You must be clocked in before uploading task files.")
+              : undefined
+          }
         />
 
         <div className="min-w-0">
@@ -212,14 +281,22 @@ export function EmployeePrimaryActions({
 
         {useShiftClock && (
           <>
+            {onShift && (
+              <ActionTile
+                label="Lunch"
+                icon={Coffee}
+                disabled={pending}
+                onClick={handleLunchClick}
+              />
+            )}
             <ActionTile
-              label="Clock In"
+              label={onLunch ? "Back from lunch" : "Clock In"}
               icon={LogIn}
               disabled={pending || onShift}
               onClick={() => startTransition(() => clockInAction())}
             />
             <ActionTile
-              label="Clock Out"
+              label="Out"
               icon={LogOut}
               variant="warn"
               disabled={pending || !onShift}
@@ -230,6 +307,19 @@ export function EmployeePrimaryActions({
       </div>
 
       {clockError && <p className="text-xs text-red-400 mt-2">{clockError}</p>}
+
+      <WorkEligibilityGateDialog
+        open={eligibilityGateOpen}
+        onOpenChange={setEligibilityGateOpen}
+        message={eligibilityMessage}
+        onClockedIn={() => router.refresh()}
+        allowClockIn={workEligibility.status !== "needs_setup"}
+        title={
+          workEligibility.status === "needs_setup"
+            ? "Account setup required"
+            : "Clock in required"
+        }
+      />
 
       <EmployeeWrapUp
         existing={todayWrapUp}

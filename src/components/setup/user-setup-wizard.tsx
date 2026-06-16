@@ -26,7 +26,14 @@ import {
 import type { Department, PayType, Team, User, UserRole } from "@/types/flow";
 import { UserPlus } from "lucide-react";
 
-const STEPS = ["Basic info", "Role", "Department & team", "Supervisor", "Review"];
+const STEPS = [
+  "Basic info",
+  "Department",
+  "Team",
+  "Supervisor",
+  "Role",
+  "Review & activate",
+];
 
 export function UserSetupWizard({
   users,
@@ -89,9 +96,11 @@ export function UserSetupWizard({
       if (mode === "create" && (!email.trim() || password.length < 8)) return false;
       return true;
     }
-    if (step === 1) return Boolean(role);
-    if (step === 2) {
+    if (step === 1) {
       if (roleConfig.requiresDepartment && !departmentId) return false;
+      return true;
+    }
+    if (step === 2) {
       if (roleConfig.requiresTeam && !teamId) return false;
       return true;
     }
@@ -99,6 +108,7 @@ export function UserSetupWizard({
       if (roleConfig.requiresReportsTo && !managerId) return false;
       return true;
     }
+    if (step === 4) return Boolean(role);
     return true;
   }
 
@@ -187,40 +197,8 @@ export function UserSetupWizard({
       )}
 
       {step === 1 && (
-        <div className="space-y-3 max-w-md">
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => v && setRole(v as UserRole)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {USER_ROLES.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-xs text-muted-foreground rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-            {roleConfig.helper}
-          </p>
-          {role === "employee" && (
-            <div className="space-y-2">
-              <Label>Pay type</Label>
-              <Select value={payType} onValueChange={(v) => v && setPayType(v as PayType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PAY_TYPES.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 2 && (
         <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
-          {roleConfig.requiresDepartment && (
+          {roleConfig.requiresDepartment ? (
             <div className="space-y-2">
               <Label>Department</Label>
               <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
@@ -232,8 +210,17 @@ export function UserSetupWizard({
                 </SelectContent>
               </Select>
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+              No department required for this role.
+            </p>
           )}
-          {roleConfig.requiresTeam && (
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+          {roleConfig.requiresTeam ? (
             <div className="space-y-2">
               <Label>Team</Label>
               <Select value={teamId || "__none__"} onValueChange={(v) => setTeamId(!v || v === "__none__" ? "" : v)}>
@@ -246,10 +233,9 @@ export function UserSetupWizard({
                 </SelectContent>
               </Select>
             </div>
-          )}
-          {!roleConfig.requiresDepartment && !roleConfig.requiresTeam && (
+          ) : (
             <p className="text-sm text-muted-foreground sm:col-span-2">
-              No department or team required for this role.
+              No team required for this role.
             </p>
           )}
         </div>
@@ -281,7 +267,42 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 4 && <HierarchyPreviewCard preview={preview} />}
+      {step === 4 && (
+        <div className="space-y-3 max-w-md">
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <Select value={role} onValueChange={(v) => v && setRole(v as UserRole)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {USER_ROLES.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+            {roleConfig.helper}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            New users default to Employee. Change only when authorized.
+          </p>
+          {role === "employee" && (
+            <div className="space-y-2">
+              <Label>Pay type</Label>
+              <Select value={payType} onValueChange={(v) => v && setPayType(v as PayType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAY_TYPES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 5 && <HierarchyPreviewCard preview={preview} />}
 
       <div className="flex flex-wrap items-center gap-2 pt-2">
         {step > 0 && (
@@ -295,7 +316,7 @@ export function UserSetupWizard({
           </Button>
         ) : (
           <Button type="button" onClick={submit} disabled={pending || !canAdvance()}>
-            {pending ? "Saving…" : mode === "create" ? "Create user" : "Complete setup"}
+            {pending ? "Saving…" : mode === "create" ? "Create user" : "Activate account"}
           </Button>
         )}
       </div>

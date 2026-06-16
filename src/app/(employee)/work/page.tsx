@@ -1,5 +1,8 @@
 import { EmployeeHome } from "@/components/employee/employee-home";
+import { EmployeeNeedsSetupView } from "@/components/setup/employee-needs-setup-view";
 import { requirePageAccess } from "@/lib/auth/guard";
+import { loadAccountSetupSummary } from "@/lib/setup/guard";
+import { isEmployeeRole } from "@/lib/auth/permissions";
 import { getEmployeeDashboard } from "@/lib/employee/dashboard";
 import {
   getActiveClockEntry,
@@ -8,6 +11,7 @@ import {
 } from "@/lib/data/production-tracking";
 import { normalizePayType } from "@/lib/users/pay-type";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { getWorkEligibility, syncWorkEligibilityMismatchAlert } from "@/lib/work-eligibility";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listEmployeeHelpFlags } from "@/lib/help-flags/engine";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
@@ -24,6 +28,12 @@ export default async function EmployeeWorkPage() {
   const store = getFlowStore();
   const packages = await getWorkPackages();
   const helpFlags = listEmployeeHelpFlags(user.id, packages, store.users);
+  syncWorkEligibilityMismatchAlert(user);
+
+  const setup = loadAccountSetupSummary(user);
+  if (isEmployeeRole(user.role) && setup.setupStatus === "needs_setup") {
+    return <EmployeeNeedsSetupView user={user} setup={setup} />;
+  }
 
   return (
     <EmployeeHome
@@ -35,6 +45,7 @@ export default async function EmployeeWorkPage() {
       taskMinutesToday={getTaskMinutesToday(user.id)}
       wrapUpStatus={getWrapUpComplianceStatus(user.id, today)}
       helpFlags={helpFlags}
+      workEligibility={getWorkEligibility(user)}
     />
   );
 }

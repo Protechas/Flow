@@ -9,7 +9,8 @@ import {
   requireUser,
 } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { normalizeRole } from "@/lib/auth/permissions";
+import { normalizeRole, isEmployeeRole } from "@/lib/auth/permissions";
+import { assertWorkEligible } from "@/lib/work-eligibility";
 import {
   bulkCreateYears,
   createComment,
@@ -403,6 +404,9 @@ export async function submitWorkPackageToQaAction(id: string) {
   if (!hasPermission(user.role, "work:submit_qa") && !hasPermission(user.role, "work:edit")) {
     throw new Error("FORBIDDEN");
   }
+  if (isEmployeeRole(user.role)) {
+    await assertWorkEligible(user, "submit_qa", { taskId: id });
+  }
   updateWorkPackage(id, { status: "ready_for_qa", qa_status: "pending" });
   await writeAuditLog({
     action: "status_changed",
@@ -418,6 +422,9 @@ export async function completeWorkPackageAction(id: string) {
   await assertCanEditWorkPackage(user, id);
   if (!hasPermission(user.role, "work:edit") && !hasPermission(user.role, "work:edit_own")) {
     throw new Error("FORBIDDEN");
+  }
+  if (isEmployeeRole(user.role)) {
+    await assertWorkEligible(user, "complete_task", { taskId: id });
   }
   const today = new Date().toISOString().split("T")[0];
   updateWorkPackage(id, {
@@ -522,6 +529,9 @@ export async function createFileAction(input: {
     throw new Error("FORBIDDEN");
   }
   await assertCanEditWorkPackage(user, input.work_package_id);
+  if (isEmployeeRole(user.role)) {
+    await assertWorkEligible(user, "upload_file", { taskId: input.work_package_id });
+  }
   const f = createFile(input);
   uploadTaskFile({
     task_id: input.work_package_id,
@@ -541,7 +551,17 @@ export async function deleteFileAction(id: string) {
 }
 
 export async function resolveCorrectionAction(id: string) {
+  const user = await requireUser();
   await requirePermission("corrections:create");
+  if (isEmployeeRole(user.role)) {
+    initFlowStore();
+    const correction = getFlowStore().corrections.find((c) => c.id === id);
+    if (correction?.work_package_id) {
+      await assertWorkEligible(user, "submit_correction", {
+        taskId: correction.work_package_id,
+      });
+    }
+  }
   resolveCorrection(id);
   revalidateAll();
 }

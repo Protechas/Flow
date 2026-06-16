@@ -111,6 +111,8 @@ export function clockIn(userId: string): TimeClockEntry {
 
 export function clockOut(userId: string, outType: TimeClockOutType): TimeClockEntry {
   initProductionTracking();
+  finalizeTaskTimersOnShiftEnd(userId, outType);
+
   const entry = getActiveClockEntry(userId);
   if (!entry) throw new Error("Not clocked in");
 
@@ -345,6 +347,31 @@ export function stopTaskTimer(userId: string): TaskTimeEntry {
   taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
   refreshTaskLiveForecastExternal(entry.task_id, getTotalTaskMinutes(entry.task_id));
   return updated;
+}
+
+/** Pause or stop task timers when shift ends — prevents phantom work time. */
+export function finalizeTaskTimersOnShiftEnd(userId: string, outType: TimeClockOutType): void {
+  initProductionTracking();
+  const entry = getActiveTaskTimeEntry(userId);
+  if (!entry) return;
+  try {
+    if (outType === "lunch" && entry.status === "active") {
+      pauseTaskTimer(userId);
+      logActivityBridge(userId, "time_log", "Task timer paused — clocked out for lunch", entry.task_id);
+    } else {
+      stopTaskTimer(userId);
+      logActivityBridge(userId, "time_log", "Task timer stopped — shift ended", entry.task_id);
+    }
+  } catch {
+    // Timer may have been finalized concurrently
+  }
+}
+
+export function forceStopTaskTimer(userId: string): TaskTimeEntry | null {
+  initProductionTracking();
+  const entry = getActiveTaskTimeEntry(userId);
+  if (!entry) return null;
+  return stopTaskTimer(userId);
 }
 
 export function getTaskTimeEntriesForTask(taskId: string): TaskTimeEntry[] {

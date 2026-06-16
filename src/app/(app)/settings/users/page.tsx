@@ -2,6 +2,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AuditLogView } from "@/components/settings/audit-log-view";
 import { UsersAdmin } from "@/components/settings/users-admin";
 import { BulkUserAssignment } from "@/components/setup/bulk-user-assignment";
+import { BulkInvitePanel } from "@/components/setup/bulk-invite-panel";
+import { UsersNeedingSetupQueue } from "@/components/setup/users-needing-setup-queue";
 import { UserSetupWizard } from "@/components/setup/user-setup-wizard";
 import {
   getAuditLogAction,
@@ -48,6 +50,15 @@ export default async function UsersAdminPage() {
             Add SUPABASE_SERVICE_ROLE_KEY to enable guided user creation.
           </p>
         )}
+
+        <UsersNeedingSetupQueue
+          users={users}
+          departments={departments}
+          teams={teams}
+          departmentUsers={departmentUsers}
+        />
+
+        {canCreate ? <BulkInvitePanel departments={departments} teams={teams} managers={managers} /> : null}
 
         <BulkUserAssignment users={users} departments={departments} teams={teams} />
 

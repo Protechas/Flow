@@ -7,6 +7,7 @@ import {
   requireUser,
 } from "@/lib/auth/session";
 import { isEmployeeRole } from "@/lib/auth/permissions";
+import { assertWorkEligible } from "@/lib/work-eligibility";
 import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
 import { startTaskTimer } from "@/lib/data/production-tracking";
 import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
@@ -35,6 +36,8 @@ async function requireOwnTask(taskId: string) {
 
 export async function startNextTaskAction() {
   const user = await requireEmployee();
+  await assertWorkEligible(user, "start_task");
+
   const board = getEmployeeTasks(user.id);
   const next = pickNextTask(board.all);
   if (!next) {
@@ -62,7 +65,8 @@ export async function employeeUpdateNotesAction(taskId: string, notes: string) {
 }
 
 export async function employeeReopenTaskAction(taskId: string) {
-  await requireOwnTask(taskId);
+  const user = await requireOwnTask(taskId);
+  await assertWorkEligible(user, "resume_task", { taskId });
   updateWorkPackage(taskId, { status: "working_on_it" });
   revalidateWork();
 }

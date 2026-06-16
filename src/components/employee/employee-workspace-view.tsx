@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ActivityFeed } from "@/components/enterprise/activity-feed";
+import { EmployeeClockWidget } from "@/components/employee/employee-clock-widget";
 import { EmployeePrimaryActions } from "@/components/employee/employee-primary-actions";
 import { EmployeeQaReturns } from "@/components/employee/employee-qa-returns";
 import { LiveForecastStatusBadge } from "@/components/forecast/live-forecast-status-badge";
@@ -13,6 +14,7 @@ import { primaryDueDate } from "@/lib/forecast/live";
 import { formatMinutes } from "@/lib/production/metrics";
 import { clockStatusLabel, getEmployeeClockStatus } from "@/lib/time-clock/labels";
 import { requiresShiftClock } from "@/lib/users/pay-type";
+import type { WorkEligibility } from "@/lib/work-eligibility";
 import { cn } from "@/lib/utils";
 import type { EmployeeDashboard } from "@/lib/employee/dashboard";
 import type {
@@ -46,6 +48,7 @@ function nextStepMessage({
   wrapUpStatus,
   onShift,
   useShiftClock,
+  workEligible,
 }: {
   currentTask: EmployeeDashboard["currentTask"];
   nextTask: EmployeeDashboard["nextTask"];
@@ -54,7 +57,11 @@ function nextStepMessage({
   wrapUpStatus: WrapUpComplianceStatus;
   onShift: boolean;
   useShiftClock: boolean;
+  workEligible: boolean;
 }): string {
+  if (useShiftClock && !workEligible) {
+    return "Clock in to start work on your assigned tasks.";
+  }
   if (qaReturns.length > 0) {
     return "QA returned work — fix corrections first.";
   }
@@ -82,6 +89,7 @@ export function EmployeeWorkspaceView({
   taskMinutesToday,
   wrapUpStatus,
   helpFlags = [],
+  workEligibility,
 }: {
   dashboard: EmployeeDashboard;
   userName: string;
@@ -91,6 +99,7 @@ export function EmployeeWorkspaceView({
   taskMinutesToday: number;
   wrapUpStatus: WrapUpComplianceStatus;
   helpFlags?: HelpFlagView[];
+  workEligibility: WorkEligibility;
 }) {
   const {
     currentTask,
@@ -128,10 +137,65 @@ export function EmployeeWorkspaceView({
     wrapUpStatus,
     onShift,
     useShiftClock,
+    workEligible: workEligibility.eligible,
   });
+
+  const eligibilityLabel =
+    workEligibility.status === "eligible"
+      ? "Eligible for work"
+      : workEligibility.status === "needs_setup"
+        ? "Setup incomplete"
+      : workEligibility.status === "on_break"
+        ? "On lunch break"
+        : workEligibility.status === "override_active"
+          ? "Override active"
+          : workEligibility.status === "inactive"
+            ? "Account inactive"
+            : "Clocked out";
 
   return (
     <div className="flow-employee-workspace space-y-6 pb-10">
+      {workEligibility.requiresClockIn && (
+        <section
+          className={cn(
+            "enterprise-panel-elevated rounded-lg border px-4 py-3 flex flex-wrap items-center justify-between gap-3",
+            workEligibility.eligible
+              ? "border-emerald-500/30 bg-emerald-500/5"
+              : "border-amber-500/30 bg-amber-500/5"
+          )}
+        >
+          <div className="space-y-0.5">
+            <p className="text-xs font-semibold uppercase tracking-wide">
+              {eligibilityLabel}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {clockStatusLabel(activeClock, todayClockEntries)}
+              {workEligibility.eligible && workEligibility.sessionMinutes > 0
+                ? ` · Session ${formatMinutes(workEligibility.sessionMinutes)}`
+                : ""}
+              {currentTask ? ` · Active task: ${currentTask.title}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            <span
+              className={cn(
+                "px-2 py-1 rounded-full border",
+                workEligibility.clockedIn
+                  ? "border-emerald-500/40 text-emerald-400"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              {workEligibility.clockedIn ? "Clocked in" : "Clocked out"}
+            </span>
+            {activeTaskTimer && (
+              <span className="px-2 py-1 rounded-full border border-primary/30 text-primary">
+                {activeTaskTimer.status === "active" ? "Timer running" : "Timer paused"}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="flow-employee-hero enterprise-panel-elevated p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -147,17 +211,27 @@ export function EmployeeWorkspaceView({
         </div>
       </section>
 
+      {useShiftClock && (
+        <EmployeeClockWidget
+          activeEntry={activeClock}
+          todayEntries={todayClockEntries}
+          shiftMinutesToday={dailySummary.shiftMinutesToday ?? workEligibility.sessionMinutes}
+          wrapUpStatus={wrapUpStatus}
+        />
+      )}
+
       <section className="space-y-2">
         <p className="enterprise-label px-1">What do I do next?</p>
         <EmployeePrimaryActions
           currentTask={currentTask}
           nextTask={nextTask}
           activeTaskTimer={activeTaskTimer}
-          useShiftClock={useShiftClock}
+          useShiftClock={false}
           activeClock={activeClock}
           todayClockEntries={todayClockEntries}
           wrapUpStatus={wrapUpStatus}
           todayWrapUp={todayWrapUp}
+          workEligibility={workEligibility}
         />
       </section>
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { assertCanEditWorkPackage } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
+import { assertWorkEligible, checkWorkEligible } from "@/lib/work-eligibility";
 import {
   getActiveTaskTimeEntry,
   getLatestSubmission,
@@ -31,9 +32,16 @@ function revalidateProduction(taskId?: string) {
   if (taskId) revalidatePath(`/work/${taskId}`);
 }
 
-export async function startTaskTimerAction(taskId: string) {
+export async function startTaskTimerAction(taskId: string, managerOverride?: boolean) {
   const user = await requireUser();
   await assertCanEditWorkPackage(user, taskId);
+  const gate = await checkWorkEligible(user, "start_timer", {
+    managerOverride,
+    taskId,
+  });
+  if (!gate.ok) {
+    return { ok: false as const, code: gate.code, message: gate.message };
+  }
   try {
     startTaskTimer(user.id, taskId);
   } catch (e) {
@@ -54,8 +62,12 @@ export async function pauseTaskTimerAction() {
   return { ok: true as const };
 }
 
-export async function resumeTaskTimerAction() {
+export async function resumeTaskTimerAction(managerOverride?: boolean) {
   const user = await requireUser();
+  const gate = await checkWorkEligible(user, "resume_timer", { managerOverride });
+  if (!gate.ok) {
+    return { ok: false as const, code: gate.code, message: gate.message };
+  }
   resumeTaskTimer(user.id);
   revalidateProduction();
   return { ok: true as const };
@@ -72,11 +84,19 @@ export async function uploadTaskFileAction(formData: FormData) {
   const user = await requireUser();
   const taskId = String(formData.get("task_id") ?? "");
   const file = formData.get("file") as File | null;
+  const managerOverride = formData.get("manager_override") === "true";
   if (!taskId || !file) {
     return { ok: false as const, message: "Task and file are required" };
   }
   try {
     await assertCanEditWorkPackage(user, taskId);
+    const gate = await checkWorkEligible(user, "upload_file", {
+      managerOverride,
+      taskId,
+    });
+    if (!gate.ok) {
+      return { ok: false as const, code: gate.code, message: gate.message };
+    }
     const buffer = Buffer.from(await file.arrayBuffer());
     if (buffer.length > 10 * 1024 * 1024) {
       return { ok: false as const, message: "File must be 10 MB or smaller" };
@@ -96,16 +116,27 @@ export async function uploadTaskFileAction(formData: FormData) {
   }
 }
 
-export async function submitTaskForReviewAction(taskId: string, notes?: string) {
+export async function submitTaskForReviewAction(
+  taskId: string,
+  notes?: string,
+  managerOverride?: boolean
+) {
   const user = await requireUser();
   try {
     await assertCanEditWorkPackage(user, taskId);
-    const managerOverride = hasPermission(user.role, "work:assign");
+    const gate = await checkWorkEligible(user, "submit_task", {
+      managerOverride,
+      taskId,
+    });
+    if (!gate.ok) {
+      return { ok: false as const, code: gate.code, message: gate.message };
+    }
+    const roleOverride = hasPermission(user.role, "work:assign");
     submitTaskForReview({
       task_id: taskId,
       user_id: user.id,
       notes,
-      manager_override: managerOverride,
+      manager_override: managerOverride || roleOverride,
     });
     revalidateProduction(taskId);
     return { ok: true as const };
@@ -127,9 +158,20 @@ export async function getTaskProductionStateAction(taskId: string) {
   };
 }
 
-export async function updateTaskDocumentProgressAction(taskId: string, completed: number) {
+export async function updateTaskDocumentProgressAction(
+  taskId: string,
+  completed: number,
+  managerOverride?: boolean
+) {
   const user = await requireUser();
   await assertCanEditWorkPackage(user, taskId);
+  const gate = await checkWorkEligible(user, "mark_documents", {
+    managerOverride,
+    taskId,
+  });
+  if (!gate.ok) {
+    return { ok: false as const, code: gate.code, message: gate.message };
+  }
   const count = Math.max(0, Math.round(completed));
   updateWorkPackageExternal(taskId, { current_documents_completed: count });
   refreshTaskLiveForecastExternal(taskId, getTotalTaskMinutes(taskId));

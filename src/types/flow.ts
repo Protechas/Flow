@@ -687,6 +687,7 @@ export type NotificationType =
   | "help_flag_acknowledged"
   | "help_flag_resolved"
   | "missing_wrap_up"
+  | "work_eligibility_alert"
   | "forecast_risk"
   | "qa_rejected"
   | "assignment_changed"

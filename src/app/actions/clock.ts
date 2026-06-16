@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { format } from "date-fns";
 import { requireUser } from "@/lib/auth/session";
 import { hasPermission, isEmployeeRole } from "@/lib/auth/permissions";
+import { initFlowStore, listDepartmentUsers, listTeamsStore } from "@/lib/data/flow-store";
+import { isUserProductionReady } from "@/lib/setup/account";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { canClockOutForDay } from "@/lib/wrap-up/compliance";
 import { recordWrapUpBlockAttempt } from "@/lib/data/flow-store";
@@ -13,9 +15,12 @@ import {
   clockOut,
   editClockEntry,
   getActiveClockEntry,
+  getActiveTaskTimeEntry,
   getAllClockEntries,
   getClockEntriesForUser,
+  forceStopTaskTimer,
 } from "@/lib/data/production-tracking";
+import { getWorkEligibility } from "@/lib/work-eligibility";
 
 function revalidateClockPaths() {
   revalidatePath("/work");
@@ -24,6 +29,16 @@ function revalidateClockPaths() {
 
 export async function clockInAction() {
   const user = await requireUser();
+  if (isEmployeeRole(user.role)) {
+    initFlowStore();
+    if (
+      !isUserProductionReady(user, listDepartmentUsers(), listTeamsStore())
+    ) {
+      throw new Error(
+        "Your account setup is not complete. Please contact your manager or administrator."
+      );
+    }
+  }
   if (isEmployeeRole(user.role) && !requiresShiftClock(user)) {
     throw new Error("Salary employees are not required to use the shift clock");
   }
@@ -60,13 +75,21 @@ export async function clockOutAction(outType: "lunch" | "out") {
     }
   }
 
+  const activeTimer = getActiveTaskTimeEntry(user.id);
+  if (activeTimer && outType === "out") {
+    forceStopTaskTimer(user.id);
+  }
+
   clockOut(user.id, outType);
   revalidateClockPaths();
 }
 
 export async function getClockStatusAction() {
   const user = await requireUser();
-  return getActiveClockEntry(user.id);
+  return {
+    entry: getActiveClockEntry(user.id),
+    eligibility: getWorkEligibility(user),
+  };
 }
 
 export async function editClockEntryAction(

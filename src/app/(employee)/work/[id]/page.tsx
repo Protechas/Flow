@@ -7,10 +7,13 @@ import {
   getTotalTaskMinutes,
 } from "@/lib/data/production-tracking";
 import { getEmployeeTaskForUser } from "@/lib/employee/tasks";
+import { getWorkEligibility } from "@/lib/work-eligibility";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listEmployeeHelpFlags } from "@/lib/help-flags/engine";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { requirePageAccess } from "@/lib/auth/guard";
+import { loadAccountSetupSummary } from "@/lib/setup/guard";
+import { isEmployeeRole } from "@/lib/auth/permissions";
 import { redirect } from "next/navigation";
 
 export default async function EmployeeTaskPage({
@@ -21,6 +24,11 @@ export default async function EmployeeTaskPage({
   searchParams: Promise<{ autostart?: string }>;
 }) {
   const user = await requirePageAccess("/work");
+  const setup = loadAccountSetupSummary(user);
+  if (isEmployeeRole(user.role) && setup.setupStatus === "needs_setup") {
+    redirect("/work");
+  }
+
   const { id } = await params;
   const { autostart } = await searchParams;
 
@@ -50,6 +58,7 @@ export default async function EmployeeTaskPage({
       totalMinutes={getTotalTaskMinutes(task.id)}
       latestSubmission={getLatestSubmission(task.id)}
       helpFlags={helpFlags}
+      workEligibility={getWorkEligibility(user)}
     />
   );
 }

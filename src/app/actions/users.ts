@@ -36,9 +36,16 @@ export async function getAuditLogAction() {
   return listAuditLog(50);
 }
 
-export async function updateUserRoleAction(userId: string, role: UserRole) {
-  await requirePermission("users:manage");
-  const user = await updateUserRole(userId, role);
+export async function updateUserRoleAction(
+  userId: string,
+  role: UserRole,
+  reason?: string
+) {
+  const actor = await requirePermission("users:manage");
+  const user = await updateUserRole(userId, role, {
+    reason,
+    changedBy: { id: actor.id, email: actor.email },
+  });
   revalidatePath("/", "layout");
   return user;
 }
@@ -100,8 +107,8 @@ export async function createUserManuallyAction(data: {
       first_name: data.first_name.trim(),
       last_name: data.last_name.trim(),
       full_name: fullName,
-      role: data.role,
-      team_id: data.team_id ?? "team-1",
+      role: data.role ?? "employee",
+      team_id: data.team_id ?? null,
       manager_id: data.manager_id ?? null,
       hire_date: data.hire_date ?? null,
       pay_type: data.pay_type ?? (data.role === "employee" ? "hourly" : "salary"),

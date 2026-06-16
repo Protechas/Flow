@@ -79,15 +79,26 @@ export async function updateUserProfile(
   return data ? mapDbUser(data as Record<string, unknown>) : null;
 }
 
-export async function updateUserRole(userId: string, role: UserRole): Promise<User | null> {
+export async function updateUserRole(
+  userId: string,
+  role: UserRole,
+  options?: { reason?: string; changedBy?: { id: string; email: string } }
+): Promise<User | null> {
+  const before = await getUserById(userId);
   const user = await updateUserProfile(userId, { role });
-  if (user) {
+  if (user && before) {
     await writeAuditLog({
       action: "role_changed",
       entityType: "user",
       entityId: userId,
-      summary: `Role changed to ${role} for ${user.full_name}`,
-      metadata: { role },
+      summary: `Role changed from ${before.role} to ${role} for ${user.full_name}`,
+      metadata: {
+        previous_role: before.role,
+        new_role: role,
+        reason: options?.reason ?? null,
+      },
+      actorId: options?.changedBy?.id,
+      actorEmail: options?.changedBy?.email,
     });
   }
   return user;

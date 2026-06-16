@@ -23,8 +23,14 @@ import {
   BulkYearsDialog,
 } from "@/components/operations/operations-dialogs";
 import { OperationsToolbar } from "@/components/operations/operations-toolbar";
+import {
+  OperationsDetailPanel,
+  type OpsPanelSelection,
+} from "@/components/operations/operations-detail-panel";
+import { GroupHeaderMetrics } from "@/components/operations/group-header-metrics";
 import { PackageDetailSheet } from "@/components/operations/package-detail-sheet";
 import { formatLastActivity, RollupCells } from "@/components/operations/rollup-cells";
+import { opsColCount, type OpsLayoutMode } from "@/lib/operations/layout";
 import { AddWorkPackageDialog } from "@/components/projects/add-work-package-dialog";
 import { PriorityBadge } from "@/components/work-tracker/priority-badge";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
@@ -118,7 +124,21 @@ interface OperationsBoardProps {
   timeLogs: TimeLog[];
 }
 
-const COL_COUNT = 14;
+const TABLE_COL_COUNT = 14;
+
+function isPanelSelected(selection: OpsPanelSelection | null, key: string): boolean {
+  if (!selection) return false;
+  switch (selection.kind) {
+    case "project":
+      return key === `proj-${selection.node.project.id}`;
+    case "manufacturer":
+      return key === `mfr-${selection.node.manufacturer.id}`;
+    case "year":
+      return key === `yr-${selection.node.yearWorkItem.id}`;
+    case "package":
+      return key === `pkg-${selection.pkg.id}`;
+  }
+}
 
 function isYearOverdue(y: YearWorkItem) {
   if (!y.due_date || y.status === "done") return false;
@@ -170,9 +190,20 @@ export function OperationsBoard({
     ...DEFAULT_OPS_FILTERS,
     search: initialSearch,
   });
+  const [layoutMode, setLayoutMode] = useState<OpsLayoutMode>("browser");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const [detailPkg, setDetailPkg] = useState<WorkPackage | null>(null);
+  const [panelSelection, setPanelSelection] = useState<OpsPanelSelection | null>(null);
+
+  const compact = layoutMode === "browser";
+  const colCount = opsColCount(compact, showActions);
+
+  const allPackages = useMemo(() => flattenPackages(tree), [tree]);
+  const resolvePackage = (id: string) => allPackages.find((p) => p.id === id);
+
+  const selectPackage = (pkg: WorkPackage) => {
+    setPanelSelection({ kind: "package", pkg });
+  };
 
   useEffect(() => {
     if (initialSearch) {
@@ -182,9 +213,9 @@ export function OperationsBoard({
 
   useEffect(() => {
     if (!initialPackageId) return;
-    const pkg = flattenPackages(tree).find((p) => p.id === initialPackageId);
-    if (pkg) setDetailPkg(pkg);
-  }, [initialPackageId, tree]);
+    const pkg = allPackages.find((p) => p.id === initialPackageId);
+    if (pkg) setPanelSelection({ kind: "package", pkg });
+  }, [initialPackageId, allPackages]);
 
   const projectIds = useMemo(() => tree.projects.map((p) => p.project.id), [tree]);
   const { expanded, toggle, expandAll, collapseAll } = useOperationsExpanded(projectIds);
@@ -237,6 +268,8 @@ export function OperationsBoard({
           <OperationsToolbar
         filters={filters}
         onFiltersChange={setFilters}
+        layoutMode={layoutMode}
+        onLayoutModeChange={setLayoutMode}
         projects={projects}
         manufacturers={manufacturers}
         analysts={analysts}
@@ -303,30 +336,39 @@ export function OperationsBoard({
         </div>
 
       <div className="flow-workspace-body overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-14rem)]">
-          <table className="w-full min-w-[1400px] text-sm border-separate border-spacing-0">
+        <div className="flow-ops-split">
+        <div className="flow-ops-table-pane">
+          <table className={cn("w-full text-sm border-separate border-spacing-0", !compact && "min-w-[1400px]")}>
             <thead className="sticky top-0 z-10 enterprise-grid-header">
               <tr className="text-xs text-muted-foreground">
                 <th className="w-8 py-2.5 pl-3 bg-secondary"> </th>
-                <th className="text-left font-semibold py-2.5 w-[300px] bg-secondary">Name</th>
+                <th className="text-left font-semibold py-2.5 min-w-[240px] bg-secondary">Name</th>
                 <th className="text-left font-semibold py-2.5 w-[120px] bg-secondary">Status</th>
                 <th className="text-left font-semibold py-2.5 w-[118px] bg-secondary">Assigned To</th>
                 <th className="text-left font-semibold py-2.5 w-[90px] bg-secondary">Priority</th>
                 <th className="text-left font-semibold py-2.5 w-[100px] bg-secondary">Due Date</th>
-                <th className="text-right font-semibold py-2.5 w-[64px] bg-secondary">Est Hrs</th>
-                <th className="text-right font-semibold py-2.5 w-[64px] bg-secondary">Act Hrs</th>
-                <th className="text-right font-semibold py-2.5 w-[48px] bg-secondary">Files</th>
-                <th className="text-left font-semibold py-2.5 w-[80px] bg-secondary">QA Status</th>
-                <th className="text-right font-semibold py-2.5 w-[44px] bg-secondary">Corr</th>
-                <th className="text-right font-semibold py-2.5 w-[52px] bg-secondary">Done%</th>
-                <th className="text-right font-semibold py-2.5 w-[100px] bg-secondary">Last Activity</th>
+                {!compact && (
+                  <>
+                    <th className="text-right font-semibold py-2.5 w-[64px] bg-secondary">Est Hrs</th>
+                    <th className="text-right font-semibold py-2.5 w-[64px] bg-secondary">Act Hrs</th>
+                    <th className="text-right font-semibold py-2.5 w-[48px] bg-secondary">Files</th>
+                  </>
+                )}
+                <th className="text-right font-semibold py-2.5 w-[56px] bg-secondary">Progress</th>
+                <th className="text-left font-semibold py-2.5 w-[80px] bg-secondary">QA</th>
+                {!compact && (
+                  <>
+                    <th className="text-right font-semibold py-2.5 w-[44px] bg-secondary">Corr</th>
+                    <th className="text-right font-semibold py-2.5 w-[100px] bg-secondary">Last Activity</th>
+                  </>
+                )}
                 {showActions && <th className="w-10 py-2.5 bg-secondary" />}
               </tr>
             </thead>
             <tbody className={cn(pending && "opacity-60 pointer-events-none")}>
               {filteredTree.projects.length === 0 && (
                 <tr>
-                  <td colSpan={COL_COUNT} className="py-12 text-center text-muted-foreground text-sm">
+                  <td colSpan={colCount} className="py-12 text-center text-muted-foreground text-sm">
                     No work matches your filters.
                   </td>
                 </tr>
@@ -355,9 +397,12 @@ export function OperationsBoard({
                     canSubmitQa={canSubmitQa}
                     canEditQa={canEditQa}
                     showActions={showActions}
+                    compact={compact}
+                    panelSelection={panelSelection}
+                    onSelectPanel={setPanelSelection}
                     onUpdatePkg={updatePkg}
                     onUpdateYear={updateYear}
-                    onDetail={setDetailPkg}
+                    onDetail={selectPackage}
                     startTransition={startTransition}
                     forecastSettings={forecastSettings}
                   />
@@ -366,13 +411,34 @@ export function OperationsBoard({
             </tbody>
           </table>
         </div>
+
+        {panelSelection && (
+          <div className={cn(panelSelection.kind === "package" && "hidden xl:block")}>
+            <OperationsDetailPanel
+            selection={panelSelection}
+            onClose={() => setPanelSelection(null)}
+            analysts={analysts}
+            comments={comments}
+            taskFiles={taskFileUploads}
+            timeLogs={timeLogs}
+            currentUserId={currentUserId}
+            forecastSettings={forecastSettings}
+            canAssign={allowAssign}
+            canEdit={allowEdit}
+            canSubmitQa={canSubmitQa}
+            canManage={allowManage}
+            resolvePackage={resolvePackage}
+          />
+          </div>
+        )}
+        </div>
       </div>
       </div>
 
       <PackageDetailSheet
-        pkg={detailPkg}
-        open={!!detailPkg}
-        onOpenChange={(o) => !o && setDetailPkg(null)}
+        pkg={panelSelection?.kind === "package" ? (resolvePackage(panelSelection.pkg.id) ?? panelSelection.pkg) : null}
+        open={panelSelection?.kind === "package"}
+        onOpenChange={(o) => !o && setPanelSelection(null)}
         comments={comments}
         taskFiles={taskFileUploads}
         timeLogs={timeLogs}
@@ -380,6 +446,8 @@ export function OperationsBoard({
         analysts={analysts}
         canAssign={allowAssign}
         canEdit={allowEdit}
+        canSubmitQa={canSubmitQa}
+        canManage={allowManage}
       />
     </>
   );
@@ -404,6 +472,9 @@ function ProjectRows({
   canSubmitQa,
   canEditQa,
   showActions,
+  compact,
+  panelSelection,
+  onSelectPanel,
   onUpdatePkg,
   onUpdateYear,
   onDetail,
@@ -428,6 +499,9 @@ function ProjectRows({
   canSubmitQa: boolean;
   canEditQa: boolean;
   showActions: boolean;
+  compact: boolean;
+  panelSelection: OpsPanelSelection | null;
+  onSelectPanel: (s: OpsPanelSelection) => void;
   onUpdatePkg: (id: string, u: Partial<WorkPackage>) => void;
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
@@ -435,24 +509,55 @@ function ProjectRows({
   forecastSettings: ForecastSettings;
 }) {
   const r = node.rollup;
+  const owner = analysts.find((a) => a.id === node.project.project_owner_id);
+  const due =
+    node.project.active_project_due_date ??
+    node.project.manual_project_due_date ??
+    node.project.due_date;
+  const rowSelected = isPanelSelected(panelSelection, pKey);
+
   return (
     <>
-      <tr className="border-b border-border bg-blue-500/10 hover:bg-blue-500/15 enterprise-row-hover">
+      <tr
+        className={cn(
+          "border-b border-border hover:bg-blue-500/15 enterprise-row-hover flow-ops-project-row",
+          rowSelected && "flow-ops-row-selected"
+        )}
+      >
         <td className="py-2.5 pl-3" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selected.has(pKey)} onCheckedChange={() => onToggleSelect(pKey)} />
         </td>
-        <td className="py-2.5 cursor-pointer" onClick={onToggle}>
-          <div className="flex items-center gap-2 font-semibold">
-            {pOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <FolderKanban className="h-4 w-4 text-primary" />
-            {node.project.name}
-            <span className="text-[10px] text-muted-foreground font-normal">
-              {r.manufacturerCount} mfr · {r.yearCount} yr · {r.totalPackages} pkg
-            </span>
+        <td className="py-2.5">
+          <div className="flex items-start gap-2 font-semibold min-w-0">
+            <button type="button" className="p-0.5 shrink-0 rounded hover:bg-muted/50" onClick={onToggle}>
+              {pOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              className="flex-1 min-w-0 text-left"
+              onClick={() => onSelectPanel({ kind: "project", node })}
+            >
+              <div className="flex items-center gap-2">
+                <FolderKanban className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">{node.project.name}</span>
+                <span className="text-[10px] text-muted-foreground font-normal shrink-0">
+                  {r.manufacturerCount} mfr · {r.yearCount} yr · {r.totalPackages} pkg
+                </span>
+              </div>
+              {compact && (
+                <GroupHeaderMetrics rollup={r} dueDate={due} leadName={owner?.full_name} />
+              )}
+            </button>
           </div>
         </td>
-        <td colSpan={4} />
-        <RollupCells r={r} />
+        {compact ? (
+          <td colSpan={6} />
+        ) : (
+          <>
+            <td colSpan={4} />
+            <RollupCells r={r} />
+          </>
+        )}
         {showActions && (
           <td>
             <RowActions
@@ -509,6 +614,10 @@ function ProjectRows({
               canSubmitQa={canSubmitQa}
               canEditQa={canEditQa}
               showActions={showActions}
+              compact={compact}
+              panelSelection={panelSelection}
+              onSelectPanel={onSelectPanel}
+              projectName={node.project.name}
               onUpdatePkg={onUpdatePkg}
               onUpdateYear={onUpdateYear}
               onDetail={onDetail}
@@ -540,6 +649,10 @@ function ManufacturerRows({
   canSubmitQa,
   canEditQa,
   showActions,
+  compact,
+  panelSelection,
+  onSelectPanel,
+  projectName,
   onUpdatePkg,
   onUpdateYear,
   onDetail,
@@ -564,6 +677,10 @@ function ManufacturerRows({
   canSubmitQa: boolean;
   canEditQa: boolean;
   showActions: boolean;
+  compact: boolean;
+  panelSelection: OpsPanelSelection | null;
+  onSelectPanel: (s: OpsPanelSelection) => void;
+  projectName: string;
   onUpdatePkg: (id: string, u: Partial<WorkPackage>) => void;
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
@@ -572,24 +689,48 @@ function ManufacturerRows({
 }) {
   const mr = node.rollup;
   const mfr = node.manufacturer;
+  const rowSelected = isPanelSelected(panelSelection, mKey);
+
   return (
     <>
-      <tr className="border-b border-border hover:bg-accent enterprise-row-hover">
+      <tr
+        className={cn(
+          "border-b border-border hover:bg-accent enterprise-row-hover",
+          rowSelected && "flow-ops-row-selected"
+        )}
+      >
         <td className="py-2 pl-3" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selected.has(mKey)} onCheckedChange={() => onToggleSelect(mKey)} />
         </td>
-        <td className="py-2 pl-4 cursor-pointer" onClick={onToggle}>
-          <div className="flex items-center gap-2 font-medium">
-            {mOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Factory className="h-3.5 w-3.5 text-indigo-400" />
-            {mfr.name}
-            <span className="text-[10px] text-muted-foreground font-normal">
-              {mr.yearCount} yr · {mr.completedPct}% done
-            </span>
+        <td className="py-2 pl-4">
+          <div className="flex items-start gap-2 font-medium min-w-0">
+            <button type="button" className="p-0.5 shrink-0" onClick={onToggle}>
+              {mOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              className="flex-1 min-w-0 text-left"
+              onClick={() => onSelectPanel({ kind: "manufacturer", node, projectName })}
+            >
+              <div className="flex items-center gap-2">
+                <Factory className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                {mfr.name}
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {mr.yearCount} yr · {mr.completedPct}% done
+                </span>
+              </div>
+              {compact && <GroupHeaderMetrics rollup={mr} />}
+            </button>
           </div>
         </td>
-        <td colSpan={4} />
-        <RollupCells r={mr} compact />
+        {compact ? (
+          <td colSpan={6} />
+        ) : (
+          <>
+            <td colSpan={4} />
+            <RollupCells r={mr} compact />
+          </>
+        )}
         {showActions && (
           <td>
             <RowActions
@@ -648,6 +789,7 @@ function ManufacturerRows({
               yKey={yKey}
               yearNode={yearNode}
               manufacturerName={mfr.name}
+              projectName={projectName}
               yOpen={yOpen}
               onToggleChild={onToggleChild}
               selected={selected}
@@ -662,6 +804,9 @@ function ManufacturerRows({
               canSubmitQa={canSubmitQa}
               canEditQa={canEditQa}
               showActions={showActions}
+              compact={compact}
+              panelSelection={panelSelection}
+              onSelectPanel={onSelectPanel}
               onUpdatePkg={onUpdatePkg}
               onUpdateYear={onUpdateYear}
               onDetail={onDetail}
@@ -678,6 +823,7 @@ function YearRowsGroup({
   yKey,
   yearNode,
   manufacturerName,
+  projectName,
   yOpen,
   onToggleChild,
   selected,
@@ -692,6 +838,9 @@ function YearRowsGroup({
   canSubmitQa,
   canEditQa,
   showActions,
+  compact,
+  panelSelection,
+  onSelectPanel,
   onUpdatePkg,
   onUpdateYear,
   onDetail,
@@ -701,6 +850,7 @@ function YearRowsGroup({
   yKey: string;
   yearNode: OperationsTree["projects"][0]["manufacturers"][0]["years"][0];
   manufacturerName: string;
+  projectName: string;
   yOpen: boolean;
   onToggleChild: (k: string) => void;
   selected: Set<string>;
@@ -715,6 +865,9 @@ function YearRowsGroup({
   canSubmitQa: boolean;
   canEditQa: boolean;
   showActions: boolean;
+  compact: boolean;
+  panelSelection: OpsPanelSelection | null;
+  onSelectPanel: (s: OpsPanelSelection) => void;
   onUpdatePkg: (id: string, u: Partial<WorkPackage>) => void;
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
@@ -723,35 +876,59 @@ function YearRowsGroup({
 }) {
   const y = yearNode.yearWorkItem;
   const yr = yearNode.rollup;
+  const rowSelected = isPanelSelected(panelSelection, yKey);
+
   return (
     <>
       <tr
-        className={cn("border-b border-border/20 hover:bg-muted/10", isYearOverdue(y) && "bg-red-500/5")}
+        className={cn(
+          "border-b border-border/20 hover:bg-muted/10",
+          isYearOverdue(y) && "bg-red-500/5",
+          rowSelected && "flow-ops-row-selected"
+        )}
       >
         <td className="py-1.5 pl-3" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selected.has(yKey)} onCheckedChange={() => onToggleSelect(yKey)} />
         </td>
-        <td className="py-1.5 pl-10 cursor-pointer" onClick={() => onToggleChild(yKey)}>
+        <td className="py-1.5 pl-10">
           <div className="flex items-center gap-2">
-            {yOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            <Calendar className="h-3 w-3 text-muted-foreground" />
-            <span className="font-medium">{y.year}</span>
-            <span className="text-[10px] text-muted-foreground">({yr.totalPackages} tasks)</span>
+            <button type="button" className="p-0.5 shrink-0" onClick={() => onToggleChild(yKey)}>
+              {yOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 text-left"
+              onClick={() =>
+                onSelectPanel({ kind: "year", node: yearNode, manufacturerName, projectName })
+              }
+            >
+              <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="font-medium">{y.year}</span>
+              <span className="text-[10px] text-muted-foreground">({yr.totalPackages} tasks)</span>
+            </button>
           </div>
         </td>
         <InlineStatus value={y.status} canEdit={canEdit && canManage} onChange={(v) => onUpdateYear(y.id, { status: v })} />
         <InlineAnalyst value={y.assigned_to} analysts={analysts} canEdit={canAssign} onChange={(v) => onUpdateYear(y.id, { assigned_to: v })} />
         <InlinePriority value={y.priority} canEdit={canEdit && canManage} onChange={(v) => onUpdateYear(y.id, { priority: v })} />
         <InlineDate value={y.due_date} canEdit={canEdit && canManage} onChange={(v) => onUpdateYear(y.id, { due_date: v })} overdue={isYearOverdue(y)} />
-        <InlineHours value={y.estimated_hours} canEdit={canEdit && canManage} onChange={(v) => onUpdateYear(y.id, { estimated_hours: v })} />
-        <td className="text-right text-xs tabular-nums text-muted-foreground">{y.actual_hours}</td>
-        <td className="text-right text-xs tabular-nums">{y.file_count}</td>
-        <td className="text-xs text-muted-foreground">{yr.qaPassRate}% pass</td>
-        <td className="text-right text-xs">{yr.correctionCount}</td>
-        <td className="text-right text-xs">{yr.completedPct}%</td>
-        <td className="text-right text-xs text-muted-foreground whitespace-nowrap">
-          {formatLastActivity(yr.lastActivityAt)}
-        </td>
+        {!compact && (
+          <>
+            <InlineHours value={y.estimated_hours} canEdit={canEdit && canManage} onChange={(v) => onUpdateYear(y.id, { estimated_hours: v })} />
+            <td className="text-right text-xs tabular-nums text-muted-foreground">{y.actual_hours}</td>
+            <td className="text-right text-xs tabular-nums">{y.file_count}</td>
+          </>
+        )}
+        <td className="text-right text-xs tabular-nums">{yr.completedPct}%</td>
+        <td className="text-xs text-muted-foreground">{compact ? `${yr.qaPassRate}%` : `${yr.qaPassRate}% pass`}</td>
+        {!compact && (
+          <>
+            <td className="text-right text-xs">{yr.correctionCount}</td>
+            <td className="text-right text-xs text-muted-foreground whitespace-nowrap">
+              {formatLastActivity(yr.lastActivityAt)}
+            </td>
+          </>
+        )}
         {showActions && (
           <td>
             <RowActions
@@ -798,6 +975,7 @@ function YearRowsGroup({
             analysts={analysts}
             currentUserId={currentUserId}
             selected={selected.has(`pkg-${pkg.id}`)}
+            rowSelected={isPanelSelected(panelSelection, `pkg-${pkg.id}`)}
             onToggleSelect={() => onToggleSelect(`pkg-${pkg.id}`)}
             canEdit={canEdit}
             canAssign={canAssign}
@@ -806,6 +984,7 @@ function YearRowsGroup({
             canSubmitQa={canSubmitQa}
             canEditQa={canEditQa}
             showActions={showActions}
+            compact={compact}
             onUpdate={onUpdatePkg}
             onDetail={onDetail}
             startTransition={startTransition}
@@ -820,6 +999,7 @@ function PackageRow({
   analysts,
   currentUserId,
   selected,
+  rowSelected,
   onToggleSelect,
   canEdit,
   canAssign,
@@ -828,6 +1008,7 @@ function PackageRow({
   canSubmitQa,
   canEditQa,
   showActions,
+  compact,
   onUpdate,
   onDetail,
   startTransition,
@@ -836,6 +1017,7 @@ function PackageRow({
   analysts: User[];
   currentUserId: string;
   selected: boolean;
+  rowSelected: boolean;
   onToggleSelect: () => void;
   canEdit: boolean;
   canAssign: boolean;
@@ -844,6 +1026,7 @@ function PackageRow({
   canSubmitQa: boolean;
   canEditQa: boolean;
   showActions: boolean;
+  compact: boolean;
   onUpdate: (id: string, u: Partial<WorkPackage>) => void;
   onDetail: (p: WorkPackage) => void;
   startTransition: (fn: () => void | Promise<void>) => void;
@@ -856,14 +1039,15 @@ function PackageRow({
       className={cn(
         "border-b border-border hover:bg-accent group enterprise-row-hover",
         overdue && "bg-red-500/5",
-        stuck && "bg-amber-500/5"
+        stuck && "bg-amber-500/5",
+        rowSelected && "flow-ops-row-selected"
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      <td className="py-2.5 pl-3">
+      <td className="py-2 pl-3">
         <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
       </td>
-      <td className="py-2.5 pl-16">
+      <td className={cn("py-2", compact ? "pl-12" : "pl-16")}>
         <div className="flex items-center gap-2 min-w-0">
           <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
           <button
@@ -886,19 +1070,27 @@ function PackageRow({
       />
       <InlinePriority value={pkg.priority} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { priority: v })} />
       <InlineDate value={pkg.due_date} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { due_date: v })} overdue={overdue} />
-      <InlineHours value={pkg.estimated_hours} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { estimated_hours: v })} />
-      <td className="text-right text-xs tabular-nums text-muted-foreground">{pkg.actual_hours}</td>
-      <td className="text-right text-xs tabular-nums">{pkg.file_count}</td>
+      {!compact && (
+        <>
+          <InlineHours value={pkg.estimated_hours} canEdit={canEdit} onChange={(v) => onUpdate(pkg.id, { estimated_hours: v })} />
+          <td className="text-right text-xs tabular-nums text-muted-foreground">{pkg.actual_hours}</td>
+          <td className="text-right text-xs tabular-nums">{pkg.file_count}</td>
+        </>
+      )}
+      <td className="text-right text-xs tabular-nums">{pkgDonePct(pkg)}%</td>
       <InlineQaStatus
         value={pkg.qa_status}
         canEdit={canEditQa || canManage}
         onChange={(v) => onUpdate(pkg.id, { qa_status: v })}
       />
-      <td className="text-right text-xs">{pkg.correction_count}</td>
-      <td className="text-right text-xs">{pkgDonePct(pkg)}%</td>
-      <td className="text-right text-xs text-muted-foreground whitespace-nowrap">
-        {formatLastActivity(pkg.updated_at)}
-      </td>
+      {!compact && (
+        <>
+          <td className="text-right text-xs">{pkg.correction_count}</td>
+          <td className="text-right text-xs text-muted-foreground whitespace-nowrap">
+            {formatLastActivity(pkg.updated_at)}
+          </td>
+        </>
+      )}
       {showActions && (
         <td>
           <RowActions

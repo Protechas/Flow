@@ -7,7 +7,8 @@ import type { Permission } from "@/lib/auth/permissions";
 import { hasPermission } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore, initFlowStore, listDepartmentUsers, listTeamsStore } from "@/lib/data/flow-store";
+import { isUserProductionReady } from "@/lib/setup/account";
 import { listWorkPackages } from "@/lib/data/work-packages";
 import type { User, UserRole } from "@/types/flow";
 
@@ -87,6 +88,17 @@ export async function assertCanAssignWorkPackage(
   assignedTo: string | null
 ): Promise<void> {
   const role = normalizeRole(user.role);
+
+  if (assignedTo) {
+    initFlowStore();
+    const assignee = getFlowStore().users.find((u) => u.id === assignedTo);
+    if (
+      assignee &&
+      !isUserProductionReady(assignee, listDepartmentUsers(), listTeamsStore())
+    ) {
+      throw new Error("ASSIGNEE_SETUP_INCOMPLETE");
+    }
+  }
 
   if (role === "teamlead" || role === "manager" || role === "senior_manager") {
     if (!assignedTo) return;

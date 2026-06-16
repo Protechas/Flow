@@ -1,4 +1,5 @@
-import type { Team, User, UserRole } from "@/types/flow";
+import type { DepartmentUser, Team, User, UserRole } from "@/types/flow";
+import { isUserProductionReady } from "@/lib/setup/account";
 import {
   getEffectiveScopeMode,
   getManagedTeamIds,
@@ -55,7 +56,8 @@ function getVisibleUserIds(viewer: User, users: User[], teams: Team[] = []): str
 export function getAssignableUserIdsClient(
   viewer: User,
   users: User[],
-  teams: Team[] = []
+  teams: Team[] = [],
+  departmentUsers: DepartmentUser[] = []
 ): string[] {
   const visible = new Set(getVisibleUserIds(viewer, users, teams));
   return users
@@ -64,7 +66,8 @@ export function getAssignableUserIdsClient(
         visible.has(u.id) &&
         u.is_active &&
         u.id !== viewer.id &&
-        (u.role === "employee" || u.role === "teamlead")
+        (u.role === "employee" || u.role === "teamlead") &&
+        isUserProductionReady(u, departmentUsers, teams)
     )
     .map((u) => u.id);
 }

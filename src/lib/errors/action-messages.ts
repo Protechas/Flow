@@ -10,7 +10,10 @@ export function formatActionError(error: unknown): string {
     "Task not found": "This task could not be found. Refresh and try again.",
     "Already clocked in": "You're already clocked in for this shift.",
     "Not clocked in": "Clock in before performing this action.",
-    "Wrap-up required": "Submit your end-of-day wrap-up before clocking out.",
+    WRAP_UP_REQUIRED: "Submit your end-of-day wrap-up before clocking out.",
+    CLOCK_IN_REQUIRED: "You must be clocked in before starting work.",
+    ON_BREAK: "You are on a lunch break. Clock back in before resuming work.",
+    ACCOUNT_INACTIVE: "Your account is not active. Contact an administrator.",
     "ACTIVE_TASK:": "Finish your current active task before starting another.",
   };
 
@@ -18,5 +21,9 @@ export function formatActionError(error: unknown): string {
     return map["ACTIVE_TASK:"];
   }
 
-  return map[msg] ?? (msg.length < 120 ? msg : "Something went wrong. Please try again.");
+  if (map[msg]) {
+    return map[msg];
+  }
+
+  return msg.length < 120 ? msg : "Something went wrong. Please try again.";
 }

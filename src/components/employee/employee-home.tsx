@@ -3,6 +3,7 @@
 import { EmployeeWorkspaceView } from "@/components/employee/employee-workspace-view";
 import type { EmployeeDashboard } from "@/lib/employee/dashboard";
 import type { HelpFlagView, PayType, TimeClockEntry, WrapUpComplianceStatus } from "@/types/flow";
+import type { WorkEligibility } from "@/lib/work-eligibility";
 
 /** Focused employee home — delegates to the workspace command center. */
 export function EmployeeHome(props: {
@@ -14,6 +15,7 @@ export function EmployeeHome(props: {
   taskMinutesToday: number;
   wrapUpStatus: WrapUpComplianceStatus;
   helpFlags?: HelpFlagView[];
+  workEligibility: WorkEligibility;
 }) {
   return <EmployeeWorkspaceView {...props} />;
 }

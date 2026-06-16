@@ -13,6 +13,7 @@ import {
 import {
   createUserManuallyAction,
   updateUserDetailsAction,
+  updateUserRoleAction,
 } from "@/app/actions/users";
 import { setUserDepartmentAction } from "@/app/actions/departments";
 import { validateDepartmentSetupInput, validateUserSetupInput } from "@/lib/setup/validation";
@@ -169,17 +170,21 @@ export async function completeUserSetupAction(input: {
       hire_date: input.hire_date ?? null,
       pay_type: input.pay_type,
     });
-    userId = "user" in result && result.user ? result.user.id : result.userId;
+    if (!result.user?.id) throw new Error("User creation failed.");
+    userId = result.user.id;
   } else if (userId) {
+    const existing = users.find((u) => u.id === userId);
     await updateUserDetailsAction(userId, {
       first_name: input.first_name,
       last_name: input.last_name,
-      role: input.role,
       team_id: input.team_id ?? null,
       manager_id: input.manager_id ?? null,
       hire_date: input.hire_date ?? null,
       pay_type: input.pay_type,
     });
+    if (existing && existing.role !== input.role) {
+      await updateUserRoleAction(userId, input.role, "Guided setup wizard");
+    }
   } else {
     throw new Error("User id is required for update mode.");
   }
@@ -273,4 +278,66 @@ export async function bulkAssignUsersAction(input: {
 
   revalidateAll();
   return { ok: true as const, count: input.user_ids.length };
+}
+
+export async function bulkInviteUsersAction(input: {
+  emails: string[];
+  department_id?: string;
+  team_id?: string | null;
+  manager_id?: string | null;
+}) {
+  const actor = await requirePermission("users:manage");
+  const emails = [...new Set(input.emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  if (!emails.length) throw new Error("Enter at least one email address.");
+
+  const { inviteUserAction } = await import("@/app/actions/auth");
+  const invited: string[] = [];
+
+  for (const email of emails) {
+    const local = email.split("@")[0] ?? "user";
+    const firstName = local.replace(/[._-]/g, " ").split(" ")[0] ?? "New";
+    const lastName = local.includes(".") ? (local.split(".").pop() ?? "") : "";
+
+    await inviteUserAction(
+      email,
+      firstName.charAt(0).toUpperCase() + firstName.slice(1),
+      lastName ? lastName.charAt(0).toUpperCase() + lastName.slice(1) : "User",
+      "employee",
+      input.team_id ?? null,
+      input.manager_id ?? null
+    );
+    invited.push(email);
+  }
+
+  if (input.department_id) {
+    initFlowStore();
+    const users = getFlowStore().users;
+    for (const email of invited) {
+      const user = users.find((u) => u.email === email);
+      if (user) {
+        await setUserDepartmentAction(user.id, input.department_id, {
+          is_primary: true,
+          role_in_department: "member",
+        });
+      }
+    }
+  }
+
+  await writeAuditLog({
+    action: "user_invited",
+    entityType: "user",
+    entityId: invited.join(","),
+    summary: `Bulk invited ${invited.length} users as employees`,
+    metadata: {
+      count: invited.length,
+      department_id: input.department_id ?? null,
+      team_id: input.team_id ?? null,
+      manager_id: input.manager_id ?? null,
+    },
+    actorId: actor.id,
+    actorEmail: actor.email,
+  });
+
+  revalidateAll();
+  return { ok: true as const, count: invited.length, emails: invited };
 }

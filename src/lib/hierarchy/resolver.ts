@@ -1,4 +1,6 @@
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
+import { listDepartmentUsers } from "@/lib/data/flow-store";
+import { isUserProductionReady } from "@/lib/setup/account";
 import {
   getPrimaryHierarchyForUser,
   listHierarchyRecords,
@@ -121,7 +123,8 @@ export function filterUsersToHierarchyScope(
 export function getAssignableUserIds(
   viewer: User,
   users: User[],
-  teams: Team[] = []
+  teams: Team[] = [],
+  departmentUsers = listDepartmentUsers()
 ): string[] {
   const visible = new Set(getVisibleUserIds(viewer, users, teams));
   return users
@@ -130,7 +133,8 @@ export function getAssignableUserIds(
         visible.has(u.id) &&
         u.is_active &&
         u.id !== viewer.id &&
-        (u.role === "employee" || u.role === "teamlead")
+        (u.role === "employee" || u.role === "teamlead") &&
+        isUserProductionReady(u, departmentUsers, teams)
     )
     .map((u) => u.id);
 }

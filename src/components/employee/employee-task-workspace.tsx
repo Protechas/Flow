@@ -13,6 +13,7 @@ import {
   submitTaskForReviewAction,
 } from "@/app/actions/production";
 import { HelpFlagDialog } from "@/components/help-flags/help-flag-dialog";
+import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
 import { HelpFlagStatusList } from "@/components/help-flags/help-flag-status";
 import { TaskFileUploadZone } from "@/components/employee/task-file-upload-zone";
 import { TaskLiveForecastPanel } from "@/components/forecast/task-live-forecast-panel";
@@ -23,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { formatActionError } from "@/lib/errors/action-messages";
+import type { WorkEligibility } from "@/lib/work-eligibility";
 import { computeProductionMetrics, formatMinutes } from "@/lib/production/metrics";
 import { WORK_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,7 @@ export function EmployeeTaskWorkspace({
   totalMinutes,
   latestSubmission,
   helpFlags = [],
+  workEligibility,
 }: {
   task: WorkPackage;
   comments: Comment[];
@@ -88,6 +91,7 @@ export function EmployeeTaskWorkspace({
   totalMinutes: number;
   latestSubmission: TaskSubmissionRecord | null;
   helpFlags?: HelpFlagView[];
+  workEligibility: WorkEligibility;
 }) {
   const router = useRouter();
   const { toast } = useFlowToast();
@@ -95,6 +99,12 @@ export function EmployeeTaskWorkspace({
   const [notes, setNotes] = useState(task.notes ?? "");
   const [showNotes, setShowNotes] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);
+  const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
+  const [eligibilityMessage, setEligibilityMessage] = useState(
+    "You must be clocked in before starting work."
+  );
+
+  const canPerformWork = workEligibility.eligible;
 
   const timerOnThisTask = activeTimer?.task_id === task.id ? activeTimer : null;
   const display = useTimerDisplay(timerOnThisTask);
@@ -111,22 +121,48 @@ export function EmployeeTaskWorkspace({
   const otherActive =
     anyActiveTimer && anyActiveTimer.task_id !== task.id ? anyActiveTimer : null;
 
+  function openEligibilityGate(message?: string) {
+    if (workEligibility.status === "needs_setup") {
+      setEligibilityMessage(
+        message ??
+          "Your account setup is not complete. Please contact your manager or administrator."
+      );
+    } else {
+      setEligibilityMessage(message ?? "You must be clocked in before starting work.");
+    }
+    setEligibilityGateOpen(true);
+  }
+
   useEffect(() => {
-    if (autostart && canWork && !anyActiveTimer) {
+    if (autostart && canWork && canPerformWork && !anyActiveTimer) {
       startTransition(async () => {
         const res = await startTaskTimerAction(task.id);
-        if (!res.ok) setWarn("Finish your current active task before starting another.");
+        if (!res.ok) {
+          if ("message" in res && res.message) {
+            openEligibilityGate(res.message);
+          } else {
+            setWarn("Finish your current active task before starting another.");
+          }
+        }
         router.refresh();
       });
     }
-  }, [autostart, task.id, canWork, anyActiveTimer, router]);
+  }, [autostart, task.id, canWork, canPerformWork, anyActiveTimer, router]);
 
   function handleStart() {
+    if (!canPerformWork) {
+      openEligibilityGate();
+      return;
+    }
     setWarn(null);
     startTransition(async () => {
       const res = await startTaskTimerAction(task.id);
       if (!res.ok) {
-        setWarn("You already have an active task. Stop or pause it before starting this one.");
+        if ("message" in res && res.message) {
+          openEligibilityGate(res.message);
+        } else {
+          setWarn("You already have an active task. Stop or pause it before starting this one.");
+        }
         return;
       }
       router.refresh();
@@ -141,8 +177,16 @@ export function EmployeeTaskWorkspace({
   }
 
   function handleResume() {
+    if (!canPerformWork) {
+      openEligibilityGate("You must be clocked in before resuming work.");
+      return;
+    }
     startTransition(async () => {
-      await resumeTaskTimerAction();
+      const res = await resumeTaskTimerAction();
+      if (!res.ok && "message" in res && res.message) {
+        openEligibilityGate(res.message);
+        return;
+      }
       router.refresh();
     });
   }
@@ -155,6 +199,10 @@ export function EmployeeTaskWorkspace({
   }
 
   function handleSubmit() {
+    if (!canPerformWork) {
+      openEligibilityGate("You must be clocked in before submitting work.");
+      return;
+    }
     if (files.length < 1) {
       const msg = "Upload at least one completed file before submitting for review.";
       setWarn(msg);
@@ -166,7 +214,10 @@ export function EmployeeTaskWorkspace({
       if (timerOnThisTask) await stopTaskTimerAction();
       const res = await submitTaskForReviewAction(task.id);
       if (!res.ok) {
-        const description = formatActionError(new Error(res.message));
+        const description =
+          "message" in res && res.message
+            ? res.message
+            : formatActionError(new Error("Submission failed"));
         setWarn(description);
         toast({ variant: "error", title: "Could not submit", description });
         return;
@@ -222,6 +273,25 @@ export function EmployeeTaskWorkspace({
         </div>
       )}
 
+      {workEligibility.requiresClockIn && !canPerformWork && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          View-only mode — clock in to start timers, upload files, or submit work.
+        </div>
+      )}
+
+      <WorkEligibilityGateDialog
+        open={eligibilityGateOpen}
+        onOpenChange={setEligibilityGateOpen}
+        message={eligibilityMessage}
+        onClockedIn={() => router.refresh()}
+        allowClockIn={workEligibility.status !== "needs_setup"}
+        title={
+          workEligibility.status === "needs_setup"
+            ? "Account setup required"
+            : "Clock in required"
+        }
+      />
+
       <div className="flex-1 space-y-5">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Current task</p>
@@ -263,7 +333,12 @@ export function EmployeeTaskWorkspace({
           {canWork && (
             <div className="flex flex-wrap justify-center gap-2 mt-5">
               {!timerOnThisTask && (
-                <Button size="lg" className="min-w-[120px]" onClick={handleStart} disabled={pending || !!otherActive}>
+                <Button
+                  size="lg"
+                  className="min-w-[120px]"
+                  onClick={handleStart}
+                  disabled={pending || !!otherActive || !canPerformWork}
+                >
                   <Play className="h-4 w-4 mr-2" />
                   Start task
                 </Button>
@@ -317,7 +392,7 @@ export function EmployeeTaskWorkspace({
           <TaskFileUploadZone
             taskId={task.id}
             files={files}
-            disabled={!canWork || pending}
+            disabled={!canWork || pending || !canPerformWork}
             onUploaded={() => router.refresh()}
           />
         </section>
@@ -381,7 +456,11 @@ export function EmployeeTaskWorkspace({
       {canWork && canSubmit && (
         <div className="fixed bottom-0 left-0 right-0 sm:relative sm:mt-6 p-4 sm:p-0 bg-background/95 sm:bg-transparent border-t sm:border-0 border-border/60 backdrop-blur-md">
           <div className="max-w-3xl mx-auto">
-            <Button className="w-full h-12" disabled={pending || files.length < 1} onClick={handleSubmit}>
+            <Button
+              className="w-full h-12"
+              disabled={pending || files.length < 1 || !canPerformWork}
+              onClick={handleSubmit}
+            >
               <Send className="h-4 w-4 mr-2" />
               Submit for review
               {files.length < 1 && (

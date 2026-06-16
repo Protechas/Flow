@@ -38,17 +38,43 @@ Analysts: Michael J, Tara, Tyler, Rai, Desi, Jacob
 
 ## Supabase authentication
 
-1. Copy `.env.local.example` → `.env.local` and set Supabase URL, anon key, `NEXT_PUBLIC_SITE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`.
-2. Set `NEXT_PUBLIC_FLOW_DEMO_MODE=false`.
-3. Run migrations in `supabase/migrations/` (including `002_auth_users.sql`).
-4. In Supabase **Authentication → URL configuration**, add redirect URLs: `http://localhost:3000/auth/callback` (and your production URL).
-5. Create the first admin in Supabase **Authentication → Users** (or SQL), then set `public.users.role = 'admin'` for that user id.
+### 1. Create a Supabase project
 
-| Route | Purpose |
-|-------|---------|
-| `/login` | Email/password sign-in |
-| `/auth/forgot-password` | Request reset email |
-| `/auth/reset-password` | Set password after invite or reset |
-| `/settings/users` | Invite users and change roles (admin) |
+At [supabase.com](https://supabase.com) → **New project** → note your **Project URL** and **API keys** (Settings → API).
 
-Roles (Admin, Manager, QA, Employee, Viewer) control which routes and nav items each user can access. Employees land on `/work`; others see manager/QA/executive views per `src/lib/auth/permissions.ts`.
+### 2. Local environment
+
+Copy `.env.local.example` → `.env.local` and set:
+
+| Variable | Where to find it |
+|----------|------------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Settings → API → Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Settings → API → anon public |
+| `SUPABASE_SERVICE_ROLE_KEY` | Settings → API → service_role (server only) |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` locally |
+| `NEXT_PUBLIC_FLOW_DEMO_MODE` | **`false`** |
+
+Verify: `npm run check:supabase` then `npm run dev` → `/login` should show email/password (not demo user picker).
+
+### 3. Run database migrations
+
+In Supabase **SQL Editor**, run each file in `supabase/migrations/` **in numeric order** (`001` through `018`). Wait for each to succeed before the next.
+
+### 4. Auth redirect URLs
+
+**Authentication → URL configuration** → add:
+
+- `http://localhost:3000/auth/callback`
+- Your production URL + `/auth/callback` when deployed
+
+### 5. First admin user
+
+1. **Authentication → Users → Add user** (email + password), or sign up once via `/login`.
+2. **Table Editor → `users`** → set `role` to `admin` for that user’s row.
+3. Sign in again — you should see admin nav and **Settings → Users**.
+
+### 6. GitHub / production deploy
+
+Add the same env vars to your host (e.g. Vercel). Set `NEXT_PUBLIC_SITE_URL` to your live domain and add that callback URL in Supabase.
+
+**Note:** Auth and user profiles use Supabase. Projects, tasks, and time-clock data still load from the in-app demo store until operational persistence is added — you will see sample operations data even with real login.

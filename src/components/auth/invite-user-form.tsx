@@ -26,7 +26,7 @@ export function InviteUserForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole>("employee");
-  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
+  const [teamId, setTeamId] = useState("");
   const [managerId, setManagerId] = useState("");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -97,11 +97,12 @@ export function InviteUserForm({
         </div>
         <div className="space-y-2">
           <Label>Team</Label>
-          <Select value={teamId} onValueChange={(v) => v && setTeamId(v)}>
+          <Select value={teamId || "__none__"} onValueChange={(v) => setTeamId(v && v !== "__none__" ? v : "")}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Optional" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">None</SelectItem>
               {teams.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}

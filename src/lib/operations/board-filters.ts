@@ -20,7 +20,8 @@ export type OpsSavedViewId =
   | "ready_for_qa"
   | "correction_needed"
   | "stuck"
-  | "completed_week";
+  | "completed_week"
+  | "at_risk";
 
 export const OPS_SAVED_VIEWS: { id: OpsSavedViewId; label: string }[] = [
   { id: "all", label: "All Work" },
@@ -30,6 +31,7 @@ export const OPS_SAVED_VIEWS: { id: OpsSavedViewId; label: string }[] = [
   { id: "correction_needed", label: "Correction Needed" },
   { id: "stuck", label: "Stuck Work" },
   { id: "completed_week", label: "Completed This Week" },
+  { id: "at_risk", label: "At Risk" },
 ];
 
 export interface OpsBoardFilters {
@@ -91,6 +93,14 @@ function pkgMatchesView(pkg: WorkPackage, viewId: OpsSavedViewId, teamUserIds: S
       const weekAgo = subDays(new Date(), 7);
       return !isBefore(parseISO(pkg.completed_date), weekAgo);
     }
+    case "at_risk":
+      return (
+        isOverdue(pkg) ||
+        isStuck(pkg) ||
+        pkg.status === "stuck" ||
+        pkg.status === "correction_needed" ||
+        ["minor_correction", "major_correction"].includes(pkg.qa_status)
+      );
     default:
       return true;
   }
@@ -112,6 +122,8 @@ function yearMatchesView(y: YearWorkItem, viewId: OpsSavedViewId, teamUserIds: S
       return y.status === "stuck";
     case "completed_week":
       return y.status === "done";
+    case "at_risk":
+      return isYearOverdue(y) || y.status === "stuck" || y.status === "correction_needed";
     default:
       return true;
   }

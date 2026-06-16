@@ -51,11 +51,9 @@ export function EmployeeWrapUp({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {showTrigger && (
-        <DialogTrigger>
-          <Button variant="outline" className="w-full h-11 text-sm">
-            <Moon className="h-4 w-4 mr-2" />
-            End of day wrap-up
-          </Button>
+        <DialogTrigger render={<Button variant="outline" className="w-full h-11 text-sm" />}>
+          <Moon className="h-4 w-4 mr-2" />
+          End of day wrap-up
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-md">
