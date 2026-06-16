@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 import { OrgChartProfilePanel } from "@/components/hierarchy/org-chart-profile-panel";
-import { OrgChartUserCard, ROLE_LABELS } from "@/components/hierarchy/org-chart-user-card";
+import { OrgChartUserCard } from "@/components/hierarchy/org-chart-user-card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,7 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { roleLabel } from "@/lib/constants";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { alertCenterHref, operationsHref, wrapUpsHref } from "@/lib/navigation/deep-links";
+import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { cn } from "@/lib/utils";
 import type {
   OrgChartNode,
@@ -58,7 +61,7 @@ function nodeMatchesFilters(
       node.user.email.toLowerCase().includes(q)) &&
     (!deptName || node.department_name === deptName) &&
     (!teamId || node.user.team_id === teamId) &&
-    (!roleFilter || node.user.role === roleFilter);
+    (!roleFilter || getOrganizationalPosition(node.user) === roleFilter);
 
   return (
     selfMatch ||
@@ -146,11 +149,11 @@ function OrgBranch({
   );
 }
 
-const HIERARCHY_LEGEND: { role: UserRole; label: string }[] = [
-  { role: "senior_manager", label: "Senior Manager" },
-  { role: "manager", label: "Manager" },
-  { role: "teamlead", label: "Team Lead" },
-  { role: "employee", label: "Employee" },
+const HIERARCHY_LEGEND: { position: import("@/types/flow").OrganizationalPosition; label: string }[] = [
+  { position: "senior_manager", label: "Senior Manager" },
+  { position: "manager", label: "Manager" },
+  { position: "team_lead", label: "Team Lead" },
+  { position: "employee", label: "Employee" },
 ];
 
 export function OrgChartView({
@@ -164,6 +167,7 @@ export function OrgChartView({
   viewerId,
   visibleUserIds,
   attention,
+  initialUserId,
 }: {
   roots: OrgChartNode[];
   departments?: { id: string; name: string }[];
@@ -175,13 +179,18 @@ export function OrgChartView({
   viewerId: string;
   visibleUserIds: string[];
   attention: { needsHelp: number; needsWork: number; missingWrapUp: number };
+  initialUserId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [teamId, setTeamId] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialUserId ?? null);
   const [expandAll, setExpandAll] = useState(true);
+
+  useEffect(() => {
+    if (initialUserId) setSelectedId(initialUserId);
+  }, [initialUserId]);
 
   const visibleSet = useMemo(() => new Set(visibleUserIds), [visibleUserIds]);
 
@@ -200,7 +209,7 @@ export function OrgChartView({
   const roleOptions = useMemo(() => {
     const roles = new Set<string>();
     function walk(n: OrgChartNode) {
-      roles.add(n.user.role);
+      roles.add(getOrganizationalPosition(n.user));
       n.children.forEach(walk);
     }
     roots.forEach(walk);
@@ -212,22 +221,34 @@ export function OrgChartView({
       {(attention.needsHelp > 0 || attention.needsWork > 0 || attention.missingWrapUp > 0) && (
         <div className="flow-alert-strip flex flex-wrap gap-4 text-sm">
           {attention.needsHelp > 0 && (
-            <span className="text-red-400">
+            <Link
+              href={alertCenterHref({ type: "help" })}
+              className="text-red-400 hover:underline cursor-pointer"
+              title="Open help requests in Alert Center"
+            >
               <HelpCircle className="inline h-4 w-4 mr-1" />
               {attention.needsHelp} need help
-            </span>
+            </Link>
           )}
           {attention.needsWork > 0 && (
-            <span className="text-amber-400">
+            <Link
+              href={alertCenterHref({ type: "workload" })}
+              className="text-amber-400 hover:underline cursor-pointer"
+              title="Open workload alerts in Alert Center"
+            >
               <AlertTriangle className="inline h-4 w-4 mr-1" />
               {attention.needsWork} need work
-            </span>
+            </Link>
           )}
           {attention.missingWrapUp > 0 && (
-            <span className="text-violet-400">
+            <Link
+              href={wrapUpsHref({ status: "missing" })}
+              className="text-violet-400 hover:underline cursor-pointer"
+              title="Review missing wrap-ups"
+            >
               <Moon className="inline h-4 w-4 mr-1" />
               {attention.missingWrapUp} missing wrap-up
-            </span>
+            </Link>
           )}
         </div>
       )}
@@ -235,7 +256,7 @@ export function OrgChartView({
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <Network className="h-4 w-4 text-primary" />
         {HIERARCHY_LEGEND.map((item, i) => (
-          <span key={item.role} className="flex items-center gap-1">
+          <span key={item.position} className="flex items-center gap-1">
             {i > 0 && <span className="opacity-40">→</span>}
             <span>{item.label}</span>
           </span>
@@ -300,7 +321,7 @@ export function OrgChartView({
               <SelectItem value="__all__">All roles</SelectItem>
               {roleOptions.map((r) => (
                 <SelectItem key={r} value={r}>
-                  {ROLE_LABELS[r as UserRole] ?? roleLabel(r)}
+                  {POSITION_DISPLAY_LABELS[r as keyof typeof POSITION_DISPLAY_LABELS] ?? r}
                 </SelectItem>
               ))}
             </SelectContent>

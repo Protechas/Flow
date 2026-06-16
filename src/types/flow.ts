@@ -7,6 +7,16 @@ export type UserRole =
   | "employee"
   | "viewer";
 
+/** Where someone appears in the org chart and reporting chain */
+export type OrganizationalPosition =
+  | "employee"
+  | "team_lead"
+  | "manager"
+  | "senior_manager";
+
+/** Elevated system tools — independent of org chart position */
+export type SystemAccessLevel = "standard" | "admin" | "super_admin";
+
 /** Future roles — extend permissions when activated */
 export type FutureUserRole =
   | "qa_lead"
@@ -312,6 +322,8 @@ export interface User {
   last_name: string;
   full_name: string;
   role: UserRole;
+  organizational_position?: OrganizationalPosition | null;
+  system_access_level?: SystemAccessLevel | null;
   pay_type?: PayType | null;
   team_id?: string | null;
   manager_id?: string | null;

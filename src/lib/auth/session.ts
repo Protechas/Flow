@@ -2,6 +2,7 @@ import { DEMO_USER_ID, MOCK_USERS } from "@/lib/data/mock-data";
 import { getDemoUser } from "@/lib/auth/demo-session";
 import { getTeamMemberIds } from "@/lib/auth/team-scope";
 import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { normalizeRole } from "@/lib/auth/permissions";
 import type { Permission } from "@/lib/auth/permissions";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -41,7 +42,7 @@ export async function requireUser(): Promise<User> {
 
 export async function requirePermission(permission: Permission): Promise<User> {
   const user = await requireUser();
-  if (!hasPermission(user.role, permission)) throw new Error("FORBIDDEN");
+  if (!hasPermission(getEffectivePermissionRole(user), permission)) throw new Error("FORBIDDEN");
   return user;
 }
 
@@ -126,4 +127,8 @@ export function canReviewQa(role: UserRole | string): boolean {
 
 export function isEmployeeRole(role: UserRole | string): boolean {
   return normalizeRole(role) === "employee";
+}
+
+export function isEmployeeUser(user: User): boolean {
+  return isEmployeeRole(getEffectivePermissionRole(user));
 }

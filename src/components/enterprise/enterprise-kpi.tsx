@@ -6,28 +6,33 @@ export function EnterpriseKpi({
   label,
   value,
   href,
+  onClick,
   sublabel,
   trend,
   warn,
   spotlight,
   className,
+  title,
 }: {
   label: string;
   value: string | number;
   href?: string;
+  onClick?: () => void;
   sublabel?: string;
   /** Optional trend delta for executive KPI presentation */
   trend?: { delta: number; label?: string };
   warn?: boolean;
   spotlight?: boolean;
   className?: string;
+  title?: string;
 }) {
+  const interactive = Boolean(href || onClick);
   const inner = (
     <div
       className={cn(
         "flow-kpi-card px-4 py-3.5 min-w-0",
         warn && "flow-kpi-card-warn",
-        href && "flow-kpi-card-interactive cursor-pointer",
+        interactive && "flow-kpi-card-interactive cursor-pointer",
         className
       )}
     >
@@ -53,9 +58,22 @@ export function EnterpriseKpi({
 
   if (href) {
     return (
-      <Link href={href} className="block min-w-0">
+      <Link href={href} className="block min-w-0" title={title ?? label}>
         {inner}
       </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="block min-w-0 w-full text-left"
+        title={title ?? label}
+        aria-label={title ?? label}
+      >
+        {inner}
+      </button>
     );
   }
   return inner;

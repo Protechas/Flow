@@ -538,8 +538,6 @@ export const NAV_CONFIG: {
 
   { id: "people", href: "/people", label: "People", icon: "Users", group: "operations", permissions: ["people:view_all", "people:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "operations", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
-
   { id: "alert-center", href: "/alert-center", label: "Alert Center", icon: "BellRing", group: "operations", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "qa-center", href: "/qa-center", label: "QA Review", icon: "ShieldCheck", group: "operations", permissions: ["qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
@@ -565,6 +563,8 @@ export const NAV_CONFIG: {
   { id: "user-management", href: "/settings/users", label: "Users", icon: "UserCog", group: "administration", permissions: "users:manage", roles: ["admin", "super_admin"] },
 
   { id: "departments", href: "/settings/departments", label: "Departments", icon: "Building2", group: "administration", permissions: "departments:manage", roles: ["admin", "super_admin"] },
+
+  { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "administration", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
   { id: "settings", href: "/settings", label: "Settings", icon: "Settings", group: "administration", permissions: "settings:manage", roles: ["admin", "super_admin"] },
 

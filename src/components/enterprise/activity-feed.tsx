@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { EnterpriseStatusBadge } from "@/components/enterprise/enterprise-status-badge";
 import { EmptyState } from "@/components/enterprise/empty-state";
+import { activityEventHref } from "@/lib/navigation/deep-links";
 import type { ActivityEvent, ActivityEventType } from "@/types/flow";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import {
@@ -63,8 +65,9 @@ export function ActivityFeed({
       {items.map((event) => {
         const meta = ACTIVITY_META[event.type] ?? ACTIVITY_META.status_change;
         const Icon = meta.icon;
-        return (
-          <li key={event.id} className="flex gap-3 py-3 enterprise-row-hover px-1 -mx-1 rounded-sm">
+        const href = activityEventHref(event);
+        const content = (
+          <>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-muted/60 text-muted-foreground">
               <Icon className="h-3.5 w-3.5" />
             </div>
@@ -77,6 +80,22 @@ export function ActivityFeed({
               </div>
               <p className="text-sm text-foreground mt-1 leading-snug">{event.summary}</p>
             </div>
+          </>
+        );
+
+        return (
+          <li key={event.id}>
+            {href ? (
+              <Link
+                href={href}
+                className="flex gap-3 py-3 enterprise-row-hover px-1 -mx-1 rounded-sm cursor-pointer"
+                title="Open related record"
+              >
+                {content}
+              </Link>
+            ) : (
+              <div className="flex gap-3 py-3 px-1 -mx-1 rounded-sm">{content}</div>
+            )}
           </li>
         );
       })}

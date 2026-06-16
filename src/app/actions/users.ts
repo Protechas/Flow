@@ -13,13 +13,14 @@ import {
   listUsers,
   setUserActive,
   updateUserProfile,
+  updateUserAccessLevels,
   updateUserRole,
 } from "@/lib/data/users";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/site-url";
 import { formatFullName } from "@/lib/users/format";
-import type { PayType, UserRole } from "@/types/flow";
+import type { OrganizationalPosition, PayType, SystemAccessLevel, UserRole } from "@/types/flow";
 
 export async function getUsersAction() {
   await requirePermission("users:manage");
@@ -43,6 +44,21 @@ export async function updateUserRoleAction(
 ) {
   const actor = await requirePermission("users:manage");
   const user = await updateUserRole(userId, role, {
+    reason,
+    changedBy: { id: actor.id, email: actor.email },
+  });
+  revalidatePath("/", "layout");
+  return user;
+}
+
+export async function updateUserAccessLevelsAction(
+  userId: string,
+  organizationalPosition: OrganizationalPosition,
+  systemAccessLevel: SystemAccessLevel,
+  reason?: string
+) {
+  const actor = await requirePermission("users:manage");
+  const user = await updateUserAccessLevels(userId, organizationalPosition, systemAccessLevel, {
     reason,
     changedBy: { id: actor.id, email: actor.email },
   });

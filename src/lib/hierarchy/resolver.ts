@@ -1,3 +1,4 @@
+import { getOrganizationalPosition, getOrganizationalScopeRole, hasAdminAccess } from "@/lib/auth/access-level";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { listDepartmentUsers } from "@/lib/data/flow-store";
 import { isUserProductionReady } from "@/lib/setup/account";
@@ -21,7 +22,7 @@ import { hierarchyLevelForRole as hierarchyLevelForRoleImpl } from "@/lib/hierar
 
 export type HierarchyScopeMode = "org" | "branch" | "team" | "self";
 
-const ORG_WIDE_ROLES: UserRole[] = ["super_admin", "admin", "viewer"];
+const ORG_WIDE_ROLES: UserRole[] = ["viewer"];
 
 const BRANCH_ROLES: UserRole[] = ["senior_manager"];
 
@@ -36,6 +37,10 @@ export function getScopeMode(role: UserRole, user?: User): HierarchyScopeMode {
   if (role === "manager") return "team";
   if (role === "teamlead") return "team";
   return "self";
+}
+
+function scopeRoleForUser(user: User): UserRole {
+  return getOrganizationalScopeRole(user);
 }
 
 /** Direct reports via hierarchy primary edge, falling back to manager_id */
@@ -78,11 +83,11 @@ export function getVisibleUserIds(
 ): string[] {
   const active = users.filter((u) => u.is_active);
 
-  if (isOrgWideRole(viewer.role)) {
+  if (isOrgWideRole(scopeRoleForUser(viewer))) {
     return active.map((u) => u.id);
   }
 
-  if (viewer.role === "employee") {
+  if (scopeRoleForUser(viewer) === "employee") {
     return [viewer.id];
   }
 
@@ -133,7 +138,10 @@ export function getAssignableUserIds(
         visible.has(u.id) &&
         u.is_active &&
         u.id !== viewer.id &&
-        (u.role === "employee" || u.role === "teamlead") &&
+        (() => {
+          const position = getOrganizationalPosition(u);
+          return position === "employee" || position === "team_lead";
+        })() &&
         isUserProductionReady(u, departmentUsers, teams)
     )
     .map((u) => u.id);
@@ -162,17 +170,16 @@ export function getReportingChain(
     const supervisor = users.find((u) => u.id === supervisorId);
     if (!supervisor) break;
 
+    const supervisorPosition = getOrganizationalPosition(supervisor);
     let relationship: ReportingChainEntry["relationship"] = "direct_supervisor";
-    if (supervisor.role === "teamlead") relationship = "direct_supervisor";
-    else if (supervisor.role === "manager") relationship = "manager";
-    else if (supervisor.role === "senior_manager") relationship = "senior_manager";
-    else if (supervisor.role === "admin" || supervisor.role === "super_admin")
-      relationship = "admin";
+    if (supervisorPosition === "team_lead") relationship = "direct_supervisor";
+    else if (supervisorPosition === "manager") relationship = "manager";
+    else if (supervisorPosition === "senior_manager") relationship = "senior_manager";
 
     chain.push({
       user_id: supervisor.id,
       full_name: supervisor.full_name,
-      role: supervisor.role,
+      role: getOrganizationalScopeRole(supervisor),
       relationship,
     });
 
@@ -206,7 +213,7 @@ export function resolveLeadersForEmployee(
     }
     if (
       includeSeniorManager &&
-      (entry.role === "senior_manager" || entry.role === "admin" || entry.role === "super_admin")
+      entry.role === "senior_manager"
     ) {
       recipients.set(u.id, u);
     }
@@ -214,7 +221,7 @@ export function resolveLeadersForEmployee(
 
   if (!recipients.size && includeAdminFallback) {
     const admin = users.find(
-      (u) => u.is_active && (u.role === "admin" || u.role === "super_admin")
+      (u) => u.is_active && hasAdminAccess(u)
     );
     if (admin) recipients.set(admin.id, admin);
   }
@@ -255,8 +262,9 @@ export function buildOrgChart(
     childMap.set(parentId, list);
   }
 
-  function buildNode(userId: string): OrgChartNode {
-    const user = active.find((u) => u.id === userId)!;
+  function buildNode(userId: string): OrgChartNode | null {
+    const user = active.find((u) => u.id === userId);
+    if (!user) return null;
     const dept = departments.find(
       (d) => d.id === getUserPrimaryDepartmentId(userId)
     );
@@ -268,6 +276,7 @@ export function buildOrgChart(
       team_name: team?.name ?? null,
       children: childIds
         .map((id) => buildNode(id))
+        .filter((n): n is OrgChartNode => n !== null)
         .sort((a, b) => a.user.full_name.localeCompare(b.user.full_name)),
     };
   }
@@ -283,6 +292,7 @@ export function buildOrgChart(
 
   return roots
     .map((id) => buildNode(id))
+    .filter((n): n is OrgChartNode => n !== null)
     .sort((a, b) => a.user.full_name.localeCompare(b.user.full_name));
 }
 

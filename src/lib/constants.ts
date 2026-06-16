@@ -18,6 +18,25 @@ export const PROJECT_STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
+export const ORGANIZATIONAL_POSITIONS: {
+  value: import("@/types/flow").OrganizationalPosition;
+  label: string;
+}[] = [
+  { value: "employee", label: "Employee" },
+  { value: "team_lead", label: "Team Lead" },
+  { value: "manager", label: "Manager" },
+  { value: "senior_manager", label: "Senior Manager" },
+];
+
+export const SYSTEM_ACCESS_LEVELS: {
+  value: import("@/types/flow").SystemAccessLevel;
+  label: string;
+}[] = [
+  { value: "standard", label: "Standard" },
+  { value: "admin", label: "Admin" },
+  { value: "super_admin", label: "Super Admin" },
+];
+
 export const USER_ROLES: { value: UserRole; label: string }[] = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },

@@ -14,10 +14,10 @@ import { getActiveDepartments } from "@/lib/departments/filters";
 export default async function QaCenterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string }>;
+  searchParams: Promise<{ department?: string; package?: string }>;
 }) {
   const user = await requirePageAccess("/qa-center");
-  const { department: deptParam } = await searchParams;
+  const { department: deptParam, package: packageParam } = await searchParams;
   const departmentFilter = parseDepartmentFilter({ department: deptParam });
 
   initFlowStore();
@@ -55,6 +55,7 @@ export default async function QaCenterPage({
         canReview={canReviewQa(user.role)}
         fileMap={fileMap}
         submissionMap={submissionMap}
+        initialPackageId={packageParam?.trim() || undefined}
       />
     </>
   );

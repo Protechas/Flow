@@ -53,6 +53,7 @@ import {
 import { roleLabel } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { getNavGroupsForRole } from "@/lib/auth/permissions";
 
 import { userDisplayInitials } from "@/lib/users/format";
@@ -107,7 +108,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
   const pathname = usePathname();
 
-  const navGroups = getNavGroupsForRole(user.role);
+  const navGroups = getNavGroupsForRole(getEffectivePermissionRole(user));
 
   const homeHref = navGroups[0]?.items[0]?.href ?? "/operations";
 

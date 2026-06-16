@@ -1,6 +1,7 @@
 "use client";
 
-import { hierarchyLevelForRole, ROLE_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { hierarchyLevelForPosition, POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { cn } from "@/lib/utils";
 import type { OrgChartNode, OrgChartStatusFlag, OrgChartUserOps, UserRole } from "@/types/flow";
 import {
@@ -11,7 +12,7 @@ import {
   Users,
 } from "lucide-react";
 
-const ROLE_LABELS = ROLE_DISPLAY_LABELS;
+const ROLE_LABELS = POSITION_DISPLAY_LABELS;
 
 function SignalPill({
   label,
@@ -65,7 +66,8 @@ export function OrgChartUserCard({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const tier = hierarchyLevelForRole(node.user.role);
+  const position = getOrganizationalPosition(node.user);
+  const tier = hierarchyLevelForPosition(position);
   const flags = ops?.flags ?? ["active"];
   const needsAttention = flags.some((f) =>
     ["needs_help", "needs_work", "missing_wrap_up"].includes(f)
@@ -104,7 +106,7 @@ export function OrgChartUserCard({
           <div>
             <p className="font-semibold text-sm leading-tight truncate">{node.user.full_name}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {ROLE_LABELS[node.user.role] ?? node.user.role}
+              {ROLE_LABELS[position]}
             </p>
           </div>
 

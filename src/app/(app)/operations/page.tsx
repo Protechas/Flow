@@ -35,15 +35,18 @@ import { getActiveDepartments } from "@/lib/departments/filters";
 import { resolveDepartmentForProject } from "@/lib/departments/resolve";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
+import { parseOpsViewParam } from "@/lib/navigation/deep-links";
 import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 
 export default async function OperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string; search?: string; package?: string }>;
+  searchParams: Promise<{ department?: string; search?: string; package?: string; view?: string }>;
 }) {
   const user = await requirePageAccess("/operations");
-  const { department: deptParam, search: searchParam, package: packageParam } = await searchParams;
+  const { department: deptParam, search: searchParam, package: packageParam, view: viewParam } =
+    await searchParams;
+  const initialViewId = parseOpsViewParam(viewParam);
   await hydrateForecastSettings();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
@@ -141,6 +144,7 @@ export default async function OperationsPage({
         tree={tree}
         initialSearch={searchParam?.trim() ?? ""}
         initialPackageId={packageParam?.trim() || undefined}
+        initialViewId={initialViewId}
         taskFileUploads={getAllTaskFileUploads()}
         analysts={scopedAnalysts}
         currentUserId={user.id}

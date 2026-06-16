@@ -1,10 +1,12 @@
 "use client";
 
 import { DueDateStatusBadge } from "@/components/forecast/due-date-status-badge";
+import Link from "next/link";
 import { EnterpriseDataTable, EnterpriseTableHead, EnterpriseTd, EnterpriseTh } from "@/components/enterprise/enterprise-data-table";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import type { ReportMetrics } from "@/types/flow";
+import { operationsHref, projectHealthHref, qaCenterHref } from "@/lib/navigation/deep-links";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
 import {
   Bar,
@@ -31,10 +33,16 @@ export function ReportMetricsView({ metrics }: { metrics: ReportMetrics }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <EnterpriseKpi label="QA Pass Rate" value={`${metrics.qaPassRate}%`} />
-        <EnterpriseKpi label="Total Corrections" value={metrics.totalCorrections} />
-        <EnterpriseKpi label="Avg Time / Package" value={`${metrics.avgTimePerPackage}h`} />
-        <EnterpriseKpi label="Overdue" value={metrics.overdueCount} warn={metrics.overdueCount > 0} />
+        <EnterpriseKpi label="QA Pass Rate" value={`${metrics.qaPassRate}%`} href={qaCenterHref()} title="Open QA review" />
+        <EnterpriseKpi label="Total Corrections" value={metrics.totalCorrections} href={qaCenterHref()} title="Open QA review" />
+        <EnterpriseKpi label="Avg Time / Package" value={`${metrics.avgTimePerPackage}h`} href="/reports" title="View reports" />
+        <EnterpriseKpi
+          label="Overdue"
+          value={metrics.overdueCount}
+          warn={metrics.overdueCount > 0}
+          href={operationsHref({ view: "overdue" })}
+          title="View overdue tasks"
+        />
       </div>
 
       <EnterpriseSection title="Due date forecasting" description="Planning and live production forecasts">
@@ -90,7 +98,15 @@ export function ReportMetricsView({ metrics }: { metrics: ReportMetrics }) {
               <tbody>
                 {f.atRiskTasks.map((t) => (
                   <tr key={t.id} className="enterprise-row-hover">
-                    <EnterpriseTd className="font-medium">{t.title}</EnterpriseTd>
+                    <EnterpriseTd className="font-medium">
+                      <Link
+                        href={operationsHref({ package: t.id })}
+                        className="text-primary hover:underline"
+                        title="Open task in operations"
+                      >
+                        {t.title}
+                      </Link>
+                    </EnterpriseTd>
                     <EnterpriseTd>{t.employeeName}</EnterpriseTd>
                     <EnterpriseTd>{t.manualDueDate ?? "—"}</EnterpriseTd>
                     <EnterpriseTd>{t.suggestedDueDate ?? "—"}</EnterpriseTd>
@@ -112,9 +128,9 @@ export function ReportMetricsView({ metrics }: { metrics: ReportMetrics }) {
           return (
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-                <EnterpriseKpi label="Open alerts" value={w.openAlerts} warn={w.openAlerts > 0} />
-                <EnterpriseKpi label="Low workload" value={w.lowWorkloadCount} warn={w.lowWorkloadCount > 0} />
-                <EnterpriseKpi label="No assigned work" value={w.noWorkCount} warn={w.noWorkCount > 0} />
+                <EnterpriseKpi label="Open alerts" value={w.openAlerts} warn={w.openAlerts > 0} href="/alert-center" title="Open Alert Center" />
+                <EnterpriseKpi label="Low workload" value={w.lowWorkloadCount} warn={w.lowWorkloadCount > 0} href="/alert-center#workload-alerts" />
+                <EnterpriseKpi label="No assigned work" value={w.noWorkCount} warn={w.noWorkCount > 0} href="/alert-center#workload-alerts" />
                 <EnterpriseKpi
                   label="Avg unused capacity"
                   value={`${w.avgUnusedCapacityHours}h`}

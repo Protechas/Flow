@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { canAccessRoute, getDefaultRoute, type Permission } from "@/lib/auth/permissions";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import { teamLeadCanViewPerson } from "@/lib/auth/team-scope";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
@@ -10,7 +11,7 @@ export async function requirePageAccess(pathname: string): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
-  if (!canAccessRoute(user.role, pathname)) redirect("/unauthorized");
+  if (!canAccessRoute(getEffectivePermissionRole(user), pathname)) redirect("/unauthorized");
   return user;
 }
 
@@ -18,7 +19,7 @@ export async function requirePagePermission(permission: Permission): Promise<Use
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
-  if (!hasPermission(user.role, permission)) redirect("/unauthorized");
+  if (!hasPermission(getEffectivePermissionRole(user), permission)) redirect("/unauthorized");
   return user;
 }
 
@@ -31,5 +32,5 @@ export async function requireOwnProfileOrTeam(profileUserId: string): Promise<Us
     const store = getFlowStore();
     if (teamLeadCanViewPerson(user, profileUserId, store.users, store.teams)) return user;
   }
-  redirect(getDefaultRoute(user.role));
+  redirect(getDefaultRoute(getEffectivePermissionRole(user)));
 }

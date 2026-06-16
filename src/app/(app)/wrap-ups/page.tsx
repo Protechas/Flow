@@ -22,10 +22,16 @@ import { format, subDays } from "date-fns";
 export default async function WrapUpsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{
+    id?: string;
+    status?: string;
+    reviewed?: string;
+    followUp?: string;
+    userId?: string;
+  }>;
 }) {
   const user = await requirePageAccess("/wrap-ups");
-  const { id } = await searchParams;
+  const { id, status, reviewed, followUp, userId } = await searchParams;
   initFlowStore();
   const store = getFlowStore();
 
@@ -63,6 +69,10 @@ export default async function WrapUpsPage({
         detail={detail}
         canReview={canReview}
         selectedId={id ?? null}
+        initialStatus={status === "submitted" || status === "missing" || status === "overridden" ? status : undefined}
+        initialReviewed={reviewed === "reviewed" || reviewed === "unreviewed" ? reviewed : undefined}
+        initialFollowUp={followUp === "1"}
+        initialUserId={userId}
       />
     </>
   );

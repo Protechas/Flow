@@ -1,5 +1,6 @@
 import type { User } from "@/types/flow";
 import { normalizePayType } from "@/lib/users/pay-type";
+import type { OrganizationalPosition, SystemAccessLevel } from "@/types/flow";
 
 export function formatFullName(firstName: string, lastName?: string | null): string {
   return [firstName.trim(), lastName?.trim()].filter(Boolean).join(" ");
@@ -21,6 +22,8 @@ export function normalizeUser(row: Record<string, unknown>): User {
     last_name: last || full_name.split(" ").slice(1).join(" ") || "",
     full_name,
     role: row.role as User["role"],
+    organizational_position: (row.organizational_position as OrganizationalPosition | null) ?? null,
+    system_access_level: (row.system_access_level as SystemAccessLevel | null) ?? null,
     pay_type: normalizePayType(row.pay_type, row.role as User["role"]),
     team_id: (row.team_id as string | null) ?? null,
     manager_id: (row.manager_id as string | null) ?? null,

@@ -5,7 +5,7 @@ import {
   adminResetPasswordAction,
   setUserActiveAction,
   updateUserDetailsAction,
-  updateUserRoleAction,
+  updateUserAccessLevelsAction,
 } from "@/app/actions/users";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmployeePayTypeSelect } from "@/components/people/employee-pay-type-select";
-import { USER_ROLES } from "@/lib/constants";
+import { ORGANIZATIONAL_POSITIONS, SYSTEM_ACCESS_LEVELS } from "@/lib/constants";
+import {
+  getOrganizationalPosition,
+  getSystemAccessLevel,
+} from "@/lib/auth/access-level";
 import { UserSetupDialog } from "@/components/setup/user-setup-dialog";
 import { getUserSetupStatus } from "@/lib/setup/needs-setup";
-import type { Department, DepartmentUser, ReportingChainEntry, Team, User, UserRole } from "@/types/flow";
+import type {
+  Department,
+  DepartmentUser,
+  OrganizationalPosition,
+  ReportingChainEntry,
+  SystemAccessLevel,
+  Team,
+  User,
+} from "@/types/flow";
 import { userDisplayInitials } from "@/lib/users/format";
 
 export function UsersAdmin({
@@ -67,7 +79,8 @@ export function UsersAdmin({
             <tr className="bg-muted/30 text-xs text-muted-foreground">
               <th className="text-left py-3 px-3 font-medium">User</th>
               <th className="text-left py-3 px-3 font-medium">Email</th>
-              <th className="text-left py-3 px-3 font-medium">Role</th>
+              <th className="text-left py-3 px-3 font-medium">Org position</th>
+              <th className="text-left py-3 px-3 font-medium">System access</th>
               <th className="text-left py-3 px-3 font-medium">Pay type</th>
               <th className="text-left py-3 px-3 font-medium">Team</th>
               <th className="text-left py-3 px-3 font-medium">Supervisor</th>
@@ -92,7 +105,9 @@ export function UsersAdmin({
                 onSave={(data) =>
                   run(() => updateUserDetailsAction(u.id, data))
                 }
-                onRole={(role) => run(() => updateUserRoleAction(u.id, role))}
+                onAccessLevels={(position, access) =>
+                  run(() => updateUserAccessLevelsAction(u.id, position, access))
+                }
                 onToggleActive={(active) =>
                   run(() => setUserActiveAction(u.id, active))
                 }
@@ -129,7 +144,7 @@ function UserRow({
   setupStatus,
   onCompleteSetup,
   onSave,
-  onRole,
+  onAccessLevels,
   onToggleActive,
   onResetPassword,
   resetPasswordEnabled,
@@ -141,7 +156,7 @@ function UserRow({
   setupStatus: "complete" | "needs_setup";
   onCompleteSetup: () => void;
   onSave: (data: Parameters<typeof updateUserDetailsAction>[1]) => void;
-  onRole: (role: UserRole) => void;
+  onAccessLevels: (position: OrganizationalPosition, access: SystemAccessLevel) => void;
   onToggleActive: (active: boolean) => void;
   onResetPassword: () => void;
   resetPasswordEnabled: boolean;
@@ -149,6 +164,8 @@ function UserRow({
   const [first, setFirst] = useState(user.first_name);
   const [last, setLast] = useState(user.last_name);
   const [hireDate, setHireDate] = useState(user.hire_date ?? "");
+  const orgPosition = getOrganizationalPosition(user);
+  const systemAccess = getSystemAccessLevel(user);
 
   return (
     <tr className="border-t border-border/40 align-top">
@@ -195,21 +212,51 @@ function UserRow({
       </td>
       <td className="py-3 px-3 text-muted-foreground">{user.email}</td>
       <td className="py-3 px-3">
-        <Select value={user.role} onValueChange={(v) => v && onRole(v as UserRole)}>
-          <SelectTrigger className="w-[120px] h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {USER_ROLES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-2">
+          <Select
+            value={orgPosition}
+            onValueChange={(v) => v && onAccessLevels(v as OrganizationalPosition, systemAccess)}
+          >
+            <SelectTrigger className="w-[150px] h-8 bg-card text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORGANIZATIONAL_POSITIONS.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground leading-snug max-w-[180px]">
+            Position controls where this person appears in the org chart.
+          </p>
+        </div>
       </td>
       <td className="py-3 px-3">
-        {user.role === "employee" ? (
+        <div className="space-y-2">
+          <Select
+            value={systemAccess}
+            onValueChange={(v) => v && onAccessLevels(orgPosition, v as SystemAccessLevel)}
+          >
+            <SelectTrigger className="w-[140px] h-8 bg-card text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SYSTEM_ACCESS_LEVELS.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground leading-snug max-w-[180px]">
+            Access level controls what tools this person can use.
+          </p>
+        </div>
+      </td>
+      <td className="py-3 px-3">
+        {orgPosition === "employee" ? (
           <EmployeePayTypeSelect user={user} compact />
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -274,7 +321,7 @@ function UserRow({
         )}
       </td>
       <td className="py-3 px-3">
-        {user.role === "manager" ? (
+        {orgPosition === "manager" ? (
           <label className="flex items-center gap-2 text-xs cursor-pointer">
             <input
               type="checkbox"

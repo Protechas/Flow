@@ -2,7 +2,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { isEmployeeRole } from "@/lib/auth/permissions";
+import { isEmployeeUser } from "@/lib/auth/session";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -16,7 +16,7 @@ export default async function AppLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (isEmployeeRole(user.role)) redirect("/work");
+  if (isEmployeeUser(user)) redirect("/work");
 
   if (!isSupabaseConfigured()) {
     await hydrateForecastSettings();

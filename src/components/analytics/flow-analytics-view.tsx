@@ -11,6 +11,13 @@ import { PerformanceTrendChart } from "@/components/performance/performance-tren
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { HEALTH_LEVEL_LABELS, type DepartmentHealthLevel } from "@/lib/design/department-health";
+import {
+  alertCenterHref,
+  operationsHref,
+  peopleHref,
+  projectHealthHref,
+  qaCenterHref,
+} from "@/lib/navigation/deep-links";
 import { cn } from "@/lib/utils";
 import type { FlowAnalyticsSnapshot } from "@/lib/analytics/types";
 import {
@@ -172,6 +179,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
               ? `${h.fastestEmployee.docsPerHour} docs/hr · ${h.fastestEmployee.avgMinutesPerDocument} min/doc`
               : "Insufficient submissions"
           }
+          href={h.fastestEmployee ? peopleHref(h.fastestEmployee.userId) : undefined}
           spotlight
         />
         <EnterpriseKpi
@@ -191,22 +199,26 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
           value={h.projectsBehind}
           sublabel="At risk or behind forecast"
           warn={h.projectsBehind > 0}
+          href={projectHealthHref()}
         />
         <EnterpriseKpi
           label="Most overloaded"
           value={h.mostOverloaded?.name.split(" ")[0] ?? "—"}
           sublabel={h.mostOverloaded ? `${h.mostOverloaded.active} active tasks` : "Balanced"}
           warn={!!h.mostOverloaded}
+          href={h.mostOverloaded ? peopleHref(h.mostOverloaded.userId) : undefined}
         />
         <EnterpriseKpi
           label="Most underutilized"
           value={h.mostUnderutilized?.name.split(" ")[0] ?? "—"}
           sublabel={h.mostUnderutilized ? `${h.mostUnderutilized.active} active tasks` : "Balanced"}
+          href={h.mostUnderutilized ? peopleHref(h.mostUnderutilized.userId) : undefined}
         />
         <EnterpriseKpi
           label="Needs work"
           value={h.employeesNeedingWork}
           sublabel="Workload alerts — low or no assignments"
+          href={alertCenterHref({ type: "workload" })}
           warn={h.employeesNeedingWork > 0}
         />
         <EnterpriseKpi
@@ -417,10 +429,10 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
       {/* Forecast Analytics */}
       <EnterpriseSection title="Forecast Analytics" description="Delivery risk and estimate coverage" workspace>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-          <EnterpriseKpi label="Tasks at risk" value={data.forecast.tasksAtRisk} warn={data.forecast.tasksAtRisk > 0} />
-          <EnterpriseKpi label="Projects at risk" value={data.forecast.projectsAtRisk} warn={data.forecast.projectsAtRisk > 0} />
-          <EnterpriseKpi label="Behind forecast" value={data.forecast.tasksBehindActiveForecast} warn={data.forecast.tasksBehindActiveForecast > 0} />
-          <EnterpriseKpi label="Missing estimates" value={data.forecast.tasksMissingEstimates} warn={data.forecast.tasksMissingEstimates > 0} />
+          <EnterpriseKpi label="Tasks at risk" value={data.forecast.tasksAtRisk} warn={data.forecast.tasksAtRisk > 0} href={operationsHref({ view: "at_risk" })} />
+          <EnterpriseKpi label="Projects at risk" value={data.forecast.projectsAtRisk} warn={data.forecast.projectsAtRisk > 0} href={projectHealthHref()} />
+          <EnterpriseKpi label="Behind forecast" value={data.forecast.tasksBehindActiveForecast} warn={data.forecast.tasksBehindActiveForecast > 0} href={operationsHref({ view: "at_risk" })} />
+          <EnterpriseKpi label="Missing estimates" value={data.forecast.tasksMissingEstimates} warn={data.forecast.tasksMissingEstimates > 0} href="/operations" />
         </div>
         <div className="space-y-3">
           <p className="enterprise-label flex items-center gap-2">
@@ -457,8 +469,8 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
       {/* QA Analytics */}
       <EnterpriseSection title="QA Analytics" description="Quality by team, department, and individual" workspace>
         <div className="grid gap-3 sm:grid-cols-3 mb-4">
-          <EnterpriseKpi label="Org QA pass" value={`${data.qa.orgPassRate}%`} />
-          <EnterpriseKpi label="Corrections today" value={data.qa.correctionsToday} warn={data.qa.correctionsToday > 0} />
+          <EnterpriseKpi label="Org QA pass" value={`${data.qa.orgPassRate}%`} href={qaCenterHref()} />
+          <EnterpriseKpi label="Corrections today" value={data.qa.correctionsToday} warn={data.qa.correctionsToday > 0} href={qaCenterHref()} />
           <EnterpriseKpi label="Corrections (7d)" value={data.qa.correctionsWeek} />
         </div>
         <div className="grid gap-6 lg:grid-cols-2">

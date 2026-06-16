@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { exportWrapUpRowsCsv } from "@/lib/wrap-up/export-csv";
+import { wrapUpsHref } from "@/lib/navigation/deep-links";
 import type {
   Department,
   Team,
@@ -53,6 +54,10 @@ export function WrapUpReviewCenter({
   detail,
   canReview,
   selectedId,
+  initialStatus,
+  initialReviewed,
+  initialFollowUp,
+  initialUserId,
 }: {
   rows: WrapUpReviewRow[];
   stats: WrapUpReviewDashboardStats;
@@ -62,18 +67,22 @@ export function WrapUpReviewCenter({
   detail: WrapUpReviewDetail | null;
   canReview: boolean;
   selectedId: string | null;
+  initialStatus?: "submitted" | "missing" | "overridden";
+  initialReviewed?: "reviewed" | "unreviewed";
+  initialFollowUp?: boolean;
+  initialUserId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [employeeFilter, setEmployeeFilter] = useState("all");
+  const [employeeFilter, setEmployeeFilter] = useState(initialUserId ?? "all");
   const [deptFilter, setDeptFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [reviewedFilter, setReviewedFilter] = useState("all");
-  const [followUpOnly, setFollowUpOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(initialStatus ?? "all");
+  const [reviewedFilter, setReviewedFilter] = useState(initialReviewed ?? "all");
+  const [followUpOnly, setFollowUpOnly] = useState(initialFollowUp ?? false);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -110,11 +119,43 @@ export function WrapUpReviewCenter({
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <EnterpriseKpi label="Submitted today" value={stats.submittedToday} />
-        <EnterpriseKpi label="Missing today" value={stats.missingToday} warn={stats.missingToday > 0} />
-        <EnterpriseKpi label="Unreviewed" value={stats.unreviewed} warn={stats.unreviewed > 0} />
-        <EnterpriseKpi label="With blockers" value={stats.withBlockers} warn={stats.withBlockers > 0} />
-        <EnterpriseKpi label="Follow-ups needed" value={stats.followUpsNeeded} warn={stats.followUpsNeeded > 0} />
+        <EnterpriseKpi
+          label="Submitted today"
+          value={stats.submittedToday}
+          href={wrapUpsHref({ status: "submitted" })}
+          title="Filter to submitted wrap-ups"
+        />
+        <EnterpriseKpi
+          label="Missing today"
+          value={stats.missingToday}
+          warn={stats.missingToday > 0}
+          href={wrapUpsHref({ status: "missing" })}
+          title="Filter to missing wrap-ups"
+        />
+        <EnterpriseKpi
+          label="Unreviewed"
+          value={stats.unreviewed}
+          warn={stats.unreviewed > 0}
+          href={wrapUpsHref({ reviewed: "unreviewed" })}
+          title="Filter to unreviewed submissions"
+        />
+        <EnterpriseKpi
+          label="With blockers"
+          value={stats.withBlockers}
+          warn={stats.withBlockers > 0}
+          onClick={() => {
+            setStatusFilter("submitted");
+            setFollowUpOnly(false);
+          }}
+          title="Show submitted wrap-ups with blockers"
+        />
+        <EnterpriseKpi
+          label="Follow-ups needed"
+          value={stats.followUpsNeeded}
+          warn={stats.followUpsNeeded > 0}
+          href={wrapUpsHref({ followUp: true })}
+          title="Filter to follow-ups needed"
+        />
       </div>
 
       <EnterpriseSection title="Filters" description="Narrow by date, employee, department, team, or review status">

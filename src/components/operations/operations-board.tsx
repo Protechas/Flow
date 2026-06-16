@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   archiveManufacturerAction,
   bulkAssignWorkPackagesAction,
@@ -85,6 +86,7 @@ import type {
   WorkStatus,
   YearWorkItem,
 } from "@/types/flow";
+import type { OpsSavedViewId } from "@/lib/operations/board-filters";
 import { isBefore, parseISO, startOfDay } from "date-fns";
 import {
   AlertTriangle,
@@ -107,6 +109,7 @@ interface OperationsBoardProps {
   tree: OperationsTree;
   initialSearch?: string;
   initialPackageId?: string;
+  initialViewId?: OpsSavedViewId;
   taskFileUploads: TaskFileUpload[];
   analysts: User[];
   forecastSettings: ForecastSettings;
@@ -165,6 +168,7 @@ export function OperationsBoard({
   tree,
   initialSearch = "",
   initialPackageId,
+  initialViewId,
   taskFileUploads,
   analysts,
   forecastSettings,
@@ -181,6 +185,10 @@ export function OperationsBoard({
   comments,
   timeLogs,
 }: OperationsBoardProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const allowEdit = canEdit && !readOnly;
   const allowAssign = canAssign && !readOnly;
   const allowManage = canManageProjects && !readOnly;
@@ -189,6 +197,7 @@ export function OperationsBoard({
   const [filters, setFilters] = useState<OpsBoardFilters>({
     ...DEFAULT_OPS_FILTERS,
     search: initialSearch,
+    viewId: initialViewId ?? DEFAULT_OPS_FILTERS.viewId,
   });
   const [layoutMode, setLayoutMode] = useState<OpsLayoutMode>("browser");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -201,8 +210,25 @@ export function OperationsBoard({
   const allPackages = useMemo(() => flattenPackages(tree), [tree]);
   const resolvePackage = (id: string) => allPackages.find((p) => p.id === id);
 
+  const syncPackageParam = useCallback(
+    (packageId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (packageId) params.set("package", packageId);
+      else params.delete("package");
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  const closePanel = useCallback(() => {
+    setPanelSelection(null);
+    syncPackageParam(null);
+  }, [syncPackageParam]);
+
   const selectPackage = (pkg: WorkPackage) => {
     setPanelSelection({ kind: "package", pkg });
+    syncPackageParam(pkg.id);
   };
 
   useEffect(() => {
@@ -212,10 +238,32 @@ export function OperationsBoard({
   }, [initialSearch]);
 
   useEffect(() => {
-    if (!initialPackageId) return;
-    const pkg = allPackages.find((p) => p.id === initialPackageId);
+    if (initialViewId) {
+      setFilters((f) => ({ ...f, viewId: initialViewId }));
+    }
+  }, [initialViewId]);
+
+  useEffect(() => {
+    const packageId = searchParams.get("package") ?? initialPackageId ?? null;
+    if (!packageId) {
+      setPanelSelection((prev) => (prev?.kind === "package" ? null : prev));
+      return;
+    }
+    const pkg = allPackages.find((p) => p.id === packageId);
     if (pkg) setPanelSelection({ kind: "package", pkg });
-  }, [initialPackageId, allPackages]);
+  }, [searchParams, initialPackageId, allPackages]);
+
+  const selectPanel = useCallback(
+    (selection: OpsPanelSelection | null) => {
+      setPanelSelection(selection);
+      if (selection?.kind === "package") {
+        syncPackageParam(selection.pkg.id);
+      } else {
+        syncPackageParam(null);
+      }
+    },
+    [syncPackageParam]
+  );
 
   const projectIds = useMemo(() => tree.projects.map((p) => p.project.id), [tree]);
   const { expanded, toggle, expandAll, collapseAll } = useOperationsExpanded(projectIds);
@@ -399,7 +447,7 @@ export function OperationsBoard({
                     showActions={showActions}
                     compact={compact}
                     panelSelection={panelSelection}
-                    onSelectPanel={setPanelSelection}
+                    onSelectPanel={selectPanel}
                     onUpdatePkg={updatePkg}
                     onUpdateYear={updateYear}
                     onDetail={selectPackage}
@@ -416,7 +464,7 @@ export function OperationsBoard({
           <div className={cn(panelSelection.kind === "package" && "hidden xl:block")}>
             <OperationsDetailPanel
             selection={panelSelection}
-            onClose={() => setPanelSelection(null)}
+            onClose={closePanel}
             analysts={analysts}
             comments={comments}
             taskFiles={taskFileUploads}
@@ -438,7 +486,7 @@ export function OperationsBoard({
       <PackageDetailSheet
         pkg={panelSelection?.kind === "package" ? (resolvePackage(panelSelection.pkg.id) ?? panelSelection.pkg) : null}
         open={panelSelection?.kind === "package"}
-        onOpenChange={(o) => !o && setPanelSelection(null)}
+        onOpenChange={(o) => !o && closePanel()}
         comments={comments}
         taskFiles={taskFileUploads}
         timeLogs={timeLogs}

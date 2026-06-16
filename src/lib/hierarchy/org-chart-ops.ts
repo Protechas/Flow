@@ -1,3 +1,4 @@
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getDirectReportIds, getPrimarySupervisorId, getReportingChain } from "@/lib/hierarchy/resolver";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
@@ -105,7 +106,7 @@ export function buildOrgChartOpsMap(
     let workloadStatus: string | null = null;
     let clockStatus: OrgChartUserOps["clockStatus"] = "na";
 
-    if (user.role === "employee") {
+    if (getOrganizationalPosition(user) === "employee") {
       const avail = availabilityMap.get(userId);
       if (avail) {
         clockLabel = avail.statusLabel;
@@ -217,7 +218,7 @@ export function buildOrgChartProfileDetail(
     .map((p) => ({ id: p.id, title: p.title, status: p.status }));
 
   let workloadSummary: string | null = null;
-  if (user.role === "employee") {
+  if (getOrganizationalPosition(user) === "employee") {
     const snapshot = evaluateEmployeeWorkload(user, packages, store.forecastSettings);
     const settings = getWorkloadAlertSettings();
     const derived = deriveWorkloadAlerts(snapshot, settings.work_remaining_threshold_hours);

@@ -8,6 +8,7 @@ import {
   getDefaultRoute,
   normalizeRole,
 } from "@/lib/auth/permissions";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { roleCanAccessPath } from "@/lib/auth/route-guard";
 import type { UserRole } from "@/types/flow";
 
@@ -25,12 +26,16 @@ async function fetchUserRole(
 ): Promise<UserRole | null> {
   const { data } = await supabase
     .from("users")
-    .select("role, is_active")
+    .select("role, organizational_position, system_access_level, is_active")
     .eq("id", userId)
     .maybeSingle();
 
   if (!data || data.is_active === false) return null;
-  return normalizeRole(String(data.role));
+  return getEffectivePermissionRole({
+    role: normalizeRole(String(data.role)),
+    organizational_position: data.organizational_position as import("@/types/flow").OrganizationalPosition | null,
+    system_access_level: data.system_access_level as import("@/types/flow").SystemAccessLevel | null,
+  });
 }
 
 export async function updateSession(request: NextRequest) {

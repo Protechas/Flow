@@ -1,4 +1,10 @@
 import { writeAuditLog } from "@/lib/audit/audit-log";
+import {
+  deriveOrganizationalPositionFromRole,
+  deriveSystemAccessLevelFromRole,
+  hydrateUserAccessFields,
+  syncLegacyRoleFromAccessFields,
+} from "@/lib/auth/access-level";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { formatFullName, normalizeUser } from "@/lib/users/format";
 import { getAllUsers, updateUser, initFlowStore, getFlowStore } from "@/lib/data/flow-store";
@@ -8,10 +14,13 @@ import { listTeamsStore } from "@/lib/data/flow-store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { Team, User, UserRole } from "@/types/flow";
+import type { OrganizationalPosition, SystemAccessLevel, Team, User, UserRole } from "@/types/flow";
 
 function mapDbUser(row: Record<string, unknown>): User {
-  return { ...normalizeUser(row), role: normalizeRole(String(row.role)) };
+  return hydrateUserAccessFields({
+    ...normalizeUser(row),
+    role: normalizeRole(String(row.role)),
+  });
 }
 
 export async function listTeams(): Promise<Team[]> {
@@ -20,7 +29,7 @@ export async function listTeams(): Promise<Team[]> {
 
 export async function listUsers(): Promise<User[]> {
   if (!isSupabaseConfigured()) {
-    return getAllUsers().map((u) => ({ ...u, role: normalizeRole(u.role) }));
+    return getAllUsers().map((u) => hydrateUserAccessFields({ ...u, role: normalizeRole(u.role) }));
   }
 
   const supabase = await createClient();
@@ -37,7 +46,21 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function updateUserProfile(
   userId: string,
   updates: Partial<
-    Pick<User, "first_name" | "last_name" | "role" | "team_id" | "manager_id" | "hire_date" | "is_active" | "avatar_url" | "pay_type" | "branch_view_access">
+    Pick<
+      User,
+      | "first_name"
+      | "last_name"
+      | "role"
+      | "organizational_position"
+      | "system_access_level"
+      | "team_id"
+      | "manager_id"
+      | "hire_date"
+      | "is_active"
+      | "avatar_url"
+      | "pay_type"
+      | "branch_view_access"
+    >
   >
 ): Promise<User | null> {
   const full_name =
@@ -85,7 +108,11 @@ export async function updateUserRole(
   options?: { reason?: string; changedBy?: { id: string; email: string } }
 ): Promise<User | null> {
   const before = await getUserById(userId);
-  const user = await updateUserProfile(userId, { role });
+  const user = await updateUserProfile(userId, {
+    role,
+    organizational_position: deriveOrganizationalPositionFromRole(role),
+    system_access_level: deriveSystemAccessLevelFromRole(role),
+  });
   if (user && before) {
     await writeAuditLog({
       action: "role_changed",
@@ -95,6 +122,39 @@ export async function updateUserRole(
       metadata: {
         previous_role: before.role,
         new_role: role,
+        reason: options?.reason ?? null,
+      },
+      actorId: options?.changedBy?.id,
+      actorEmail: options?.changedBy?.email,
+    });
+  }
+  return user;
+}
+
+export async function updateUserAccessLevels(
+  userId: string,
+  organizationalPosition: OrganizationalPosition,
+  systemAccessLevel: SystemAccessLevel,
+  options?: { reason?: string; changedBy?: { id: string; email: string } }
+): Promise<User | null> {
+  const before = await getUserById(userId);
+  const syncedRole = syncLegacyRoleFromAccessFields(organizationalPosition, systemAccessLevel);
+  const user = await updateUserProfile(userId, {
+    organizational_position: organizationalPosition,
+    system_access_level: systemAccessLevel,
+    role: syncedRole,
+  });
+  if (user && before) {
+    await writeAuditLog({
+      action: "role_changed",
+      entityType: "user",
+      entityId: userId,
+      summary: `Access updated for ${user.full_name}: ${organizationalPosition} / ${systemAccessLevel}`,
+      metadata: {
+        previous_role: before.role,
+        new_role: syncedRole,
+        organizational_position: organizationalPosition,
+        system_access_level: systemAccessLevel,
         reason: options?.reason ?? null,
       },
       actorId: options?.changedBy?.id,

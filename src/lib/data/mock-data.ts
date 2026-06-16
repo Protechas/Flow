@@ -1,3 +1,7 @@
+import {
+  deriveOrganizationalPositionFromRole,
+  deriveSystemAccessLevelFromRole,
+} from "@/lib/auth/access-level";
 import type {
   ActivityEvent,
   Correction,
@@ -108,6 +112,8 @@ function mockUser(
     last_name: last,
     full_name: full,
     role,
+    organizational_position: deriveOrganizationalPositionFromRole(role),
+    system_access_level: deriveSystemAccessLevelFromRole(role),
     pay_type,
     team_id: "team-1",
     manager_id: role === "employee" ? "user-manager" : null,
@@ -122,7 +128,10 @@ function mockUser(
 }
 
 export const MOCK_USERS: User[] = [
-  mockUser("user-admin", "Dusty", "", "dusty@flow.local", "admin"),
+  mockUser("user-admin", "Dusty", "", "dusty@flow.local", "admin", {
+    organizational_position: "manager",
+    system_access_level: "admin",
+  }),
   mockUser("user-mark", "Mark", "Williams", "mark@flow.local", "senior_manager", {
     manager_id: "user-admin",
     team_id: null,

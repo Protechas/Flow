@@ -1,3 +1,4 @@
+import { getOrganizationalScopeRole } from "@/lib/auth/access-level";
 import type { Team, User } from "@/types/flow";
 import type { HierarchyScopeMode } from "@/lib/hierarchy/resolver";
 
@@ -5,14 +6,15 @@ export function hasBranchViewAccess(user: User): boolean {
   return user.branch_view_access === true;
 }
 
-/** Effective visibility mode — managers default to team unless admin grants branch access. */
+/** Effective visibility mode — based on org position, not system admin access */
 export function getEffectiveScopeMode(user: User): HierarchyScopeMode {
-  if (["super_admin", "admin", "viewer"].includes(user.role)) return "org";
-  if (user.role === "senior_manager") return "branch";
-  if (user.role === "manager") {
+  const scopeRole = getOrganizationalScopeRole(user);
+  if (scopeRole === "viewer") return "org";
+  if (scopeRole === "senior_manager") return "branch";
+  if (scopeRole === "manager") {
     return hasBranchViewAccess(user) ? "branch" : "team";
   }
-  if (user.role === "teamlead") return "team";
+  if (scopeRole === "teamlead") return "team";
   return "self";
 }
 
@@ -69,11 +71,13 @@ export function getTeamScopedUserIds(
 ): string[] {
   const active = users.filter((u) => u.is_active);
 
-  if (viewer.role === "teamlead") {
+  const scopeRole = getOrganizationalScopeRole(viewer);
+
+  if (scopeRole === "teamlead") {
     return [viewer.id, ...getAllDescendantIds(viewer.id, active)];
   }
 
-  if (viewer.role === "manager") {
+  if (scopeRole === "manager") {
     const managedTeamIds = new Set(getManagedTeamIds(viewer.id, active, teams));
     const visible = new Set<string>([viewer.id]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { submitQaReviewAction } from "@/app/actions/qa";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ERROR_CATEGORIES, QA_RESULTS } from "@/lib/constants";
 import { fileViewHref } from "@/lib/files/download";
+import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
 import { FileText } from "lucide-react";
@@ -26,11 +27,29 @@ interface QaReviewPanelProps {
   canReview: boolean;
   fileMap?: Record<string, TaskFileUpload[]>;
   submissionMap?: Record<string, TaskSubmissionRecord | null>;
+  initialPackageId?: string;
 }
 
-export function QaReviewPanel({ queue, reviewer, canReview, fileMap = {}, submissionMap = {} }: QaReviewPanelProps) {
-  const [selectedId, setSelectedId] = useState(queue[0]?.id ?? "");
+export function QaReviewPanel({
+  queue,
+  reviewer,
+  canReview,
+  fileMap = {},
+  submissionMap = {},
+  initialPackageId,
+}: QaReviewPanelProps) {
+  const [selectedId, setSelectedId] = useState(
+    initialPackageId && queue.some((q) => q.id === initialPackageId)
+      ? initialPackageId
+      : (queue[0]?.id ?? "")
+  );
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (initialPackageId && queue.some((q) => q.id === initialPackageId)) {
+      setSelectedId(initialPackageId);
+    }
+  }, [initialPackageId, queue]);
   const selected = queue.find((q) => q.id === selectedId);
 
   function submit(result: QaResult, form: FormData) {
@@ -88,12 +107,17 @@ export function QaReviewPanel({ queue, reviewer, canReview, fileMap = {}, submis
 
       {selected && (
         <div className="enterprise-panel lg:col-span-2">
-          <div className="px-4 py-3 border-b border-border bg-secondary">
-            <h3 className="enterprise-section-title">{selected.title}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {selected.project?.name} · {selected.manufacturer?.name} · {selected.year} ·{" "}
-              {selected.assignee?.full_name}
-            </p>
+          <div className="px-4 py-3 border-b border-border bg-secondary flex items-start justify-between gap-3">
+            <div>
+              <h3 className="enterprise-section-title">{selected.title}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {selected.project?.name} · {selected.manufacturer?.name} · {selected.year} ·{" "}
+                {selected.assignee?.full_name}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" render={<Link href={operationsHref({ package: selected.id })} />}>
+              Open task
+            </Button>
           </div>
           <div className="p-4">
             {submissionMap[selected.id] && (

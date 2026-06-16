@@ -3,6 +3,11 @@ import { HelpFlagsPanel } from "@/components/help-flags/help-flags-panel";
 import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { requirePageAccess } from "@/lib/auth/guard";
+import {
+  alertCenterHref,
+  operationsHref,
+  wrapUpsHref,
+} from "@/lib/navigation/deep-links";
 import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
@@ -56,32 +61,42 @@ export default async function AlertCenterPage() {
           label="Workload alerts"
           value={workloadAlerts.length}
           warn={workloadAlerts.length > 0}
+          href={alertCenterHref({ type: "workload" })}
+          title="Jump to workload alerts"
         />
         <EnterpriseKpi
           label="Help requests"
           value={helpFlags.length}
           warn={helpFlags.length > 0}
+          href={alertCenterHref({ type: "help" })}
+          title="Jump to help requests"
         />
         <EnterpriseKpi
           label="Missing wrap-ups"
           value={wrapUpStats.missingToday}
           warn={wrapUpStats.missingToday > 0}
+          href={wrapUpsHref({ status: "missing" })}
+          title="Review missing wrap-ups"
         />
         <EnterpriseKpi
           label="Overdue tasks"
           value={overdueCount}
           warn={overdueCount > 0}
+          href={operationsHref({ view: "overdue" })}
+          title="View overdue tasks in operations"
         />
       </div>
 
       {helpFlags.length > 0 && (
-        <div className="mb-8">
+        <div id="help-flags" className="mb-8 scroll-mt-24">
           <HelpFlagsPanel flags={helpFlags} role={user.role} />
         </div>
       )}
 
       {workloadAlerts.length > 0 && (
-        <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} />
+        <div id="workload-alerts" className="scroll-mt-24">
+          <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} />
+        </div>
       )}
 
       {helpFlags.length === 0 && workloadAlerts.length === 0 && (

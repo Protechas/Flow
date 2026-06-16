@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { updateUserDetailsAction } from "@/app/actions/users";
-import { OrgChartUserCard, ROLE_LABELS } from "@/components/hierarchy/org-chart-user-card";
+import { OrgChartUserCard } from "@/components/hierarchy/org-chart-user-card";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { POSITION_DISPLAY_LABELS, ROLE_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -21,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filterValidSupervisors } from "@/lib/setup/role-fields";
+import { operationsHref } from "@/lib/navigation/deep-links";
 import { cn } from "@/lib/utils";
 import type {
   OrgChartNode,
@@ -160,7 +163,7 @@ export function OrgChartProfilePanel({
           <SheetHeader className="p-0">
             <SheetTitle>{user.full_name}</SheetTitle>
             <SheetDescription>
-              {ROLE_LABELS[user.role] ?? user.role}
+              {POSITION_DISPLAY_LABELS[getOrganizationalPosition(user)]}
               {profile ? ` · ${profile.departmentName}` : ""}
             </SheetDescription>
           </SheetHeader>
@@ -258,7 +261,7 @@ export function OrgChartProfilePanel({
                         {entry.full_name}
                       </button>
                       <Badge variant="outline" className="text-[10px] capitalize">
-                        {ROLE_LABELS[entry.role] ?? entry.role}
+                        {ROLE_DISPLAY_LABELS[entry.role] ?? entry.role}
                       </Badge>
                     </div>
                   </div>
@@ -286,7 +289,7 @@ export function OrgChartProfilePanel({
                       >
                         {r.name}{" "}
                         <span className="text-muted-foreground text-xs">
-                          ({ROLE_LABELS[r.role] ?? r.role})
+                          ({ROLE_DISPLAY_LABELS[r.role] ?? r.role})
                         </span>
                       </button>
                     ))}
@@ -336,7 +339,11 @@ export function OrgChartProfilePanel({
               <PanelSection title="Actions">
                 <div className="grid gap-2">
                   {showAssign && (
-                    <ActionLink href="/operations" icon={Briefcase} label="Assign work" />
+                    <ActionLink
+                      href={operationsHref({ search: user.full_name })}
+                      icon={Briefcase}
+                      label="Assign work"
+                    />
                   )}
                   {showProfile && (
                     <ActionLink

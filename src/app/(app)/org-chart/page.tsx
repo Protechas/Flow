@@ -5,7 +5,8 @@ import {
   canAssignWork,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { getFlowStore, initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
+import { initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
+import { listUsers } from "@/lib/data/users";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { buildOrgChart, getVisibleUserIds, isOrgWideRole, pruneOrgChartNodes } from "@/lib/hierarchy/resolver";
 import {
@@ -18,34 +19,39 @@ import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import type { OrgChartViewerPermissions } from "@/types/flow";
 
-export default async function OrgChartPage() {
+export default async function OrgChartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ userId?: string }>;
+}) {
   const user = await requirePageAccess("/org-chart");
+  const { userId: initialUserId } = await searchParams;
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
   initFlowStore();
-  const store = getFlowStore();
+  const allUsers = await listUsers();
   const departments = listDepartments().filter((d) => d.status === "active");
   const teams = listTeamsStore();
   const packages = await getWorkPackages();
 
   const roots = isOrgWideRole(user.role)
-    ? buildOrgChart(store.users, departments, teams)
-    : buildOrgChart(store.users, departments, teams, user.id);
+    ? buildOrgChart(allUsers, departments, teams)
+    : buildOrgChart(allUsers, departments, teams, user.id);
 
-  const visibleIds = new Set(getVisibleUserIds(user, store.users, teams));
+  const visibleIds = new Set(getVisibleUserIds(user, allUsers, teams));
   const scopedRoots = isOrgWideRole(user.role)
     ? roots
     : pruneOrgChartNodes(roots, visibleIds);
 
   const visibleUserIds = collectOrgChartUserIds(scopedRoots);
-  const opsMap = buildOrgChartOpsMap(visibleUserIds, store.users, packages);
+  const opsMap = buildOrgChartOpsMap(visibleUserIds, allUsers, packages);
 
   const profiles = Object.fromEntries(
     visibleUserIds
       .map((id) => {
         const detail = buildOrgChartProfileDetail(
           id,
-          store.users,
+          allUsers,
           packages,
           opsMap,
           departments,
@@ -93,10 +99,11 @@ export default async function OrgChartPage() {
         opsMap={opsMap}
         profiles={profiles}
         permissions={permissions}
-        allUsers={store.users}
+        allUsers={allUsers}
         viewerId={user.id}
         visibleUserIds={visibleUserIds}
         attention={attention}
+        initialUserId={initialUserId ?? null}
       />
     </>
   );

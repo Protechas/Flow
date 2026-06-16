@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { EnterpriseDataTable, EnterpriseTableHead, EnterpriseTd, EnterpriseTh } from "@/components/enterprise/enterprise-data-table";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import { ManagerScorecardOverview } from "@/components/scorecard/manager-scorecard-overview";
 import { Button } from "@/components/ui/button";
 import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
+import { operationsHref, peopleHref } from "@/lib/navigation/deep-links";
 import { normalizePayType } from "@/lib/users/pay-type";
 import type { EmployeeScorecard, TeamScorecardSummary } from "@/types/flow";
 
@@ -17,6 +21,8 @@ export function PeopleDashboard({
   teamSummary: TeamScorecardSummary;
   analyticsHref?: string;
 }) {
+  const router = useRouter();
+
   return (
     <div className="space-y-6">
       {analyticsHref && (
@@ -35,6 +41,8 @@ export function PeopleDashboard({
               ? Math.round(profiles.reduce((s, p) => s + p.flowScore, 0) / profiles.length)
               : 0
           }
+          href="/performance"
+          title="View performance trends"
         />
         <EnterpriseKpi
           label="Avg Productivity"
@@ -52,7 +60,7 @@ export function PeopleDashboard({
               : 0
           }
         />
-        <EnterpriseKpi label="Team Members" value={teamSummary.employeeCount} />
+        <EnterpriseKpi label="Team Members" value={teamSummary.employeeCount} href="/people" title="Team roster" />
       </div>
 
       <ManagerScorecardOverview profiles={profiles} teamSummary={teamSummary} />
@@ -78,9 +86,26 @@ export function PeopleDashboard({
           </EnterpriseTableHead>
           <tbody>
             {profiles.map((p) => (
-              <tr key={p.user.id} className="enterprise-row-hover">
+              <tr
+                key={p.user.id}
+                className="enterprise-row-hover cursor-pointer"
+                onClick={() => router.push(peopleHref(p.user.id))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(peopleHref(p.user.id));
+                  }
+                }}
+                tabIndex={0}
+                role="link"
+                aria-label={`Open profile for ${p.user.full_name}`}
+              >
                 <EnterpriseTd>
-                  <Link href={`/people/${p.user.id}`} className="font-medium text-primary hover:underline">
+                  <Link
+                    href={peopleHref(p.user.id)}
+                    className="font-medium text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {p.user.full_name}
                   </Link>
                   <p className="text-xs text-muted-foreground">Rank #{p.rank}</p>
@@ -104,14 +129,24 @@ export function PeopleDashboard({
                 <EnterpriseTd>
                   <div className="flex flex-wrap gap-1">
                     {p.metrics.overdueWork > 0 && (
-                      <span className="text-[10px] font-semibold uppercase text-red-400">
+                      <Link
+                        href={operationsHref({ search: p.user.full_name, view: "overdue" })}
+                        className="text-[10px] font-semibold uppercase text-red-400 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`View overdue work for ${p.user.full_name}`}
+                      >
                         {p.metrics.overdueWork} overdue
-                      </span>
+                      </Link>
                     )}
                     {p.stuckItems > 0 && (
-                      <span className="text-[10px] font-semibold uppercase text-amber-400">
+                      <Link
+                        href={operationsHref({ search: p.user.full_name, view: "stuck" })}
+                        className="text-[10px] font-semibold uppercase text-amber-400 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`View stuck work for ${p.user.full_name}`}
+                      >
                         {p.stuckItems} blocked
-                      </span>
+                      </Link>
                     )}
                     {p.trend.length >= 2 && p.trend[p.trend.length - 1].flowScore > p.trend[0].flowScore && (
                       <span className="text-[10px] font-semibold uppercase text-green-400">

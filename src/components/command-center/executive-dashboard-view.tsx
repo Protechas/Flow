@@ -11,6 +11,13 @@ import { PerformanceTrendChart } from "@/components/performance/performance-tren
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { canAccessHref } from "@/lib/auth/permissions";
+import {
+  alertCenterHref,
+  operationsHref,
+  projectHealthHref,
+  reportsHref,
+  wrapUpsHref,
+} from "@/lib/navigation/deep-links";
 import { cn } from "@/lib/utils";
 import type { CommandCenterMetrics, UserRole } from "@/types/flow";
 import {
@@ -161,7 +168,7 @@ export function ExecutiveDashboardView({
               ? `${deptsAtRisk} dept${deptsAtRisk === 1 ? "" : "s"} need attention`
               : `${data.departmentHealth.length} departments monitored`
           }
-          href={linkHref(role, "/executive")}
+          href={linkHref(role, "/reports")}
           warn={deptsAtRisk > 0}
         />
         <EnterpriseKpi
@@ -204,7 +211,7 @@ export function ExecutiveDashboardView({
               ? `${data.workloadAlertSummary.critical} critical`
               : "Employees low on work"
           }
-          href={linkHref(role, "/operations")}
+          href={linkHref(role, alertCenterHref({ type: "workload" }))}
           warn={data.workloadAlertSummary.open > 0}
         />
         <EnterpriseKpi
@@ -215,14 +222,14 @@ export function ExecutiveDashboardView({
               ? `${data.helpFlagSummary.critical} critical`
               : "Open help flags"
           }
-          href={linkHref(role, "/alert-center")}
+          href={linkHref(role, alertCenterHref({ type: "help" }))}
           warn={data.helpFlagSummary.open > 0}
         />
         <EnterpriseKpi
           label="Missing Wrap-Ups"
           value={data.wrapUpReview.missingToday}
           sublabel={`${data.wrapUpReview.submittedToday} submitted today`}
-          href={linkHref(role, "/wrap-ups")}
+          href={linkHref(role, wrapUpsHref({ status: "missing" }))}
           warn={data.wrapUpReview.missingToday > 0}
         />
         <EnterpriseKpi
@@ -247,7 +254,7 @@ export function ExecutiveDashboardView({
           label="Overdue Tasks"
           value={data.workload.overdue}
           sublabel={`${data.workload.stuck} stuck`}
-          href={linkHref(role, "/operations")}
+          href={linkHref(role, operationsHref({ view: "overdue" }))}
           warn={data.workload.overdue > 0}
         />
       </section>
@@ -270,26 +277,33 @@ export function ExecutiveDashboardView({
             {data.departmentHealth.length === 0 ? (
               <p className="text-sm text-muted-foreground p-4">No active departments.</p>
             ) : (
-              data.departmentHealth.map((dept) => (
-                <div
-                  key={dept.departmentId}
-                  className="enterprise-panel p-3 space-y-2 flow-card-interactive"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-sm truncate">{dept.departmentName}</p>
-                    <DepartmentHealthBadge level={dept.level} score={dept.score} size="sm" />
+              data.departmentHealth.map((dept) => {
+                const deptHref = linkHref(role, reportsHref({ department: dept.departmentId }));
+                const card = (
+                  <div className="enterprise-panel p-3 space-y-2 flow-card-interactive">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm truncate">{dept.departmentName}</p>
+                      <DepartmentHealthBadge level={dept.level} score={dept.score} size="sm" />
+                    </div>
+                    <DepartmentHealthMeter score={dept.score} level={dept.level} />
+                    <p className="text-[10px] text-muted-foreground line-clamp-2">
+                      {dept.factors.join(" · ")}
+                    </p>
+                    <div className="flex gap-3 text-[10px] text-muted-foreground tabular-nums">
+                      <span>{dept.activeTasks} active</span>
+                      <span>{dept.overdueTasks} overdue</span>
+                      <span>QA {dept.qaPassRate}%</span>
+                    </div>
                   </div>
-                  <DepartmentHealthMeter score={dept.score} level={dept.level} />
-                  <p className="text-[10px] text-muted-foreground line-clamp-2">
-                    {dept.factors.join(" · ")}
-                  </p>
-                  <div className="flex gap-3 text-[10px] text-muted-foreground tabular-nums">
-                    <span>{dept.activeTasks} active</span>
-                    <span>{dept.overdueTasks} overdue</span>
-                    <span>QA {dept.qaPassRate}%</span>
-                  </div>
-                </div>
-              ))
+                );
+                return deptHref ? (
+                  <Link key={dept.departmentId} href={deptHref} title={`View ${dept.departmentName} reports`}>
+                    {card}
+                  </Link>
+                ) : (
+                  <div key={dept.departmentId}>{card}</div>
+                );
+              })
             )}
           </div>
         </div>
@@ -350,26 +364,36 @@ export function ExecutiveDashboardView({
             </div>
           ) : (
             <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-              {atRiskProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-sm">{project.name}</p>
-                    <span className="text-[10px] uppercase tracking-wide text-amber-400 shrink-0">
-                      At risk
-                    </span>
+              {atRiskProjects.map((project) => {
+                const projectHref = linkHref(
+                  role,
+                  projectHealthHref({ search: project.name })
+                );
+                const card = (
+                  <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4 space-y-2 flow-card-interactive">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm">{project.name}</p>
+                      <span className="text-[10px] uppercase tracking-wide text-amber-400 shrink-0">
+                        At risk
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <span>{project.completedPct}% complete</span>
+                      <span>{project.overdue} overdue</span>
+                      <span>QA {project.qaRate}%</span>
+                      <span>{project.hoursLogged}h logged</span>
+                    </div>
+                    <Progress value={project.completedPct} className="h-1.5" />
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span>{project.completedPct}% complete</span>
-                    <span>{project.overdue} overdue</span>
-                    <span>QA {project.qaRate}%</span>
-                    <span>{project.hoursLogged}h logged</span>
-                  </div>
-                  <Progress value={project.completedPct} className="h-1.5" />
-                </div>
-              ))}
+                );
+                return projectHref ? (
+                  <Link key={project.id} href={projectHref} title={`View ${project.name} health`}>
+                    {card}
+                  </Link>
+                ) : (
+                  <div key={project.id}>{card}</div>
+                );
+              })}
             </div>
           )}
         </div>
