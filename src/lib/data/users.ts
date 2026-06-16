@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/access-level";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { formatFullName, normalizeUser } from "@/lib/users/format";
-import { getAllUsers, updateUser, initFlowStore, getFlowStore } from "@/lib/data/flow-store";
+import { getAllUsers, updateUser, initFlowStore, getFlowStore, setStoreUsers } from "@/lib/data/flow-store";
 import { syncHierarchyOnManagerChange } from "@/lib/hierarchy/resolver";
 import { MOCK_TEAMS } from "@/lib/data/mock-data";
 import { listTeamsStore } from "@/lib/data/flow-store";
@@ -36,6 +36,19 @@ export async function listUsers(): Promise<User[]> {
   const { data, error } = await supabase.from("users").select("*").order("first_name");
   if (error) throw error;
   return (data ?? []).map((row) => mapDbUser(row as Record<string, unknown>));
+}
+
+/** Load real users into the in-memory store for Supabase deployments. */
+export async function hydrateAppStore(): Promise<User[]> {
+  initFlowStore();
+  if (!isSupabaseConfigured()) {
+    return getAllUsers();
+  }
+  const users = await listUsers();
+  setStoreUsers(users);
+  const { initHierarchyFromStore } = await import("@/lib/auth/team-scope");
+  initHierarchyFromStore(users);
+  return users;
 }
 
 export async function getUserById(userId: string): Promise<User | null> {

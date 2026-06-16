@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isEmployeeUser } from "@/lib/auth/session";
 import { getCurrentUser } from "@/lib/auth/session";
+import { hydrateAppStore } from "@/lib/data/users";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
@@ -18,7 +19,9 @@ export default async function AppLayout({
   if (!user) redirect("/login");
   if (isEmployeeUser(user)) redirect("/work");
 
-  if (!isSupabaseConfigured()) {
+  if (isSupabaseConfigured()) {
+    await hydrateAppStore();
+  } else {
     await hydrateForecastSettings();
     const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
     await hydrateWorkloadAlertSettings();

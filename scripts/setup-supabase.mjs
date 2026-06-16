@@ -232,7 +232,12 @@ async function createAdmin() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: existing } = await admin.from("users").select("id, role").eq("email", adminEmail).maybeSingle();
+  const adminProfile = {
+    role: "admin",
+    is_active: true,
+    organizational_position: "manager",
+    system_access_level: "admin",
+  };
 
   const { data: authList } = await admin.auth.admin.listUsers();
   const authUser = authList?.users?.find((u) => u.email?.toLowerCase() === adminEmail.toLowerCase());
@@ -251,7 +256,7 @@ async function createAdmin() {
     ok(`Created auth user ${adminEmail}`);
     const userId = data.user?.id;
     if (userId) {
-      const { error: upErr } = await admin.from("users").update({ role: "admin", is_active: true }).eq("id", userId);
+      const { error: upErr } = await admin.from("users").update(adminProfile).eq("id", userId);
       if (upErr) fail(`Set admin role failed: ${upErr.message}`);
     }
   } else {
@@ -260,12 +265,9 @@ async function createAdmin() {
       email_confirm: true,
     });
     if (pwErr) console.warn(`  Note: could not reset password: ${pwErr.message}`);
-    const { error: upErr } = await admin
-      .from("users")
-      .update({ role: "admin", is_active: true })
-      .eq("id", authUser.id);
+    const { error: upErr } = await admin.from("users").update(adminProfile).eq("id", authUser.id);
     if (upErr) fail(`Set admin role failed: ${upErr.message}`);
-    ok(`Admin role set for ${adminEmail}`);
+    ok(`Admin access preserved for ${adminEmail} (Manager + Admin)`);
   }
 }
 

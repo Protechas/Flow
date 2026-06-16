@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isEmployeeRole } from "@/lib/auth/permissions";
 import { getDefaultRoute } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { hydrateAppStore } from "@/lib/data/users";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
@@ -17,7 +18,9 @@ export default async function EmployeeLayout({
   if (!user) redirect("/login");
   if (!isEmployeeRole(user.role)) redirect(getDefaultRoute(user.role));
 
-  if (!isSupabaseConfigured()) {
+  if (isSupabaseConfigured()) {
+    await hydrateAppStore();
+  } else {
     await hydrateForecastSettings();
   }
 

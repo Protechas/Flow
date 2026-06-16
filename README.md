@@ -77,4 +77,8 @@ In Supabase **SQL Editor**, run each file in `supabase/migrations/` **in numeric
 
 Add the same env vars to your host (e.g. Vercel). Set `NEXT_PUBLIC_SITE_URL` to your live domain and add that callback URL in Supabase.
 
-**Note:** Auth and user profiles use Supabase. Projects, tasks, and time-clock data still load from the in-app demo store until operational persistence is added — you will see sample operations data even with real login.
+**Production behavior:** When `NEXT_PUBLIC_FLOW_DEMO_MODE=false` and Supabase keys are set, Flow uses **real auth and user profiles** from Supabase. Sample mock employees, projects, and tasks are **not** loaded — you start with a clean operations workspace. Create departments, teams, and users via **Settings**.
+
+Run `npm run setup:supabase` with `FLOW_ADMIN_EMAIL` set to preserve your admin login (Manager org position + Admin system access).
+
+**Demo mode:** Set `NEXT_PUBLIC_FLOW_DEMO_MODE=true` (or omit Supabase keys) to run locally with full sample data and the demo user picker.

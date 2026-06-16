@@ -35,6 +35,10 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function requireUser(): Promise<User> {
+  if (isSupabaseConfigured()) {
+    const { hydrateAppStore } = await import("@/lib/data/users");
+    await hydrateAppStore();
+  }
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
   return user;
@@ -46,6 +50,11 @@ export async function requirePermission(permission: Permission): Promise<User> {
   return user;
 }
 
+async function storeUsersForSession(): Promise<User[]> {
+  const { hydrateAppStore } = await import("@/lib/data/users");
+  return hydrateAppStore();
+}
+
 export async function assertCanEditWorkPackage(
   user: User,
   workPackageId: string
@@ -55,7 +64,8 @@ export async function assertCanEditWorkPackage(
   if (role === "teamlead") {
     initFlowStore();
     const pkg = listWorkPackages().find((p) => p.id === workPackageId);
-    const teamIds = getTeamMemberIds(user, getFlowStore().users, getFlowStore().teams);
+    const users = await storeUsersForSession();
+    const teamIds = getTeamMemberIds(user, users, getFlowStore().teams);
     if (pkg && (!pkg.assigned_to || teamIds.includes(pkg.assigned_to))) return;
     throw new Error("FORBIDDEN");
   }
@@ -92,7 +102,8 @@ export async function assertCanAssignWorkPackage(
 
   if (assignedTo) {
     initFlowStore();
-    const assignee = getFlowStore().users.find((u) => u.id === assignedTo);
+    const users = await storeUsersForSession();
+    const assignee = users.find((u) => u.id === assignedTo);
     if (
       assignee &&
       !isUserProductionReady(assignee, listDepartmentUsers(), listTeamsStore())
@@ -104,7 +115,8 @@ export async function assertCanAssignWorkPackage(
   if (role === "teamlead" || role === "manager" || role === "senior_manager") {
     if (!assignedTo) return;
     initFlowStore();
-    const assignable = getAssignableUserIds(user, getFlowStore().users, getFlowStore().teams);
+    const users = await storeUsersForSession();
+    const assignable = getAssignableUserIds(user, users, getFlowStore().teams);
     if (assignable.includes(assignedTo)) return;
     throw new Error("FORBIDDEN");
   }

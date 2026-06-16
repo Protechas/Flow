@@ -80,15 +80,22 @@ export async function getManagers() {
 
 export async function getProjectsWithStats(includeArchived = true) {
   initFlowStore();
-  const store = getFlowStore();
   const packages = await getWorkPackages();
   const list = includeArchived
-    ? store.projects
-    : store.projects.filter(isActiveProject);
+    ? await getProjects()
+    : (await getProjects()).filter(isActiveProject);
+  const manufacturers = await getManufacturers();
+  const store = getFlowStore();
 
   return list.map((p) => {
     const projectItems = packages.filter((i) => i.project_id === p.id);
-    const rollup = projectRollup(p, projectItems, store.manufacturers, store.qaReviews, store.yearWorkItems.filter((y) => y.project_id === p.id));
+    const rollup = projectRollup(
+      p,
+      projectItems,
+      manufacturers,
+      store.qaReviews,
+      store.yearWorkItems.filter((y) => y.project_id === p.id)
+    );
     return {
       ...p,
       manufacturerCount: rollup.manufacturerCount,

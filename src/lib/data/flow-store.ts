@@ -68,15 +68,17 @@ import {
 } from "@/lib/data/work-store-persistence";
 import { initHierarchyFromStore } from "@/lib/auth/team-scope";
 import { resolveDepartmentForProject, resolveDepartmentForUser } from "@/lib/departments/resolve";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function persistTaskStore() {
+  if (isSupabaseConfigured()) return;
   writePersistedWorkPackages(workPackages);
   writePersistedYearWorkItems(yearWorkItems);
 }
 
 function workflowCtx() {
   return buildWorkflowContext({
-    users: MOCK_USERS,
+    users: activeUsers(),
     projects,
     workPackages,
   });
@@ -99,7 +101,37 @@ let departments: Department[] = [];
 let teams: Team[] = [];
 let departmentUsers: DepartmentUser[] = [];
 let forecastSettings: ForecastSettings = readGlobalForecastSettings() ?? defaultForecastSettings();
+let storeUsers: User[] = [];
 let initialized = false;
+
+export function setStoreUsers(users: User[]): void {
+  storeUsers = users;
+}
+
+function activeUsers(): User[] {
+  return isSupabaseConfigured() ? storeUsers : MOCK_USERS;
+}
+
+function initEmptyProductionStore(): void {
+  projects = [];
+  manufacturers = [];
+  yearWorkItems = [];
+  workPackages = [];
+  timeLogs = [];
+  qaReviews = [];
+  files = [];
+  activity = [];
+  corrections = [];
+  comments = [];
+  departments = [];
+  teams = [];
+  departmentUsers = [];
+  dailyWrapUps = [];
+  dailyWrapUpOverrides = [];
+  wrapUpBlockAttempts = [];
+  storeUsers = [];
+  forecastSettings = defaultForecastSettings();
+}
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -173,6 +205,11 @@ function syncYearFromPackages(yearId: string) {
 export function initFlowStore() {
   if (initialized) return;
   initialized = true;
+
+  if (isSupabaseConfigured()) {
+    initEmptyProductionStore();
+    return;
+  }
 
   projects = MOCK_PROJECTS.map((p) => ({
     ...p,
@@ -424,7 +461,7 @@ function applyForecastToPackage(
 export function getFlowStore() {
   initFlowStore();
   return {
-    users: MOCK_USERS,
+    users: activeUsers(),
     projects,
     manufacturers,
     yearWorkItems,
@@ -1155,6 +1192,7 @@ export function applyStuckStatus(packageIds: string[]) {
 }
 
 export function updateUser(id: string, updates: Partial<import("@/types/flow").User>) {
+  if (isSupabaseConfigured()) return null;
   const idx = MOCK_USERS.findIndex((u) => u.id === id);
   if (idx < 0) return null;
   const cur = MOCK_USERS[idx];
@@ -1172,7 +1210,7 @@ export function updateUser(id: string, updates: Partial<import("@/types/flow").U
 
 export function getAllUsers() {
   initFlowStore();
-  return [...MOCK_USERS];
+  return [...activeUsers()];
 }
 
 export function resolveCorrection(id: string) {
