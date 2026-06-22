@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { canAccessHref } from "@/lib/auth/permissions";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
+import { operationsHref } from "@/lib/navigation/deep-links";
 import { cn } from "@/lib/utils";
 import type { HelpFlagStatus, HelpFlagView, UserRole } from "@/types/flow";
 import { Briefcase, ExternalLink, LifeBuoy, User } from "lucide-react";
@@ -59,6 +60,7 @@ function HelpFlagCard({
   onAction: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState(false);
   const [showDismiss, setShowDismiss] = useState(false);
   const [note, setNote] = useState("");
@@ -68,13 +70,18 @@ function HelpFlagCard({
   const canPeople = canAccessHref(role, `/people/${flag.employee_id}`);
 
   function run(action: () => Promise<void>) {
+    setActionError(null);
     startTransition(() => {
-      void action().then(() => {
-        setShowResolve(false);
-        setShowDismiss(false);
-        setNote("");
-        onAction();
-      });
+      void action()
+        .then(() => {
+          setShowResolve(false);
+          setShowDismiss(false);
+          setNote("");
+          onAction();
+        })
+        .catch((e) => {
+          setActionError(e instanceof Error ? e.message : "Action failed. Please try again.");
+        });
     });
   }
 
@@ -177,7 +184,7 @@ function HelpFlagCard({
               <Button
                 size="sm"
                 variant="outline"
-                render={<Link href={`/operations?package=${flag.task_id}`} />}
+                render={<Link href={operationsHref({ package: flag.task_id! })} />}
               >
                 <Briefcase className="h-3.5 w-3.5" />
                 View task
@@ -236,6 +243,7 @@ function HelpFlagCard({
               Confirm dismiss
             </Button>
           )}
+          {actionError && <p className="text-xs text-destructive">{actionError}</p>}
         </div>
       )}
     </div>

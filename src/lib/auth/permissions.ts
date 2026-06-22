@@ -68,7 +68,11 @@ export type Permission =
 
   | "departments:view"
 
-  | "dashboard:view";
+  | "dashboard:view"
+
+  | "innovation_hub:submit"
+
+  | "innovation_hub:manage";
 
 
 
@@ -126,6 +130,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "dashboard:view",
 
+    "innovation_hub:submit",
+
+    "innovation_hub:manage",
+
   ],
 
   super_admin: [
@@ -180,6 +188,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "dashboard:view",
 
+    "innovation_hub:submit",
+
+    "innovation_hub:manage",
+
   ],
 
   senior_manager: [
@@ -221,6 +233,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "departments:view",
 
     "dashboard:view",
+
+    "innovation_hub:submit",
+
+    "innovation_hub:manage",
 
   ],
 
@@ -304,6 +320,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "people:view_team",
 
+    "innovation_hub:submit",
+
   ],
 
   employee: [
@@ -326,9 +344,11 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "reports:view_own",
 
+    "innovation_hub:submit",
+
   ],
 
-  viewer: ["dashboard:view", "reports:view_all", "work:view_all", "qa:view", "people:view_all", "departments:view", "company_documents:view"],
+  viewer: ["dashboard:view", "reports:view_all", "work:view_all", "qa:view", "people:view_all", "departments:view", "company_documents:view", "innovation_hub:submit"],
 
 };
 
@@ -337,6 +357,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/work": "work:view_own",
+
+  "/work/files": "company_documents:view",
 
   "/executive": "dashboard:view",
 
@@ -351,6 +373,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
   "/qa-center": ["qa:review", "qa:view"],
 
   "/reports": ["reports:view_all", "reports:view_team", "reports:view_qa", "reports:view_own"],
+
+  "/reports/work-visibility": ["reports:view_all", "reports:view_team"],
+
+  "/planning": ["dashboard:view", "work:view_all", "work:view_team"],
 
   "/analytics": ["reports:view_all", "reports:view_team", "people:view_all", "people:view_team"],
 
@@ -379,6 +405,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/settings/workload-alerts": "settings:manage",
 
+  "/settings/work-visibility": "settings:manage",
+
+  "/system-health": "settings:manage",
+
   "/org-chart": ["people:view_all", "people:view_team", "dashboard:view"],
 
   "/alert-center": ["dashboard:view", "work:view_all", "work:view_team"],
@@ -386,6 +416,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
   "/notifications": ["dashboard:view", "work:view_own", "work:view_team", "people:view_own"],
 
   "/scorecard": "people:view_own",
+
+  "/innovation-hub": "innovation_hub:manage",
 
   "/unauthorized": "dashboard:view",
 
@@ -417,6 +449,8 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/reports": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer", "employee"],
 
+  "/planning": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
+
   "/analytics": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
   "/performance": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
@@ -443,6 +477,14 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
   "/settings/forecasting": ["admin", "super_admin"],
 
   "/settings/workload-alerts": ["admin", "super_admin"],
+
+  "/settings/work-visibility": ["admin", "super_admin"],
+
+  "/system-health": ["admin", "super_admin"],
+
+  "/reports/work-visibility": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/innovation-hub": ["admin", "super_admin", "senior_manager", "manager"],
 
 };
 
@@ -478,6 +520,8 @@ export type NavItemId =
 
   | "analytics"
 
+  | "planning"
+
   | "production"
 
   | "time-clock"
@@ -488,27 +532,89 @@ export type NavItemId =
 
   | "files"
 
-  | "settings";
+  | "innovation-hub"
+
+  | "settings"
+
+  | "system-health";
 
 
 
-export type NavGroupId = "command" | "operations" | "reports" | "administration";
+export type NavGroupId =
+  | "dashboard"
+  | "attention"
+  | "operations"
+  | "workforce"
+  | "reporting"
+  | "administration";
+
+
+
+export const NAV_GROUP_ORDER: NavGroupId[] = [
+  "dashboard",
+  "attention",
+  "operations",
+  "workforce",
+  "reporting",
+  "administration",
+];
 
 
 
 export const NAV_GROUP_LABELS: Record<NavGroupId, string> = {
 
-  command: "Dashboard",
+  dashboard: "Dashboard",
+
+  attention: "Attention",
 
   operations: "Operations",
 
-  reports: "Reports",
+  workforce: "Workforce",
+
+  reporting: "Reporting",
 
   administration: "Administration",
 
 };
 
 
+
+/** Primary destinations — slightly stronger sidebar emphasis. */
+export const NAV_PRIMARY_ITEM_IDS: NavItemId[] = [
+  "command-center",
+  "alert-center",
+  "operations",
+];
+
+
+
+export const NAV_ITEM_ORDER: Record<NavGroupId, NavItemId[]> = {
+
+  dashboard: ["command-center"],
+
+  attention: ["alert-center", "qa-center", "wrap-ups"],
+
+  operations: ["operations", "projects", "production", "project-health", "files"],
+
+  workforce: ["people", "time-clock", "org-chart"],
+
+  reporting: ["reports", "analytics", "planning", "team-reports", "team-analytics"],
+
+  administration: ["departments", "templates", "user-management", "system-health", "innovation-hub", "settings"],
+
+};
+
+
+
+/**
+
+ * Sidebar navigation config.
+
+ * New pages must be assigned to one of: dashboard, attention, operations,
+
+ * workforce, reporting, administration — see NAV_GROUP_ORDER / NAV_ITEM_ORDER.
+
+ */
 
 export const NAV_CONFIG: {
 
@@ -528,43 +634,49 @@ export const NAV_CONFIG: {
 
 }[] = [
 
-  { id: "command-center", href: "/executive", label: "Dashboard", icon: "LayoutDashboard", group: "command", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
+  { id: "command-center", href: "/executive", label: "Executive Dashboard", icon: "LayoutDashboard", group: "dashboard", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
+
+  { id: "alert-center", href: "/alert-center", label: "Alert Center", icon: "BellRing", group: "attention", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+
+  { id: "qa-center", href: "/qa-center", label: "QA Review", icon: "ShieldCheck", group: "attention", permissions: ["qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+
+  { id: "wrap-ups", href: "/wrap-ups", label: "Daily Reports", icon: "ClipboardList", group: "attention", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "templates", href: "/operations/templates", label: "Templates", icon: "LayoutTemplate", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
-
   { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "manager", "teamlead"] },
 
-  { id: "people", href: "/people", label: "People", icon: "Users", group: "operations", permissions: ["people:view_all", "people:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+  { id: "production", href: "/production", label: "Production", icon: "Factory", group: "operations", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
-  { id: "alert-center", href: "/alert-center", label: "Alert Center", icon: "BellRing", group: "operations", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+  { id: "project-health", href: "/project-health", label: "Project Health", icon: "HeartPulse", group: "operations", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager"] },
 
-  { id: "qa-center", href: "/qa-center", label: "QA Review", icon: "ShieldCheck", group: "operations", permissions: ["qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "operations", permissions: "company_documents:view", roles: ["admin", "manager", "teamlead", "employee", "viewer"] },
 
-  { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
+  { id: "people", href: "/people", label: "People", icon: "Users", group: "workforce", permissions: ["people:view_all", "people:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "wrap-ups", href: "/wrap-ups", label: "Daily Wrap-Ups", icon: "Moon", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
+  { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "workforce", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
 
-  { id: "reports", href: "/reports", label: "Reports", icon: "BarChart3", group: "reports", permissions: "reports:view_all", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
+  { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "workforce", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "analytics", href: "/analytics", label: "Analytics", icon: "Activity", group: "reports", permissions: ["people:view_all", "reports:view_all"], roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
+  { id: "reports", href: "/reports", label: "Reports", icon: "BarChart3", group: "reporting", permissions: "reports:view_all", roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
 
-  { id: "project-health", href: "/project-health", label: "Project Health", icon: "FolderKanban", group: "reports", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager"] },
+  { id: "analytics", href: "/analytics", label: "Analytics", icon: "LineChart", group: "reporting", permissions: ["people:view_all", "reports:view_all"], roles: ["admin", "super_admin", "senior_manager", "manager", "viewer"] },
 
-  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "reports", permissions: "company_documents:view", roles: ["admin", "manager", "teamlead", "employee", "viewer"] },
+  { id: "planning", href: "/planning", label: "Planning & Forecasting", icon: "TrendingUp", group: "reporting", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "production", href: "/production", label: "Production", icon: "Activity", group: "reports", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+  { id: "team-reports", href: "/reports", label: "Team Reports", icon: "BarChart3", group: "reporting", permissions: ["reports:view_team", "reports:view_qa"], roles: ["teamlead"] },
 
-  { id: "team-reports", href: "/reports", label: "Team Reports", icon: "BarChart3", group: "reports", permissions: ["reports:view_team", "reports:view_qa"], roles: ["teamlead"] },
-
-  { id: "team-analytics", href: "/analytics", label: "Analytics", icon: "Activity", group: "reports", permissions: ["reports:view_team", "people:view_team"], roles: ["teamlead"] },
-
-  { id: "user-management", href: "/settings/users", label: "Users", icon: "UserCog", group: "administration", permissions: "users:manage", roles: ["admin", "super_admin"] },
+  { id: "team-analytics", href: "/analytics", label: "Analytics", icon: "LineChart", group: "reporting", permissions: ["reports:view_team", "people:view_team"], roles: ["teamlead"] },
 
   { id: "departments", href: "/settings/departments", label: "Departments", icon: "Building2", group: "administration", permissions: "departments:manage", roles: ["admin", "super_admin"] },
 
-  { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "administration", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+  { id: "templates", href: "/operations/templates", label: "Templates", icon: "LayoutTemplate", group: "administration", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+
+  { id: "user-management", href: "/settings/users", label: "Users", icon: "UserCog", group: "administration", permissions: "users:manage", roles: ["admin", "super_admin"] },
+
+  { id: "system-health", href: "/system-health", label: "System Health", icon: "HeartPulse", group: "administration", permissions: "settings:manage", roles: ["admin", "super_admin"] },
+
+  { id: "innovation-hub", href: "/innovation-hub", label: "Innovation Hub", icon: "Lightbulb", group: "administration", permissions: "innovation_hub:manage", roles: ["admin", "super_admin", "senior_manager", "manager"] },
 
   { id: "settings", href: "/settings", label: "Settings", icon: "Settings", group: "administration", permissions: "settings:manage", roles: ["admin", "super_admin"] },
 
@@ -576,7 +688,7 @@ export const EMPLOYEE_NAV = [
 
   { href: "/work", label: "Workspace", icon: "Briefcase" },
 
-  { href: "/files", label: "Files & SOPs", icon: "FileStack" },
+  { href: "/work/files", label: "Files & SOPs", icon: "FileStack" },
 
   { href: "/scorecard", label: "My Scorecard", icon: "Award" },
 
@@ -584,9 +696,25 @@ export const EMPLOYEE_NAV = [
 
 
 
+export function isEmployeeNavActive(href: string, pathname: string): boolean {
+  if (href === "/work") {
+    return (
+      pathname === "/work" ||
+      (pathname.startsWith("/work/") &&
+        !pathname.startsWith("/work/files"))
+    );
+  }
+  if (href === "/work/files") {
+    return pathname === "/work/files" || pathname.startsWith("/work/files/");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+
+
 export const VIEWER_NAV = [
 
-  { href: "/executive", label: "Dashboard", icon: "LayoutDashboard" },
+  { href: "/executive", label: "Executive Dashboard", icon: "LayoutDashboard" },
 
 ] as const;
 
@@ -678,7 +806,11 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
 
       "/reports",
 
+      "/reports/work-visibility",
+
       "/analytics",
+
+      "/planning",
 
       "/org-chart",
 
@@ -715,6 +847,8 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
       "/executive",
 
       "/reports",
+
+      "/reports/work-visibility",
 
       "/analytics",
 
@@ -810,37 +944,51 @@ export function getNavGroupsForRole(role: UserRole | string) {
 
   const items = getNavItemsForRole(role);
 
-  const groups: NavGroupId[] = [];
-
-  const result: { group: NavGroupId; label: string; items: typeof items }[] = [];
+  const byGroup = new Map<NavGroupId, typeof items>();
 
 
 
   for (const item of items) {
 
-    if (!groups.includes(item.group)) {
+    const list = byGroup.get(item.group) ?? [];
 
-      groups.push(item.group);
+    list.push(item);
 
-      result.push({
-
-        group: item.group,
-
-        label: NAV_GROUP_LABELS[item.group],
-
-        items: [],
-
-      });
-
-    }
-
-    result.find((g) => g.group === item.group)!.items.push(item);
+    byGroup.set(item.group, list);
 
   }
 
 
 
-  return result;
+  return NAV_GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => {
+
+    const groupItems = byGroup.get(group)!;
+
+    const order = NAV_ITEM_ORDER[group];
+
+    const sorted = [...groupItems].sort((a, b) => {
+
+      const ai = order.indexOf(a.id);
+
+      const bi = order.indexOf(b.id);
+
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+
+    });
+
+
+
+    return {
+
+      group,
+
+      label: NAV_GROUP_LABELS[group],
+
+      items: sorted,
+
+    };
+
+  });
 
 }
 

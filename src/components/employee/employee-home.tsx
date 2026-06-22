@@ -16,6 +16,18 @@ export function EmployeeHome(props: {
   wrapUpStatus: WrapUpComplianceStatus;
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
+  visibilityToday: {
+    clockedMinutes: number;
+    recordedTaskMinutes: number;
+    unassignedMinutes: number;
+    taskTrackingCompliancePct: number | null;
+  };
+  pendingWorkRequest?: boolean;
 }) {
-  return <EmployeeWorkspaceView {...props} />;
+  return (
+    <EmployeeWorkspaceView
+      {...props}
+      taskReadyForSubmission={props.dashboard.taskReadyForSubmission}
+    />
+  );
 }

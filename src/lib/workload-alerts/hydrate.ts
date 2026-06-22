@@ -6,9 +6,16 @@ import {
   writeGlobalWorkloadAlertSettings,
 } from "@/lib/workload-alerts/settings-persistence";
 import type { WorkloadAlertSettings } from "@/types/flow";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  defaultWorkloadSettingsIfMissing,
+  hydrateWorkloadAlertSettingsFromSupabase,
+} from "@/lib/settings/supabase-settings";
 
 let workloadAlertSettings: WorkloadAlertSettings =
   readGlobalWorkloadAlertSettings() ?? defaultWorkloadAlertSettings();
+
+let hydratedFromSupabase = false;
 
 export function getWorkloadAlertSettings(): WorkloadAlertSettings {
   return workloadAlertSettings;
@@ -42,6 +49,20 @@ export function updateWorkloadAlertSettings(
 }
 
 export async function hydrateWorkloadAlertSettings(): Promise<WorkloadAlertSettings> {
+  if (isSupabaseConfigured()) {
+    if (!hydratedFromSupabase) {
+      const loaded = await hydrateWorkloadAlertSettingsFromSupabase();
+      if (loaded) {
+        workloadAlertSettings = loaded;
+      } else {
+        workloadAlertSettings = defaultWorkloadSettingsIfMissing();
+      }
+      hydratedFromSupabase = true;
+      return workloadAlertSettings;
+    }
+    return getWorkloadAlertSettings();
+  }
+
   const persisted = readGlobalWorkloadAlertSettings();
   if (!persisted) {
     workloadAlertSettings = defaultWorkloadAlertSettings();

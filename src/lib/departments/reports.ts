@@ -16,6 +16,8 @@ import type {
 import { format } from "date-fns";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import { getProductionReport } from "@/lib/data/production-tracking";
+import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { requiresShiftClock } from "@/lib/users/pay-type";
 
 export interface DepartmentReportMetrics {
   departmentId: string;
@@ -71,12 +73,12 @@ export function buildDepartmentReportMetrics(
   const wrapUpOverridden = overrides.filter((o) => o.wrap_date === today).filter((o) =>
     deptUserIds.has(o.user_id)
   ).length;
-  const wrapUpMissing = [...deptUserIds].filter(
-    (uid) =>
-      store.users.find((u) => u.id === uid)?.role === "employee" &&
-      !compliance.some((w) => w.user_id === uid && w.wrap_date === today) &&
-      !overrides.some((o) => o.user_id === uid && o.wrap_date === today)
-  ).length;
+  const wrapUpMissing = [...deptUserIds].filter((uid) => {
+    const user = store.users.find((u) => u.id === uid);
+    if (!user?.is_active || !requiresShiftClock(user)) return false;
+    const status = getWrapUpComplianceStatus(uid, today);
+    return status === "missing";
+  }).length;
 
   const deptProd = production.byDepartment.find((d) => d.departmentId === departmentId);
 

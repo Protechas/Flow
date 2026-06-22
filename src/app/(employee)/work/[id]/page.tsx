@@ -1,20 +1,27 @@
 import { EmployeeTaskWorkspace } from "@/components/employee/employee-task-workspace";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
+  getActiveClockEntry,
   getActiveTaskTimeEntry,
   getLatestSubmission,
   getTaskFiles,
+  getTodayClockEntries,
   getTotalTaskMinutes,
 } from "@/lib/data/production-tracking";
-import { getEmployeeTaskForUser } from "@/lib/employee/tasks";
+import { buildTaskPageWorkflowInput } from "@/lib/employee/workflow-input";
 import { getWorkEligibility } from "@/lib/work-eligibility";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listEmployeeHelpFlags } from "@/lib/help-flags/engine";
 import { getWorkPackages } from "@/lib/data/work-packages";
-import { requirePageAccess } from "@/lib/auth/guard";
+import { requireWorkPackageAccess } from "@/lib/auth/guard";
 import { loadAccountSetupSummary } from "@/lib/setup/guard";
 import { isEmployeeRole } from "@/lib/auth/permissions";
+import { normalizePayType } from "@/lib/users/pay-type";
+import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { redirect } from "next/navigation";
+import { enrichPackages } from "@/lib/data/flow-store";
+import { format } from "date-fns";
 
 export default async function EmployeeTaskPage({
   params,
@@ -23,18 +30,18 @@ export default async function EmployeeTaskPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ autostart?: string }>;
 }) {
-  const user = await requirePageAccess("/work");
+  const { id } = await params;
+  const { autostart } = await searchParams;
+
+  const { user, pkg } = await requireWorkPackageAccess(id, "/work");
   const setup = loadAccountSetupSummary(user);
   if (isEmployeeRole(user.role) && setup.setupStatus === "needs_setup") {
     redirect("/work");
   }
 
-  const { id } = await params;
-  const { autostart } = await searchParams;
-
-  const task = await getEmployeeTaskForUser(user.id, id);
+  const [task] = enrichPackages([pkg]);
   if (!task) {
-    redirect("/work");
+    redirect("/unauthorized");
   }
 
   initFlowStore();
@@ -45,6 +52,20 @@ export default async function EmployeeTaskPage({
     (f) => f.task_id === task.id || !f.task_id
   );
   const activeTimer = getActiveTaskTimeEntry(user.id);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const payType = normalizePayType(user.pay_type, user.role);
+
+  const workflowInput = buildTaskPageWorkflowInput({
+    user,
+    task,
+    payType,
+    workEligibility: getWorkEligibility(user),
+    activeClock: getActiveClockEntry(user.id),
+    todayClockEntries: getTodayClockEntries(user.id),
+    activeTaskTimer: activeTimer,
+    wrapUpStatus: getWrapUpComplianceStatus(user.id, today),
+    pendingWorkRequest: employeeHasOpenWorkloadRequest(user.id),
+  });
 
   return (
     <EmployeeTaskWorkspace
@@ -59,6 +80,7 @@ export default async function EmployeeTaskPage({
       latestSubmission={getLatestSubmission(task.id)}
       helpFlags={helpFlags}
       workEligibility={getWorkEligibility(user)}
+      workflowInput={workflowInput}
     />
   );
 }

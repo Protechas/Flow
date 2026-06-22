@@ -1,5 +1,5 @@
 import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
-import { getVisibleUserIds, isOrgWideRole } from "@/lib/hierarchy/resolver";
+import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import { buildAllDepartmentReports } from "@/lib/departments/reports";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
@@ -20,6 +20,7 @@ import {
   isOverdue,
   isStuck,
 } from "@/lib/scoring/flow-score";
+import { getWrapUpCompletionPctForUsers } from "@/lib/wrap-up/compliance";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
 import { buildWorkloadAlertReportMetrics } from "@/lib/workload-alerts/engine";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
@@ -39,8 +40,7 @@ import type {
 function buildDepartmentHealth(
   store: ReturnType<typeof getFlowStore>,
   packages: WorkPackage[],
-  scorecards: EmployeeScorecard[],
-  wrapUpSubmittedToday: number
+  scorecards: EmployeeScorecard[]
 ): DepartmentHealthSummary[] {
   const departments = listDepartments().filter((d) => d.status === "active");
 
@@ -65,8 +65,7 @@ function buildDepartmentHealth(
           )
         : 100;
 
-    const expectedWrapUps = Math.max(userIds.length, 1);
-    const wrapUpCompletionPct = Math.round((wrapUpSubmittedToday / expectedWrapUps) * 100);
+    const wrapUpCompletionPct = getWrapUpCompletionPctForUsers(userIds);
 
     let score = 100;
     const factors: string[] = [];
@@ -298,7 +297,7 @@ export async function buildFlowAnalyticsSnapshot(
 
   let packages = await getWorkPackages();
   let teamMemberIds = options?.teamMemberIds;
-  if (!teamMemberIds && viewer && !isOrgWideRole(viewer.role)) {
+  if (!teamMemberIds && viewer && !isHierarchyOrgWide(viewer)) {
     teamMemberIds = getVisibleUserIds(viewer, store.users, store.teams);
   }
   if (teamMemberIds?.length) {
@@ -351,12 +350,7 @@ export async function buildFlowAnalyticsSnapshot(
 
   const workload = buildWorkloadEmployees(packages, scorecards, needsWorkUserIds);
   const speedRankings = buildEmployeeSpeedRankings(production, scorecards);
-  const departmentHealth = buildDepartmentHealth(
-    store,
-    packages,
-    scorecards,
-    wrapUpStats.submittedToday
-  );
+  const departmentHealth = buildDepartmentHealth(store, packages, scorecards);
 
   const deptReports = buildAllDepartmentReports(
     listDepartments().filter((d) => d.status === "active"),

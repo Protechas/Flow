@@ -1,18 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   assertCanEditWorkPackage,
   requireUser,
 } from "@/lib/auth/session";
 import { isEmployeeRole } from "@/lib/auth/permissions";
 import { assertWorkEligible } from "@/lib/work-eligibility";
+import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
 import { startTaskTimer } from "@/lib/data/production-tracking";
 import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { raiseHelpFlag } from "@/lib/help-flags/engine";
+import type { User } from "@/types/flow";
 import { format } from "date-fns";
 
 function revalidateWork() {
@@ -34,6 +35,60 @@ async function requireOwnTask(taskId: string) {
   return user;
 }
 
+async function assertTimerStarted(user: User, taskId: string) {
+  try {
+    startTaskTimer(user.id, taskId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.startsWith("ACTIVE_TASK:")) {
+      const activeId = msg.split(":")[1];
+      if (activeId !== taskId) {
+        await recordBlockedWorkAttempt(
+          user,
+          "start_task",
+          "You already have an active task. Pause or complete the current task before starting another.",
+          activeId
+        );
+        throw new Error(`ACTIVE_TASK_CONFLICT:${activeId}`);
+      }
+      return;
+    }
+    throw e;
+  }
+}
+
+export async function startQueueTaskAction(taskId: string) {
+  const user = await requireEmployee();
+  await assertWorkEligible(user, "start_task", { taskId });
+  await assertCanEditWorkPackage(user, taskId);
+
+  const board = getEmployeeTasks(user.id);
+  const task = board.all.find((t) => t.id === taskId);
+  if (!task) throw new Error("Task not found");
+
+  try {
+    await assertTimerStarted(user, taskId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.startsWith("ACTIVE_TASK_CONFLICT:")) {
+      const activeTaskId = msg.replace("ACTIVE_TASK_CONFLICT:", "");
+      return {
+        ok: false as const,
+        code: "ACTIVE_TASK_CONFLICT",
+        message: "You already have an active task. Pause or complete the current task before starting another.",
+        activeTaskId,
+      };
+    }
+    throw e;
+  }
+
+  if (task.status !== "working_on_it") {
+    updateWorkPackage(taskId, { status: "working_on_it" });
+  }
+  revalidateWork();
+  return { ok: true as const, taskId };
+}
+
 export async function startNextTaskAction() {
   const user = await requireEmployee();
   await assertWorkEligible(user, "start_task");
@@ -41,20 +96,31 @@ export async function startNextTaskAction() {
   const board = getEmployeeTasks(user.id);
   const next = pickNextTask(board.all);
   if (!next) {
-    redirect("/work");
+    return { ok: false as const, code: "NO_TASK", message: "No assigned tasks available." };
+  }
+
+  try {
+    await assertTimerStarted(user, next.id);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.startsWith("ACTIVE_TASK_CONFLICT:")) {
+      const activeTaskId = msg.replace("ACTIVE_TASK_CONFLICT:", "");
+      return {
+        ok: false as const,
+        code: "ACTIVE_TASK_CONFLICT",
+        message: "You already have an active task. Pause or complete the current task before starting another.",
+        activeTaskId,
+      };
+    }
+    throw e;
   }
 
   if (next.status !== "working_on_it") {
     updateWorkPackage(next.id, { status: "working_on_it" });
   }
-  try {
-    startTaskTimer(user.id, next.id);
-  } catch {
-    // Active timer on another task — still navigate
-  }
   revalidateWork();
 
-  redirect(`/work/${next.id}?autostart=1`);
+  return { ok: true as const, taskId: next.id };
 }
 
 export async function employeeUpdateNotesAction(taskId: string, notes: string) {
@@ -76,8 +142,13 @@ export async function submitDailyWrapUpAction(input: {
   blockers: string;
   needs_support: boolean;
   needs_support_note?: string;
+  activity_documentation_category?: string;
+  activity_documentation_note?: string;
 }) {
   const user = await requireEmployee();
+  try {
+  const { getTodayVisibilityForUser } = await import("@/lib/work-visibility/calculator");
+  const visibility = getTodayVisibilityForUser(user.id);
   const wrapUp = createDailyWrapUp({
     user_id: user.id,
     wrap_date: format(new Date(), "yyyy-MM-dd"),
@@ -85,6 +156,18 @@ export async function submitDailyWrapUpAction(input: {
     blockers: input.blockers || null,
     needs_support: input.needs_support,
     needs_support_note: input.needs_support_note ?? null,
+    clocked_minutes: visibility.clockedMinutes,
+    recorded_task_minutes: visibility.recordedTaskMinutes,
+    unassigned_minutes: visibility.unassignedMinutes,
+    task_tracking_compliance_pct: visibility.taskTrackingCompliancePct,
+    activity_documentation_category:
+      visibility.unassignedMinutes > 0 && input.activity_documentation_category
+        ? (input.activity_documentation_category as import("@/types/flow").ActivityDocumentationCategory)
+        : null,
+    activity_documentation_note:
+      visibility.unassignedMinutes > 0 && input.activity_documentation_note
+        ? input.activity_documentation_note
+        : null,
   });
 
   const hasBlockers = !!input.blockers?.trim();
@@ -108,4 +191,10 @@ export async function submitDailyWrapUpAction(input: {
   revalidatePath("/executive");
   revalidatePath("/operations");
   return { ok: true as const };
+  } catch (e) {
+    return {
+      ok: false as const,
+      message: e instanceof Error ? e.message : "Could not save daily report",
+    };
+  }
 }

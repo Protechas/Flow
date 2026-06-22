@@ -16,6 +16,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogFooter,
+  WizardDialogHeader,
+  WizardDialogScroll,
+} from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -144,11 +151,13 @@ export function AddManufacturerDialog({
           )
         }
       />
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="md">
+        <WizardDialogHeader>
           <DialogTitle>Add Manufacturer</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
+        </WizardDialogHeader>
+        <WizardDialogBody>
+          <WizardDialogScroll>
+            <form id="add-manufacturer-form" onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="mfr-name">Manufacturer name *</Label>
             <Input id="mfr-name" name="name" required placeholder="Toyota" />
@@ -217,14 +226,16 @@ export function AddManufacturerDialog({
                 </label>
               ))}
             </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            </div>
+            </form>
+          </WizardDialogScroll>
+          <WizardDialogFooter>
+            <Button type="submit" form="add-manufacturer-form" disabled={pending}>
               Add manufacturer
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+          </WizardDialogFooter>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

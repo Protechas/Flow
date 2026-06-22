@@ -14,22 +14,30 @@ export function operationsHref(opts?: {
   department?: string;
   search?: string;
   package?: string;
+  taskId?: string;
   view?: OpsSavedViewId;
   projectId?: string;
 }): string {
+  const packageId = opts?.package ?? opts?.taskId;
   return withQuery("/operations", {
     department: opts?.department,
     search: opts?.search,
-    package: opts?.package,
+    package: packageId,
+    taskId: opts?.taskId && !opts?.package ? opts.taskId : undefined,
     view: opts?.view && opts.view !== "all" ? opts.view : undefined,
     projectId: opts?.projectId,
   });
 }
 
-export function projectsHref(opts?: { department?: string; projectId?: string }): string {
+export function projectsHref(opts?: {
+  department?: string;
+  projectId?: string;
+  highlight?: string;
+}): string {
   return withQuery("/projects", {
     department: opts?.department,
-    projectId: opts?.projectId,
+    projectId: opts?.projectId ?? opts?.highlight,
+    highlight: opts?.highlight,
   });
 }
 
@@ -57,21 +65,36 @@ export function wrapUpsHref(opts?: {
 }
 
 export function alertCenterHref(opts?: {
-  type?: "help" | "workload" | "wrap_up" | "overdue";
+  type?: "help" | "workload" | "wrap_up" | "overdue" | "activity_gaps";
 }): string {
+  if (opts?.type === "wrap_up") {
+    return wrapUpsHref({ status: "missing" });
+  }
+  if (opts?.type === "overdue") {
+    return operationsHref({ view: "overdue" });
+  }
+  if (opts?.type === "activity_gaps") {
+    return "/alert-center#activity-gaps";
+  }
+
   const base = "/alert-center";
   if (!opts?.type) return base;
   const anchors: Record<string, string> = {
     help: "#help-flags",
     workload: "#workload-alerts",
-    wrap_up: "#wrap-ups",
-    overdue: "#overdue",
+    activity_gaps: "#activity-gaps",
   };
   return `${base}${anchors[opts.type] ?? ""}`;
 }
 
 export function peopleHref(userId?: string): string {
-  return userId ? `/people/${userId}` : "/people";
+  if (!userId) return "/people";
+  return `/people/${userId}`;
+}
+
+/** Query-param alias for people deep links — redirects to profile path. */
+export function peopleQueryHref(userId: string): string {
+  return withQuery("/people", { userId });
 }
 
 export function orgChartHref(userId?: string): string {
@@ -82,8 +105,11 @@ export function filesHref(opts?: { taskId?: string }): string {
   return withQuery("/files", { taskId: opts?.taskId });
 }
 
-export function projectHealthHref(opts?: { search?: string }): string {
-  return withQuery("/project-health", { search: opts?.search });
+export function projectHealthHref(opts?: { search?: string; risk?: string }): string {
+  return withQuery("/project-health", {
+    search: opts?.search,
+    risk: opts?.risk,
+  });
 }
 
 export function reportsHref(opts?: { department?: string }): string {
@@ -97,13 +123,13 @@ export function notificationsHref(): string {
 /** Resolve a deep link for an activity feed event when possible. */
 export function activityEventHref(event: ActivityEvent): string | null {
   if (event.work_package_id) {
+    if (event.type === "qa_review" || event.type === "submit_qa" || event.type === "correction_received") {
+      return qaCenterHref({ package: event.work_package_id });
+    }
     return operationsHref({ package: event.work_package_id });
   }
   if (event.type === "help_flag") {
     return alertCenterHref({ type: "help" });
-  }
-  if (event.type === "qa_review" || event.type === "submit_qa" || event.type === "correction_received") {
-    return qaCenterHref();
   }
   if (event.user_id) {
     return peopleHref(event.user_id);

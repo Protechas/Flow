@@ -29,7 +29,7 @@ export function ClockStatusBadge({
       />
       {status === "on_shift" && "Clocked in"}
       {status === "on_lunch" && "On lunch"}
-      {status === "off_shift" && "Off shift"}
+      {status === "off_shift" && "Not clocked in"}
     </span>
   );
 }

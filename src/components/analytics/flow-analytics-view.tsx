@@ -1,5 +1,6 @@
 "use client";
 
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import Link from "next/link";
 import {
   DepartmentHealthBadge,
@@ -139,7 +140,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
   }));
 
   return (
-    <div className="flow-analytics-engine space-y-8">
+    <div className="flow-analytics-engine flow-ambient-command space-y-8">
       {/* Command header */}
       <section className="flow-executive-command-strip enterprise-panel-elevated p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -151,7 +152,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-              Operational intelligence from real production data
+              Business analytics from live production data
             </h2>
             <p className="text-sm text-muted-foreground">
               {data.scopeLabel} · Last {data.periodDays} days · Tasks, forecast, timeclock, files,
@@ -237,7 +238,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
       <div className="grid gap-6 xl:grid-cols-2">
         <PerformanceTrendChart
           data={data.trends.flowScore}
-          title="Flow Score trend"
+          title={`${OPS_COPY.operationsScore} trend`}
           description="Team performance trajectory"
         />
         <EnterpriseSection title="Minutes per document trend" description={`${data.periodDays}-day production pace`}>
@@ -274,7 +275,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
       {/* Employee Analytics */}
       <EnterpriseSection
         title="Employee Analytics"
-        description="Speed, workload balance, and Flow Score leaders"
+        description={`Speed, workload balance, and ${OPS_COPY.operationsScore.toLowerCase()} leaders`}
         workspace
       >
         <div className="grid gap-6 lg:grid-cols-2">
@@ -346,7 +347,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
                   </div>
                 ))}
             </div>
-            <p className="enterprise-label">Flow Score leaders</p>
+            <p className="enterprise-label">{OPS_COPY.operationsScore} leaders</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {data.employee.flowScoreLeaders.slice(0, 4).map((e, i) => (
                 <RankCard
@@ -396,11 +397,11 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
       {/* Manager Analytics */}
       <EnterpriseSection
         title="Manager Analytics"
-        description="Team posture, coaching signals, and recognition opportunities"
+        description="Team status, coaching signals, and recognition opportunities"
         workspace
       >
         <div className="grid gap-3 sm:grid-cols-3 mb-4">
-          <EnterpriseKpi label="Team Flow Score" value={data.manager.teamFlowScore} />
+          <EnterpriseKpi label={`Team ${OPS_COPY.operationsScore}`} value={data.manager.teamFlowScore} />
           <EnterpriseKpi label="Avg QA pass" value={`${data.manager.avgQaPassRate}%`} />
           <EnterpriseKpi label="On-time rate" value={`${data.manager.avgOnTimeRate}%`} />
         </div>
@@ -571,7 +572,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
             warn={data.workload.openHelpFlags > 0}
           />
           <EnterpriseKpi
-            label="Missing wrap-ups"
+            label={OPS_COPY.outstandingDailyReports}
             value={data.workload.wrapUpMissing}
             warn={data.workload.wrapUpMissing > 0}
           />

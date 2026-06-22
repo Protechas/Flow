@@ -6,9 +6,16 @@ import {
   writeGlobalHelpFlagSettings,
 } from "@/lib/help-flags/settings-persistence";
 import type { HelpFlagSettings } from "@/types/flow";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  defaultHelpFlagSettingsIfMissing,
+  hydrateHelpFlagSettingsFromSupabase,
+} from "@/lib/settings/supabase-settings";
 
 let helpFlagSettings: HelpFlagSettings =
   readGlobalHelpFlagSettings() ?? defaultHelpFlagSettings();
+
+let hydratedFromSupabase = false;
 
 export function getHelpFlagSettings(): HelpFlagSettings {
   return helpFlagSettings;
@@ -31,6 +38,20 @@ export function updateHelpFlagSettings(
 }
 
 export async function hydrateHelpFlagSettings(): Promise<HelpFlagSettings> {
+  if (isSupabaseConfigured()) {
+    if (!hydratedFromSupabase) {
+      const loaded = await hydrateHelpFlagSettingsFromSupabase();
+      if (loaded) {
+        helpFlagSettings = loaded;
+      } else {
+        helpFlagSettings = defaultHelpFlagSettingsIfMissing();
+      }
+      hydratedFromSupabase = true;
+      return helpFlagSettings;
+    }
+    return getHelpFlagSettings();
+  }
+
   const persisted = readGlobalHelpFlagSettings();
   if (!persisted) {
     helpFlagSettings = defaultHelpFlagSettings();

@@ -22,8 +22,10 @@ import {
   buildHelpFlagSummary,
   listHelpFlagsForViewer,
 } from "@/lib/help-flags/engine";
-import { getVisibleUserIds, isOrgWideRole } from "@/lib/hierarchy/resolver";
+import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
+import { getWrapUpCompletionPctForUsers } from "@/lib/wrap-up/compliance";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
 import {
   getProductionStore,
@@ -33,6 +35,8 @@ import {
   healthLevelFromScore,
   type DepartmentHealthSummary,
 } from "@/lib/design/department-health";
+import { buildScopedWorkVisibility } from "@/lib/work-visibility/engine";
+import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 import { isSameDay, parseISO, subDays, format } from "date-fns";
 
 function trendDeltaFor(sc: EmployeeScorecard, rankings: EmployeeRanking[]): number {
@@ -65,7 +69,7 @@ function buildAttentionList(
         userId: sc.user.id,
         name: sc.user.full_name,
         category: "support",
-        reason: `Flow Score declining (${trendDelta} trend)`,
+        reason: `${OPS_COPY.operationsScore} declining (${trendDelta} trend)`,
         priority: 60 + Math.abs(trendDelta),
         flowScore: sc.flowScore,
       });
@@ -85,7 +89,7 @@ function buildAttentionList(
         userId: sc.user.id,
         name: sc.user.full_name,
         category: "recognition",
-        reason: `Top performer · +${trendDelta} trend · ${sc.flowScore} Flow Score`,
+        reason: `Top performer · +${trendDelta} trend · ${sc.flowScore} ${OPS_COPY.operationsScore}`,
         priority: 100 - sc.flowScore,
         flowScore: sc.flowScore,
       });
@@ -117,8 +121,7 @@ function buildAttentionList(
 function buildDepartmentHealth(
   store: ReturnType<typeof getFlowStore>,
   packages: Awaited<ReturnType<typeof getWorkPackages>>,
-  scorecards: EmployeeScorecard[],
-  wrapUpStats: ReturnType<typeof getWrapUpDashboardStats>
+  scorecards: EmployeeScorecard[]
 ): DepartmentHealthSummary[] {
   const departments = listDepartments().filter((d) => d.status === "active");
 
@@ -144,9 +147,7 @@ function buildDepartmentHealth(
         : 100;
 
     const expectedWrapUps = Math.max(userIds.length, 1);
-    const wrapUpCompletionPct = Math.round(
-      ((wrapUpStats.submittedToday) / expectedWrapUps) * 100
-    );
+    const wrapUpCompletionPct = getWrapUpCompletionPctForUsers(userIds);
 
     let score = 100;
     const factors: string[] = [];
@@ -195,7 +196,7 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
   ]);
 
   let scorecards = allScorecards;
-  if (viewer && !isOrgWideRole(viewer.role)) {
+  if (viewer && !isHierarchyOrgWide(viewer)) {
     const visible = new Set(getVisibleUserIds(viewer, store.users, store.teams));
     scorecards = scorecards.filter((sc) => visible.has(sc.user.id));
   }
@@ -369,6 +370,14 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
     : [];
   const helpFlagSummary = buildHelpFlagSummary(helpFlags);
 
+  await hydrateWorkVisibilitySettings();
+  const visibilityViewer = viewer ?? alertViewer;
+  const { summary: workVisibility, activityGaps } = buildScopedWorkVisibility(
+    visibilityViewer,
+    store.users,
+    packages
+  );
+
   return {
     teamHealth: {
       flowScore: acc.departmentAvgFlowScore,
@@ -396,9 +405,9 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
         : null,
       scoreExplanations: {
         flow: {
-          title: "Team Flow Score",
+          title: `Team ${OPS_COPY.operationsScore}`,
           value: acc.departmentAvgFlowScore,
-          formula: "Average of employee Flow Scores (40% productivity + 30% quality + 20% on-time + 10% activity)",
+          formula: `Average employee ${OPS_COPY.operationsScore.toLowerCase()} (40% productivity + 30% quality + 20% on-time + 10% activity)`,
           source: `${scorecards.length} active employees`,
           drilldownHref: "/performance",
           factors: scorecards.slice(0, 5).map((s) => ({
@@ -477,7 +486,9 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
       documentsCompletedToday,
       capacityUtilizationPct,
     },
-    departmentHealth: buildDepartmentHealth(store, packages, scorecards, wrapUpReview),
+    workVisibility,
+    activityGaps,
+    departmentHealth: buildDepartmentHealth(store, packages, scorecards),
     recentActivity: store.activity.slice(0, 20),
     workloadAlerts,
     workloadAlertSummary,

@@ -244,7 +244,7 @@ export function OperationsBoard({
   }, [initialViewId]);
 
   useEffect(() => {
-    const packageId = searchParams.get("package") ?? initialPackageId ?? null;
+    const packageId = searchParams.get("package") ?? searchParams.get("taskId") ?? initialPackageId ?? null;
     if (!packageId) {
       setPanelSelection((prev) => (prev?.kind === "package" ? null : prev));
       return;
@@ -586,7 +586,7 @@ function ProjectRows({
               onClick={() => onSelectPanel({ kind: "project", node })}
             >
               <div className="flex items-center gap-2">
-                <FolderKanban className="h-4 w-4 text-primary shrink-0" />
+                <FolderKanban className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="truncate">{node.project.name}</span>
                 <span className="text-[10px] text-muted-foreground font-normal shrink-0">
                   {r.manufacturerCount} mfr · {r.yearCount} yr · {r.totalPackages} pkg
@@ -1100,7 +1100,7 @@ function PackageRow({
           <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
           <button
             type="button"
-            className="truncate text-left text-[13px] font-medium text-foreground hover:text-primary hover:underline"
+            className="truncate text-left text-[13px] font-medium text-foreground hover:text-foreground/80 hover:underline"
             onClick={() => onDetail(pkg)}
           >
             {pkg.title}

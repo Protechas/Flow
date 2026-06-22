@@ -1,6 +1,6 @@
 import { getOrganizationalScopeRole } from "@/lib/auth/access-level";
 import type { Team, User } from "@/types/flow";
-import type { HierarchyScopeMode } from "@/lib/hierarchy/resolver";
+import type { HierarchyScopeMode } from "@/lib/hierarchy/visibility-core";
 
 export function hasBranchViewAccess(user: User): boolean {
   return user.branch_view_access === true;
@@ -12,7 +12,7 @@ export function getEffectiveScopeMode(user: User): HierarchyScopeMode {
   if (scopeRole === "viewer") return "org";
   if (scopeRole === "senior_manager") return "branch";
   if (scopeRole === "manager") {
-    return hasBranchViewAccess(user) ? "branch" : "team";
+    return "branch";
   }
   if (scopeRole === "teamlead") return "team";
   return "self";

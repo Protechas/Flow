@@ -1,5 +1,5 @@
 import { hasPermission } from "@/lib/auth/permissions";
-import { getVisibleUserIds, isOrgWideRole } from "@/lib/hierarchy/resolver";
+import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getDepartmentName, getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getFlowStore, getDailyWrapUpById, initFlowStore } from "@/lib/data/flow-store";
 import {
@@ -8,6 +8,7 @@ import {
   getShiftMinutesToday,
 } from "@/lib/data/production-tracking";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { requiresShiftClock } from "@/lib/users/pay-type";
 import type {
   DailyWrapUp,
   User,
@@ -55,7 +56,7 @@ export function getWrapUpVisibleUserIds(viewer: User): string[] | null {
   initFlowStore();
   const store = getFlowStore();
 
-  if (isOrgWideRole(viewer.role)) {
+  if (isHierarchyOrgWide(viewer)) {
     return null;
   }
 
@@ -161,6 +162,7 @@ export function buildWrapUpReviewRows(
   if (!filters.status || filters.status === "all" || filters.status === "missing") {
     const employees = store.users.filter((u) => {
       if (!u.is_active || u.role !== "employee") return false;
+      if (!requiresShiftClock(u)) return false;
       if (visibleIds && !visibleIds.includes(u.id)) return false;
       if (filters.userId && u.id !== filters.userId) return false;
       if (filters.teamId && u.team_id !== filters.teamId) return false;

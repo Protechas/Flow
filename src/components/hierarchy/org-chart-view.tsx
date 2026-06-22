@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { alertCenterHref, operationsHref, wrapUpsHref } from "@/lib/navigation/deep-links";
+import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
 import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { cn } from "@/lib/utils";
 import type {
@@ -224,30 +225,30 @@ export function OrgChartView({
             <Link
               href={alertCenterHref({ type: "help" })}
               className="text-red-400 hover:underline cursor-pointer"
-              title="Open help requests in Alert Center"
+              title={OPS_TOOLTIPS.openEscalations}
             >
               <HelpCircle className="inline h-4 w-4 mr-1" />
-              {attention.needsHelp} need help
+              {attention.needsHelp} open escalations
             </Link>
           )}
           {attention.needsWork > 0 && (
             <Link
               href={alertCenterHref({ type: "workload" })}
               className="text-amber-400 hover:underline cursor-pointer"
-              title="Open workload alerts in Alert Center"
+              title={OPS_TOOLTIPS.availableCapacity}
             >
               <AlertTriangle className="inline h-4 w-4 mr-1" />
-              {attention.needsWork} need work
+              {attention.needsWork} available capacity
             </Link>
           )}
           {attention.missingWrapUp > 0 && (
             <Link
               href={wrapUpsHref({ status: "missing" })}
               className="text-violet-400 hover:underline cursor-pointer"
-              title="Review missing wrap-ups"
+              title={OPS_TOOLTIPS.outstandingDailyReports}
             >
               <Moon className="inline h-4 w-4 mr-1" />
-              {attention.missingWrapUp} missing wrap-up
+              {attention.missingWrapUp} outstanding daily reports
             </Link>
           )}
         </div>

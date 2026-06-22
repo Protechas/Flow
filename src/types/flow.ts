@@ -724,7 +724,8 @@ export type NotificationType =
   | "forecast_risk"
   | "qa_rejected"
   | "assignment_changed"
-  | "department_alert";
+  | "department_alert"
+  | "activity_gap";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =
@@ -1311,6 +1312,8 @@ export interface CommandCenterMetrics {
     documentsCompletedToday: number;
     capacityUtilizationPct: number;
   };
+  workVisibility: WorkVisibilitySummary;
+  activityGaps: ActivityGapView[];
   departmentHealth: import("@/lib/design/department-health").DepartmentHealthSummary[];
   recentActivity: ActivityEvent[];
   workloadAlerts: WorkloadAlertView[];
@@ -1337,12 +1340,93 @@ export interface DailyWrapUp {
   blockers: string | null;
   needs_support: boolean;
   needs_support_note: string | null;
+  clocked_minutes?: number | null;
+  recorded_task_minutes?: number | null;
+  unassigned_minutes?: number | null;
+  task_tracking_compliance_pct?: number | null;
+  activity_documentation_category?: ActivityDocumentationCategory | null;
+  activity_documentation_note?: string | null;
   created_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
   internal_notes: string | null;
   follow_up_needed: boolean;
   follow_up_notes: string | null;
+}
+
+export type ActivityDocumentationCategory =
+  | "meeting"
+  | "training"
+  | "research"
+  | "supervisor_request"
+  | "qa_review"
+  | "administrative"
+  | "system_issue"
+  | "other";
+
+export interface WorkVisibilitySettings {
+  id: string;
+  enabled: boolean;
+  alerts_enabled: boolean;
+  activity_gap_threshold_minutes: number;
+  task_tracking_compliance_target_pct: number;
+  daily_report_required: boolean;
+  capacity_alert_threshold_pct: number;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export interface EmployeeWorkVisibilityMetrics {
+  userId: string;
+  userName: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  clockedMinutes: number;
+  recordedTaskMinutes: number;
+  unassignedMinutes: number;
+  taskTrackingCompliancePct: number | null;
+  documentsCompleted: number;
+  qaAccuracyPct: number | null;
+  dailyReportCompliancePct: number | null;
+  workloadCoveragePct: number | null;
+  capacityUtilizationPct: number | null;
+  activityNotes: string | null;
+  hasActiveActivityGap: boolean;
+}
+
+export interface WorkVisibilitySummary {
+  score: number;
+  taskTrackingCompliancePct: number;
+  dailyReportCompliancePct: number;
+  workloadCoveragePct: number;
+  capacityVisibilityPct: number;
+  workDocumentationPct: number;
+  openActivityGaps: number;
+}
+
+export interface ActivityGapRecord {
+  id: string;
+  employee_id: string;
+  department_id?: string | null;
+  started_at: string;
+  detected_at: string;
+  status: "open" | "resolved";
+  message: string;
+  created_at: string;
+  resolved_at?: string | null;
+}
+
+export interface ActivityGapView extends ActivityGapRecord {
+  employee_name: string;
+  department_name?: string | null;
+  gap_minutes: number;
+}
+
+export interface WorkVisibilityTrendPoint {
+  date: string;
+  score: number;
+  taskTrackingCompliancePct: number;
+  dailyReportCompliancePct: number;
 }
 
 export type WrapUpComplianceStatus = "submitted" | "missing" | "overridden";
@@ -1561,5 +1645,50 @@ export type WorkPackageInput = Pick<
   | "complexity_level"
   | "manual_due_date"
 >;
+
+export type FeedbackCategory =
+  | "idea"
+  | "bug"
+  | "issue"
+  | "feature_request"
+  | "question";
+
+export type FeedbackPriority = "low" | "medium" | "high";
+
+export type FeedbackStatus =
+  | "new"
+  | "investigating"
+  | "planned"
+  | "fixed"
+  | "rejected";
+
+export interface FeedbackSubmission {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string | null;
+  category: FeedbackCategory;
+  title: string;
+  description: string;
+  priority: FeedbackPriority;
+  screenshot_url: string | null;
+  screenshot_storage_path: string | null;
+  screenshot_mime_type: string | null;
+  screenshot_file_name: string | null;
+  page_url: string | null;
+  app_version: string | null;
+  device_info: string | null;
+  status: FeedbackStatus;
+  assigned_to: string | null;
+  resolution_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Demo mode only — inline attachment bytes */
+  screenshot_data_base64?: string;
+}
+
+export interface FeedbackSubmissionView extends FeedbackSubmission {
+  assigned_to_name: string | null;
+}
 
 export type WorkItemInput = WorkPackageInput;

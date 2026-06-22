@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import { ClockStatusBadge } from "@/components/enterprise/clock-status-badge";
 import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
-import { EMPLOYEE_NAV } from "@/lib/auth/permissions";
+import { EMPLOYEE_NAV, isEmployeeNavActive } from "@/lib/auth/permissions";
 import { getEmployeeClockStatus } from "@/lib/time-clock/labels";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export function EmployeeHeader({
 
           <nav className="flex-1 flex gap-0.5 justify-center">
             {EMPLOYEE_NAV.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = isEmployeeNavActive(item.href, pathname);
               return (
                 <Link
                   key={item.href}

@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { WizardDialogFooter, WizardDialogScroll } from "@/components/ui/wizard-dialog";
 import { WizardStepper } from "@/components/work-creation/wizard-stepper";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { WORK_PRIORITIES } from "@/lib/constants";
@@ -141,10 +142,11 @@ export function CustomTemplateWizard({
   }
 
   return (
-    <div className="space-y-4">
-      <WizardStepper steps={STEPS} current={step} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <WizardDialogScroll>
+        <WizardStepper steps={STEPS} current={step} />
 
-      {step === 0 && (
+        {step === 0 && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Template name *</Label>
@@ -408,8 +410,9 @@ export function CustomTemplateWizard({
           {error && <p className="text-destructive">{error}</p>}
         </div>
       )}
+      </WizardDialogScroll>
 
-      <div className="flex justify-between gap-2 pt-2">
+      <WizardDialogFooter className="justify-between sm:justify-between">
         <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
           Cancel
         </Button>
@@ -438,7 +441,7 @@ export function CustomTemplateWizard({
             </Button>
           )}
         </div>
-      </div>
+      </WizardDialogFooter>
     </div>
   );
 }

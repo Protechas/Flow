@@ -99,7 +99,9 @@ function pkgMatchesView(pkg: WorkPackage, viewId: OpsSavedViewId, teamUserIds: S
         isStuck(pkg) ||
         pkg.status === "stuck" ||
         pkg.status === "correction_needed" ||
-        ["minor_correction", "major_correction"].includes(pkg.qa_status)
+        ["minor_correction", "major_correction"].includes(pkg.qa_status) ||
+        pkg.due_date_status === "at_risk" ||
+        pkg.due_date_status === "behind_capacity"
       );
     default:
       return true;

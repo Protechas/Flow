@@ -14,10 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogHeader,
+} from "@/components/ui/wizard-dialog";
 import { buildEnterpriseTemplatePreview } from "@/lib/templates/preview";
 import type { EnterpriseProjectTemplate } from "@/lib/templates/enterprise-types";
 import { normalizeRole } from "@/lib/auth/permissions";
@@ -223,20 +226,22 @@ export function TemplateLibraryView({
       </div>
 
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <WizardDialogContent size="lg">
+          <WizardDialogHeader>
             <DialogTitle>Create custom template</DialogTitle>
-          </DialogHeader>
-          <CustomTemplateWizard
-            departments={departments}
-            onCancel={() => setWizardOpen(false)}
-            onSaved={(id) => {
-              setWizardOpen(false);
-              setPreviewId(id);
-            }}
-            saveAction={saveCustomTemplateAction}
-          />
-        </DialogContent>
+          </WizardDialogHeader>
+          <WizardDialogBody>
+            <CustomTemplateWizard
+              departments={departments}
+              onCancel={() => setWizardOpen(false)}
+              onSaved={(id) => {
+                setWizardOpen(false);
+                setPreviewId(id);
+              }}
+              saveAction={saveCustomTemplateAction}
+            />
+          </WizardDialogBody>
+        </WizardDialogContent>
       </Dialog>
 
       {createTemplateId && (

@@ -11,6 +11,7 @@ import {
   getPrimarySupervisorId,
   getScopeMode,
   isOrgWideRole,
+  isHierarchyOrgWide,
   buildOrgChart,
   syncHierarchyOnManagerChange,
   pruneOrgChartNodes,
@@ -26,6 +27,7 @@ export {
   getPrimarySupervisorId,
   getScopeMode,
   isOrgWideRole,
+  isHierarchyOrgWide,
   buildOrgChart,
   syncHierarchyOnManagerChange,
   pruneOrgChartNodes,
@@ -66,7 +68,7 @@ export function getScopeMemberIds(
   users: User[],
   teams: Team[] = []
 ): string[] | undefined {
-  if (isOrgWideRole(viewer.role)) return undefined;
+  if (isHierarchyOrgWide(viewer)) return undefined;
   if (viewer.role === "employee") return [viewer.id];
   return getTeamMemberIds(viewer, users, teams);
 }

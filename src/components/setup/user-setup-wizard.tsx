@@ -5,6 +5,7 @@ import { completeUserSetupAction } from "@/app/actions/setup";
 import { HierarchyPreviewCard } from "@/components/setup/hierarchy-preview-card";
 import { WizardStepper } from "@/components/work-creation/wizard-stepper";
 import { Button } from "@/components/ui/button";
+import { WizardDialogFooter, WizardDialogScroll } from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -144,22 +145,24 @@ export function UserSetupWizard({
   }
 
   return (
-    <div className="enterprise-panel p-5 space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <UserPlus className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <h3 className="font-semibold">
-            {mode === "create" ? "Guided user setup" : "Complete user setup"}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Answer a few questions — Flow builds the reporting chain, permissions, and dashboard scope automatically.
-          </p>
-        </div>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <WizardDialogScroll>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <UserPlus className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">
+                {mode === "create" ? "Guided user setup" : "Complete user setup"}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Answer a few questions — Flow builds the reporting chain, permissions, and dashboard scope automatically.
+              </p>
+            </div>
+          </div>
 
-      <WizardStepper steps={STEPS} current={step} />
+          <WizardStepper steps={STEPS} current={step} />
 
       {step === 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -304,7 +307,10 @@ export function UserSetupWizard({
 
       {step === 5 && <HierarchyPreviewCard preview={preview} />}
 
-      <div className="flex flex-wrap items-center gap-2 pt-2">
+        </div>
+      </WizardDialogScroll>
+
+      <WizardDialogFooter className="flex-wrap sm:justify-start">
         {step > 0 && (
           <Button type="button" variant="outline" onClick={() => setStep((s) => s - 1)} disabled={pending}>
             Back
@@ -319,10 +325,10 @@ export function UserSetupWizard({
             {pending ? "Saving…" : mode === "create" ? "Create user" : "Activate account"}
           </Button>
         )}
-      </div>
+      </WizardDialogFooter>
 
-      {success && <p className="text-sm text-emerald-400">{success}</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {success && <p className="shrink-0 text-sm text-emerald-400 pt-2">{success}</p>}
+      {error && <p className="shrink-0 text-sm text-red-400 pt-2">{error}</p>}
     </div>
   );
 }

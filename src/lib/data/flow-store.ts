@@ -1255,6 +1255,12 @@ export function createDailyWrapUp(input: {
   blockers?: string | null;
   needs_support?: boolean;
   needs_support_note?: string | null;
+  clocked_minutes?: number | null;
+  recorded_task_minutes?: number | null;
+  unassigned_minutes?: number | null;
+  task_tracking_compliance_pct?: number | null;
+  activity_documentation_category?: import("@/types/flow").ActivityDocumentationCategory | null;
+  activity_documentation_note?: string | null;
 }): DailyWrapUp {
   initFlowStore();
   const existing = dailyWrapUps.findIndex(
@@ -1269,6 +1275,12 @@ export function createDailyWrapUp(input: {
     blockers: input.blockers ?? null,
     needs_support: input.needs_support ?? false,
     needs_support_note: input.needs_support_note ?? null,
+    clocked_minutes: input.clocked_minutes ?? null,
+    recorded_task_minutes: input.recorded_task_minutes ?? null,
+    unassigned_minutes: input.unassigned_minutes ?? null,
+    task_tracking_compliance_pct: input.task_tracking_compliance_pct ?? null,
+    activity_documentation_category: input.activity_documentation_category ?? null,
+    activity_documentation_note: input.activity_documentation_note ?? null,
     created_at: ts(),
     reviewed_at: null,
     reviewed_by: null,

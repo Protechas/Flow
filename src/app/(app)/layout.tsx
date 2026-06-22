@@ -8,6 +8,7 @@ import { hydrateAppStore } from "@/lib/data/users";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
+import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { redirect } from "next/navigation";
 
 export default async function AppLayout({
@@ -21,6 +22,11 @@ export default async function AppLayout({
 
   if (isSupabaseConfigured()) {
     await hydrateAppStore();
+    await hydrateForecastSettings();
+    const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
+    await hydrateWorkloadAlertSettings();
+    const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
+    await hydrateHelpFlagSettings();
   } else {
     await hydrateForecastSettings();
     const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
@@ -39,6 +45,7 @@ export default async function AppLayout({
         <SidebarInset className="flow-layer-content min-h-svh">
           <AppHeader user={user} demoMode={demoMode && hasDemoCookie} />
           <main className="flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full">{children}</main>
+          <InnovationHubBubble />
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

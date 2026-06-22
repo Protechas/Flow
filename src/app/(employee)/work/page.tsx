@@ -16,6 +16,8 @@ import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listEmployeeHelpFlags } from "@/lib/help-flags/engine";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
+import { getTodayVisibilityForUser } from "@/lib/work-visibility/calculator";
+import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { format } from "date-fns";
 
 export default async function EmployeeWorkPage() {
@@ -46,6 +48,8 @@ export default async function EmployeeWorkPage() {
       wrapUpStatus={getWrapUpComplianceStatus(user.id, today)}
       helpFlags={helpFlags}
       workEligibility={getWorkEligibility(user)}
+      visibilityToday={getTodayVisibilityForUser(user.id)}
+      pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
     />
   );
 }

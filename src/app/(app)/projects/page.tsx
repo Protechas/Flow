@@ -1,7 +1,12 @@
-import { PageHeader } from "@/components/layout/page-header";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
+import {
+  FilterToolbar,
+  FlowPageShell,
+  PLATFORM_EYEBROWS,
+  WorkspaceContainer,
+} from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canDeleteProjects, hasPermission } from "@/lib/auth/permissions";
@@ -24,12 +29,13 @@ import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string }>;
+  searchParams: Promise<{ department?: string; projectId?: string; highlight?: string }>;
 }) {
   await requirePageAccess("/projects");
   const user = await getCurrentUser();
   if (!user) return null;
-  const { department: deptParam } = await searchParams;
+  const { department: deptParam, projectId, highlight } = await searchParams;
+  const initialProjectId = (projectId ?? highlight)?.trim() || undefined;
   const departmentFilter = parseDepartmentFilter({ department: deptParam });
 
   await hydrateForecastSettings();
@@ -99,18 +105,17 @@ export default async function ProjectsPage({
   const allowedModes = getAllowedCreationModes(user.role);
 
   return (
-    <>
-      <PageHeader
-        title={isBranchScoped ? "Team Projects" : "Project Portfolio"}
-        eyebrow="Flow Projects"
-        breadcrumbs={[{ label: isBranchScoped ? "Team Projects" : "Projects" }]}
-        description={
-          isBranchScoped
-            ? "Build projects, manufacturers, years, and tasks for your branch"
-            : "Create projects, manufacturers, and year work items"
-        }
-      >
-        <div className="flex flex-wrap items-center gap-2">
+    <FlowPageShell
+      title={isBranchScoped ? "Team Projects" : "Project Portfolio"}
+      eyebrow={PLATFORM_EYEBROWS.projects}
+      breadcrumbs={[{ label: isBranchScoped ? "Team Projects" : "Projects" }]}
+      description={
+        isBranchScoped
+          ? "Build and monitor projects, manufacturers, years, and tasks for your branch"
+          : "Scan project health, forecast risk, and work structure — then drill into manufacturers, years, and tasks"
+      }
+      headerActions={
+        <FilterToolbar>
           {allowedModes.length > 0 && (
             <NewWorkWizard
               user={user}
@@ -120,26 +125,35 @@ export default async function ProjectsPage({
               analysts={analysts}
               managers={projectOwners}
               forecastSettings={store.forecastSettings}
+              workPackages={store.workPackages}
             />
           )}
           <DepartmentFilterBar departments={departments} />
-        </div>
-      </PageHeader>
-      <ProjectWorkspace
-        projects={projects}
-        archivedProjects={archivedProjects}
-        manufacturers={scopedManufacturers}
-        yearItems={scopedYearItems}
-        workPackages={workPackages}
-        managers={projectOwners}
-        analysts={analysts}
-        forecastSettings={store.forecastSettings}
-        canEdit={hasPermission(user.role, "projects:edit")}
-        canDelete={canDeleteProjects(user.role)}
-        user={user}
-        departments={departments}
-        teams={listTeamsStore()}
-      />
-    </>
+        </FilterToolbar>
+      }
+      workspace={
+        <WorkspaceContainer elevated={false} bodyClassName="p-0">
+          <ProjectWorkspace
+            projects={projects}
+            archivedProjects={archivedProjects}
+            manufacturers={scopedManufacturers}
+            yearItems={scopedYearItems}
+            workPackages={workPackages}
+            managers={projectOwners}
+            analysts={analysts}
+            forecastSettings={store.forecastSettings}
+            canEdit={hasPermission(user.role, "projects:edit")}
+            canDelete={canDeleteProjects(user.role)}
+            user={user}
+            departments={departments}
+            teams={listTeamsStore()}
+            qaReviews={store.qaReviews}
+            activity={store.activity}
+            initialProjectId={initialProjectId}
+            highlightProjectId={highlight?.trim() || undefined}
+          />
+        </WorkspaceContainer>
+      }
+    />
   );
 }

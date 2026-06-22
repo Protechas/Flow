@@ -6,7 +6,7 @@ export function FlowHero({
   title,
   description,
   breadcrumbs,
-  eyebrow = "Operations Intelligence",
+  eyebrow = "Executive Operations",
   children,
   className,
 }: {

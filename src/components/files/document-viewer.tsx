@@ -21,12 +21,14 @@ export function DocumentViewer({
   title,
   fileName,
   mimeType,
+  backHref = "/files",
 }: {
   source: FileSource;
   id: string;
   title: string;
   fileName: string;
   mimeType: string;
+  backHref?: string;
 }) {
   const apiUrl =
     source === "company" ? companyDocumentDownloadHref(id) : taskFileDownloadHref(id);
@@ -119,7 +121,7 @@ export function DocumentViewer({
           <p className="text-sm text-muted-foreground truncate">{fileName}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" render={<Link href="/files" />}>
+          <Button variant="outline" size="sm" render={<Link href={backHref} />}>
             ← Back to Files
           </Button>
           <Button variant="secondary" size="sm" render={<a href={downloadUrl} download={fileName} />}>

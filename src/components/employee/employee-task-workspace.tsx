@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCommentAction } from "@/app/actions/crud";
@@ -16,6 +16,7 @@ import { HelpFlagDialog } from "@/components/help-flags/help-flag-dialog";
 import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
 import { HelpFlagStatusList } from "@/components/help-flags/help-flag-status";
 import { TaskFileUploadZone } from "@/components/employee/task-file-upload-zone";
+import { TaskSubmitChecklistPanel } from "@/components/employee/task-submit-checklist";
 import { TaskLiveForecastPanel } from "@/components/forecast/task-live-forecast-panel";
 import { ProductionMetricsPanel } from "@/components/production/production-metrics-panel";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
@@ -23,8 +24,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import {
+  EmployeeWorkflowProvider,
+  useEmployeeWorkflow,
+} from "@/components/employee/employee-workflow-context";
 import { formatActionError } from "@/lib/errors/action-messages";
 import type { WorkEligibility } from "@/lib/work-eligibility";
+import type { EmployeeWorkflowInput } from "@/lib/employee/workflow-state";
 import { computeProductionMetrics, formatMinutes } from "@/lib/production/metrics";
 import { WORK_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -69,6 +75,30 @@ function useTimerDisplay(entry: TaskTimeEntry | null) {
 }
 
 export function EmployeeTaskWorkspace({
+  workflowInput,
+  ...props
+}: {
+  task: WorkPackage;
+  comments: Comment[];
+  files: TaskFileUpload[];
+  userId: string;
+  autostart?: boolean;
+  activeTimer: TaskTimeEntry | null;
+  anyActiveTimer: TaskTimeEntry | null;
+  totalMinutes: number;
+  latestSubmission: TaskSubmissionRecord | null;
+  helpFlags?: HelpFlagView[];
+  workEligibility: WorkEligibility;
+  workflowInput: EmployeeWorkflowInput;
+}) {
+  return (
+    <EmployeeWorkflowProvider input={workflowInput}>
+      <EmployeeTaskWorkspaceContent {...props} />
+    </EmployeeWorkflowProvider>
+  );
+}
+
+function EmployeeTaskWorkspaceContent({
   task,
   comments,
   files,
@@ -93,23 +123,27 @@ export function EmployeeTaskWorkspace({
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
 }) {
+  const wf = useEmployeeWorkflow();
   const router = useRouter();
   const { toast } = useFlowToast();
   const [pending, startTransition] = useTransition();
   const [notes, setNotes] = useState(task.notes ?? "");
   const [showNotes, setShowNotes] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);
+  const [autostartFailed, setAutostartFailed] = useState(false);
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState(
     "You must be clocked in before starting work."
   );
+  const autostartAttempted = useRef(false);
 
-  const canPerformWork = workEligibility.eligible;
-
+  const canPerformWork = wf.workEligible;
   const timerOnThisTask = activeTimer?.task_id === task.id ? activeTimer : null;
   const display = useTimerDisplay(timerOnThisTask);
   const running = timerOnThisTask?.status === "active";
   const paused = timerOnThisTask?.status === "paused";
+  const isThisActiveTask = wf.activeTaskId === task.id;
+  const isThisStagedTask = wf.stagedTaskId === task.id;
 
   const pkgComments = comments.filter((c) => c.work_package_id === task.id);
   const statusLabel = WORK_STATUSES.find((s) => s.value === task.status)?.label ?? task.status;
@@ -120,6 +154,9 @@ export function EmployeeTaskWorkspace({
 
   const otherActive =
     anyActiveTimer && anyActiveTimer.task_id !== task.id ? anyActiveTimer : null;
+
+  const startButtonLabel =
+    isThisStagedTask && !timerOnThisTask ? "Start Task Timer" : "Start task";
 
   function openEligibilityGate(message?: string) {
     if (workEligibility.status === "needs_setup") {
@@ -133,21 +170,45 @@ export function EmployeeTaskWorkspace({
     setEligibilityGateOpen(true);
   }
 
+  function reportTimerFailure(message: string, opts?: { gate?: boolean }) {
+    setWarn(message);
+    setAutostartFailed(true);
+    toast({ variant: "error", title: "Could not start task timer", description: message });
+    if (opts?.gate) openEligibilityGate(message);
+  }
+
   useEffect(() => {
-    if (autostart && canWork && canPerformWork && !anyActiveTimer) {
-      startTransition(async () => {
-        const res = await startTaskTimerAction(task.id);
-        if (!res.ok) {
-          if ("message" in res && res.message) {
-            openEligibilityGate(res.message);
-          } else {
-            setWarn("Finish your current active task before starting another.");
-          }
+    if (autostartAttempted.current) return;
+
+    const shouldAttempt =
+      Boolean(autostart) || (isThisStagedTask && canWork && canPerformWork && !timerOnThisTask);
+    if (!shouldAttempt || !canWork || !canPerformWork || timerOnThisTask || otherActive) return;
+
+    autostartAttempted.current = true;
+    startTransition(async () => {
+      const res = await startTaskTimerAction(task.id);
+      if (!res.ok) {
+        if ("message" in res && res.message) {
+          reportTimerFailure(res.message, { gate: true });
+        } else {
+          reportTimerFailure("Finish your current active task before starting another.");
         }
-        router.refresh();
-      });
-    }
-  }, [autostart, task.id, canWork, canPerformWork, anyActiveTimer, router]);
+        return;
+      }
+      setAutostartFailed(false);
+      setWarn(null);
+      router.refresh();
+    });
+  }, [
+    autostart,
+    task.id,
+    canWork,
+    canPerformWork,
+    timerOnThisTask,
+    otherActive,
+    isThisStagedTask,
+    router,
+  ]);
 
   function handleStart() {
     if (!canPerformWork) {
@@ -155,13 +216,14 @@ export function EmployeeTaskWorkspace({
       return;
     }
     setWarn(null);
+    setAutostartFailed(false);
     startTransition(async () => {
       const res = await startTaskTimerAction(task.id);
       if (!res.ok) {
         if ("message" in res && res.message) {
-          openEligibilityGate(res.message);
+          reportTimerFailure(res.message, { gate: true });
         } else {
-          setWarn("You already have an active task. Stop or pause it before starting this one.");
+          reportTimerFailure("You already have an active task. Stop or pause it before starting this one.");
         }
         return;
       }
@@ -181,10 +243,11 @@ export function EmployeeTaskWorkspace({
       openEligibilityGate("You must be clocked in before resuming work.");
       return;
     }
+    setAutostartFailed(false);
     startTransition(async () => {
       const res = await resumeTaskTimerAction();
       if (!res.ok && "message" in res && res.message) {
-        openEligibilityGate(res.message);
+        reportTimerFailure(res.message, { gate: true });
         return;
       }
       router.refresh();
@@ -255,6 +318,30 @@ export function EmployeeTaskWorkspace({
         <StatusBadge status={task.status} />
       </div>
 
+      <div
+        className={cn(
+          "mb-4 rounded-lg border px-4 py-3",
+          wf.statusAccent === "success" && "border-emerald-500/30 bg-emerald-500/10",
+          wf.statusAccent === "warning" && "border-amber-500/30 bg-amber-500/10",
+          wf.statusAccent === "danger" && "border-red-500/30 bg-red-500/10",
+          wf.statusAccent === "neutral" && "border-border/60 bg-muted/10"
+        )}
+      >
+        <p className="text-sm font-semibold">{wf.statusTitle}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{wf.statusDescription}</p>
+        {isThisActiveTask && running && (
+          <p className="text-xs text-emerald-400 mt-2 font-medium">Timer running on this task</p>
+        )}
+        {isThisActiveTask && paused && (
+          <p className="text-xs text-amber-400 mt-2 font-medium">Timer paused — resume to continue tracking</p>
+        )}
+        {isThisStagedTask && !timerOnThisTask && (
+          <p className="text-xs text-amber-400 mt-2 font-medium">
+            Timer not started — click {startButtonLabel} to begin tracking work.
+          </p>
+        )}
+      </div>
+
       {otherActive && (
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -267,9 +354,9 @@ export function EmployeeTaskWorkspace({
         </div>
       )}
 
-      {warn && (
+      {(warn || autostartFailed) && (
         <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {warn}
+          {warn ?? "The task timer could not start automatically. Use the button below to start manually."}
         </div>
       )}
 
@@ -340,7 +427,7 @@ export function EmployeeTaskWorkspace({
                   disabled={pending || !!otherActive || !canPerformWork}
                 >
                   <Play className="h-4 w-4 mr-2" />
-                  Start task
+                  {startButtonLabel}
                 </Button>
               )}
               {running && (
@@ -392,7 +479,7 @@ export function EmployeeTaskWorkspace({
           <TaskFileUploadZone
             taskId={task.id}
             files={files}
-            disabled={!canWork || pending || !canPerformWork}
+            disabled={!canWork || pending || !canPerformWork || !wf.actions.uploadFiles}
             onUploaded={() => router.refresh()}
           />
         </section>
@@ -455,7 +542,8 @@ export function EmployeeTaskWorkspace({
 
       {canWork && canSubmit && (
         <div className="fixed bottom-0 left-0 right-0 sm:relative sm:mt-6 p-4 sm:p-0 bg-background/95 sm:bg-transparent border-t sm:border-0 border-border/60 backdrop-blur-md">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-3">
+            <TaskSubmitChecklistPanel taskId={task.id} refreshKey={files.length} />
             <Button
               className="w-full h-12"
               disabled={pending || files.length < 1 || !canPerformWork}

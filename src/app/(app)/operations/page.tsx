@@ -1,10 +1,17 @@
 import { OperationsBoard } from "@/components/operations/operations-board";
-import { PageHeader } from "@/components/layout/page-header";
 import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
 import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
 import { HelpFlagsPanel } from "@/components/help-flags/help-flags-panel";
-import { requirePageAccess } from "@/lib/auth/guard";
+import {
+  FlowPageShell,
+  FilterToolbar,
+  LiveActivityStream,
+  OperationalPostureStrip,
+  PLATFORM_EYEBROWS,
+  WorkspaceContainer,
+} from "@/components/platform";
+import { requirePageAccess, requireWorkPackageAccess } from "@/lib/auth/guard";
 import {
   canAssignWork,
   canDeleteProjects,
@@ -35,21 +42,38 @@ import { getActiveDepartments } from "@/lib/departments/filters";
 import { resolveDepartmentForProject } from "@/lib/departments/resolve";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
-import { parseOpsViewParam } from "@/lib/navigation/deep-links";
+import { parseOpsViewParam, alertCenterHref } from "@/lib/navigation/deep-links";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import { OperationsPlanningProvider } from "@/components/operations/operations-planning-context";
+import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
+import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
+import { listActivityGapsForViewer } from "@/lib/work-visibility/engine";
+import { runWorkflowChecksAction } from "@/app/actions/notifications";
 
 export default async function OperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string; search?: string; package?: string; view?: string }>;
+  searchParams: Promise<{ department?: string; search?: string; package?: string; taskId?: string; view?: string }>;
 }) {
   const user = await requirePageAccess("/operations");
-  const { department: deptParam, search: searchParam, package: packageParam, view: viewParam } =
-    await searchParams;
+  const {
+    department: deptParam,
+    search: searchParam,
+    package: packageParam,
+    taskId: taskIdParam,
+    view: viewParam,
+  } = await searchParams;
+  const resolvedPackageId = (packageParam ?? taskIdParam)?.trim();
+  if (resolvedPackageId) {
+    await requireWorkPackageAccess(resolvedPackageId, "/operations");
+  }
   const initialViewId = parseOpsViewParam(viewParam);
   await hydrateForecastSettings();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
+  await hydrateWorkVisibilitySettings();
+  await runWorkflowChecksAction();
   initFlowStore();
   initProductionTracking();
   const store = getFlowStore();
@@ -101,21 +125,89 @@ export default async function OperationsPage({
       ? listHelpFlagsForViewer(user, packages, store.users)
       : [];
 
+  const activityGaps =
+    ["admin", "super_admin", "senior_manager", "manager", "teamlead"].includes(user.role)
+      ? listActivityGapsForViewer(user, store.users)
+      : [];
+
+  let activePackages = 0;
+  let inProgress = 0;
+  for (const projectNode of tree.projects) {
+    for (const mfrNode of projectNode.manufacturers) {
+      for (const yearNode of mfrNode.years) {
+        activePackages += yearNode.packages.length;
+        inProgress += yearNode.packages.filter(
+          (p) => p.status === "working_on_it" || p.status === "assigned"
+        ).length;
+      }
+    }
+  }
+  const recentActivity = [...store.activity]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 10);
+  const hasSignals = helpFlags.length > 0 || workloadAlerts.length > 0 || activityGaps.length > 0;
+
+  const planningContext = {
+    viewer: user,
+    workPackages: packages,
+    projects: store.projects.filter((p) => p.status === "active"),
+    teams: teams.map((t) => ({ id: t.id, department_id: t.department_id ?? "" })),
+    departments: departments.map((d) => ({ id: d.id, name: d.name })),
+  };
+
   return (
-    <>
-      <PageHeader
-        title="Operations Workspace"
-        eyebrow="Flow Operations"
-        breadcrumbs={[{ label: "Operations" }]}
-        description={
-          isTeamLeadRole(user.role)
-            ? "Manage team boards, projects, and tasks — update status, assign work, and submit to QA."
-            : viewOwnOnly
-              ? "Your assigned work — update status, log time, and submit to QA."
-              : "Primary operations workspace — manage projects, manufacturers, years, and work packages."
-        }
-      >
-        <div className="flex flex-wrap items-center gap-2">
+    <FlowPageShell
+      title="Operations Workspace"
+      eyebrow={PLATFORM_EYEBROWS.operations}
+      breadcrumbs={[{ label: "Operations" }]}
+      description={
+        isTeamLeadRole(user.role)
+          ? "Manage team boards, projects, and tasks — update status, assign work, and submit to QA."
+          : viewOwnOnly
+            ? "Your assigned work — update status, log time, and submit to QA."
+            : "Primary operations workspace — manage projects, manufacturers, years, and work packages."
+      }
+      pulse={
+        <OperationalPostureStrip
+          signals={[
+            {
+              id: "active",
+              label: OPS_COPY.workPackages,
+              value: activePackages,
+              status: inProgress > 0 ? "active" : "idle",
+            },
+            {
+              id: "progress",
+              label: OPS_COPY.inProgress,
+              value: inProgress,
+              status: inProgress > 0 ? "active" : "idle",
+            },
+            {
+              id: "help",
+              label: OPS_COPY.openEscalations,
+              value: helpFlags.length,
+              status: helpFlags.length > 0 ? "critical" : "healthy",
+              href: alertCenterHref({ type: "help" }),
+            },
+            {
+              id: "workload",
+              label: OPS_COPY.availableCapacity,
+              value: workloadAlerts.length,
+              status: workloadAlerts.length > 0 ? "attention" : "healthy",
+              href: alertCenterHref({ type: "workload" }),
+            },
+            {
+              id: "activity_gaps",
+              label: OPS_COPY.activityGap,
+              value: activityGaps.length,
+              status: activityGaps.length > 0 ? "attention" : "healthy",
+              href: alertCenterHref({ type: "activity_gaps" }),
+            },
+          ]}
+        />
+      }
+      filters={
+        <FilterToolbar>
           {allowedModes.length > 0 && !isReadOnly(user.role) && (
             <NewWorkWizard
               user={user}
@@ -125,42 +217,61 @@ export default async function OperationsPage({
               analysts={scopedAnalysts}
               managers={managers}
               forecastSettings={store.forecastSettings}
+              workPackages={store.workPackages}
             />
           )}
           <DepartmentFilterBar departments={departments} />
-        </div>
-      </PageHeader>
-      {workloadAlerts.length > 0 && (
-        <div className="mb-6">
-          <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} compact />
-        </div>
-      )}
-      {helpFlags.length > 0 && (
-        <div className="mb-6">
-          <HelpFlagsPanel flags={helpFlags} role={user.role} compact />
-        </div>
-      )}
-      <OperationsBoard
-        tree={tree}
-        initialSearch={searchParam?.trim() ?? ""}
-        initialPackageId={packageParam?.trim() || undefined}
-        initialViewId={initialViewId}
-        taskFileUploads={getAllTaskFileUploads()}
-        analysts={scopedAnalysts}
-        currentUserId={user.id}
-        teamUserIds={teamUserIds}
-        canEdit={canEditWork(user.role)}
-        canAssign={canAssignWork(user.role)}
-        canManageProjects={hasPermission(user.role, "projects:edit")}
-        canDeleteProjects={canDeleteProjects(user.role)}
-        canDeleteWork={hasPermission(user.role, "work:delete")}
-        canSubmitQa={canSubmitToQa(user.role)}
-        canEditQa={canReviewQa(user.role)}
-        readOnly={isReadOnly(user.role)}
-        comments={store.comments}
-        timeLogs={store.timeLogs}
-        forecastSettings={store.forecastSettings}
-      />
-    </>
+        </FilterToolbar>
+      }
+      alerts={
+        workloadAlerts.length > 0 || helpFlags.length > 0 || activityGaps.length > 0 ? (
+          <div className="space-y-4">
+            {activityGaps.length > 0 && (
+              <ActivityGapsPanel gaps={activityGaps} compact />
+            )}
+            {workloadAlerts.length > 0 && (
+              <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} compact />
+            )}
+            {helpFlags.length > 0 && (
+              <HelpFlagsPanel flags={helpFlags} role={user.role} compact />
+            )}
+          </div>
+        ) : undefined
+      }
+      workspace={
+        <OperationsPlanningProvider value={planningContext}>
+          <WorkspaceContainer elevated={false} bodyClassName="space-y-6 p-0 flow-operations-workspace">
+            <OperationsBoard
+            tree={tree}
+            initialSearch={searchParam?.trim() ?? ""}
+            initialPackageId={resolvedPackageId || undefined}
+            initialViewId={initialViewId}
+            taskFileUploads={getAllTaskFileUploads()}
+            analysts={scopedAnalysts}
+            currentUserId={user.id}
+            teamUserIds={teamUserIds}
+            canEdit={canEditWork(user.role)}
+            canAssign={canAssignWork(user.role)}
+            canManageProjects={hasPermission(user.role, "projects:edit")}
+            canDeleteProjects={canDeleteProjects(user.role)}
+            canDeleteWork={hasPermission(user.role, "work:delete")}
+            canSubmitQa={canSubmitToQa(user.role)}
+            canEditQa={canReviewQa(user.role)}
+            readOnly={isReadOnly(user.role)}
+            comments={store.comments}
+            timeLogs={store.timeLogs}
+            forecastSettings={store.forecastSettings}
+          />
+          <LiveActivityStream
+            events={recentActivity}
+            title="Operations Activity"
+            description="Live status changes, assignments, and QA events"
+            maxItems={8}
+            pulseStatus={hasSignals ? "attention" : inProgress > 0 ? "nominal" : "nominal"}
+          />
+        </WorkspaceContainer>
+        </OperationsPlanningProvider>
+      }
+    />
   );
 }

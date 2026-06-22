@@ -12,8 +12,8 @@ export default async function UnauthorizedPage() {
       <div className="text-center space-y-4 max-w-md">
         <h1 className="text-2xl font-semibold">Access denied</h1>
         <p className="text-muted-foreground text-sm">
-          You do not have permission to view this page. Contact an administrator if
-          you believe this is an error.
+          You do not have access to this item. Contact an administrator if you
+          believe this is an error.
         </p>
         <Button render={<Link href={home} />}>Go to your home</Button>
       </div>

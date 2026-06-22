@@ -35,7 +35,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="flow-layer-1-app min-h-full flex flex-col">
         <FlowProviders>{children}</FlowProviders>
       </body>
     </html>

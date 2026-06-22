@@ -52,6 +52,7 @@ export async function uploadCompanyDocumentAction(formData: FormData) {
       uploaded_by: user.id,
     });
     revalidatePath("/files");
+    revalidatePath("/work/files");
     return { ok: true as const };
   } catch (e) {
     return {
@@ -70,6 +71,7 @@ export async function deleteCompanyDocumentAction(documentId: string) {
   try {
     await deleteCompanyDocument(documentId);
     revalidatePath("/files");
+    revalidatePath("/work/files");
     return { ok: true as const };
   } catch (e) {
     return {

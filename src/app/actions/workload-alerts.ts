@@ -10,6 +10,7 @@ import { writeWorkloadAlertSettingsCookie } from "@/lib/workload-alerts/settings
 import { updateWorkloadAlertStatus } from "@/lib/workload-alerts/store";
 import { listWorkloadAlertRecords } from "@/lib/workload-alerts/store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { persistWorkloadAlertSettingsToSupabase } from "@/lib/settings/supabase-settings";
 import type { WorkloadAlertSettings } from "@/types/flow";
 
 const PATHS = [
@@ -49,6 +50,8 @@ export async function updateWorkloadAlertSettingsAction(input: {
 
   if (!isSupabaseConfigured()) {
     await writeWorkloadAlertSettingsCookie(settings);
+  } else {
+    await persistWorkloadAlertSettingsToSupabase(settings, user.id);
   }
 
   PATHS.forEach((p) => revalidatePath(p));

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { assertCanEditWorkPackage } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { assertWorkEligible, checkWorkEligible } from "@/lib/work-eligibility";
+import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import {
   getActiveTaskTimeEntry,
   getLatestSubmission,
@@ -47,7 +48,14 @@ export async function startTaskTimerAction(taskId: string, managerOverride?: boo
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to start task";
     if (msg.startsWith("ACTIVE_TASK:")) {
-      return { ok: false as const, activeTaskId: msg.replace("ACTIVE_TASK:", "") };
+      const activeId = msg.replace("ACTIVE_TASK:", "");
+      await recordBlockedWorkAttempt(
+        user,
+        "start_timer",
+        "You already have an active task. Pause or complete the current task before starting another.",
+        activeId
+      );
+      return { ok: false as const, activeTaskId: activeId, code: "ACTIVE_TASK_CONFLICT" };
     }
     throw e;
   }
@@ -141,7 +149,16 @@ export async function submitTaskForReviewAction(
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
-    return { ok: false as const, message: e instanceof Error ? e.message : "Submission failed" };
+    const message = e instanceof Error ? e.message : "Submission failed";
+    if (message.includes("file is required")) {
+      await recordBlockedWorkAttempt(
+        user,
+        "submit_task",
+        "Required files must be uploaded before this task can be submitted.",
+        taskId
+      );
+    }
+    return { ok: false as const, message };
   }
 }
 

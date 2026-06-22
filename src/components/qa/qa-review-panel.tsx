@@ -50,20 +50,26 @@ export function QaReviewPanel({
       setSelectedId(initialPackageId);
     }
   }, [initialPackageId, queue]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const selected = queue.find((q) => q.id === selectedId);
 
   function submit(result: QaResult, form: FormData) {
     if (!selected?.assigned_to) return;
     startTransition(async () => {
-      await submitQaReviewAction({
-        workPackageId: selected.id,
-        reviewerId: reviewer.id,
-        analystId: selected.assigned_to!,
-        result,
-        notes: (form.get("notes") as string) || undefined,
-        errorCategory: (form.get("error_category") as string) || undefined,
-      });
-      setSelectedId(queue.find((q) => q.id !== selectedId)?.id ?? "");
+      setSubmitError(null);
+      try {
+        await submitQaReviewAction({
+          workPackageId: selected.id,
+          reviewerId: reviewer.id,
+          analystId: selected.assigned_to!,
+          result,
+          notes: (form.get("notes") as string) || undefined,
+          errorCategory: (form.get("error_category") as string) || undefined,
+        });
+        setSelectedId(queue.find((q) => q.id !== selectedId)?.id ?? "");
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : "QA review could not be saved.");
+      }
     });
   }
 
@@ -198,6 +204,7 @@ export function QaReviewPanel({
               </div>
             </form>
             )}
+            {submitError && <p className="text-sm text-destructive mb-3">{submitError}</p>}
             {canReview && (
             <div className="flex flex-wrap gap-2">
               {QA_RESULTS.map((r) => (

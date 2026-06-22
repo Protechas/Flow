@@ -1,10 +1,10 @@
 import type { NotificationCategory, NotificationType } from "@/types/flow";
 
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
-  help: "Needs Help",
-  workload: "Running Out of Work",
-  wrap_up: "Wrap-Ups",
-  forecast: "Forecast Risk",
+  help: "Open Escalations",
+  workload: "Available Capacity",
+  wrap_up: "Daily Reports",
+  forecast: "Projects At Risk",
   qa: "QA",
   task: "Tasks",
   project: "Projects",
@@ -22,6 +22,7 @@ export const NOTIFICATION_TYPE_CATEGORY: Record<NotificationType, NotificationCa
   workload_empty: "workload",
   workload_needs_estimate: "workload",
   workload_clocked_idle: "workload",
+  activity_gap: "workload",
   missing_wrap_up: "wrap_up",
   work_eligibility_alert: "workload",
   forecast_risk: "forecast",
@@ -43,17 +44,18 @@ export const NOTIFICATION_TYPE_CATEGORY: Record<NotificationType, NotificationCa
 };
 
 export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>> = {
-  help_flag_raised: "Employee needs help",
-  help_flag_escalated: "Help flag escalated",
-  help_flag_acknowledged: "Help acknowledged",
-  help_flag_resolved: "Help resolved",
-  workload_low: "Running low on work",
+  help_flag_raised: "Employee escalation opened",
+  help_flag_escalated: "Escalation elevated",
+  help_flag_acknowledged: "Escalation acknowledged",
+  help_flag_resolved: "Escalation resolved",
+  workload_low: "Low assigned workload",
   workload_empty: "No assigned work",
   workload_needs_estimate: "Needs work estimate",
   workload_clocked_idle: "Clocked in without work",
-  missing_wrap_up: "Missing wrap-up",
+  activity_gap: "Activity gap",
+  missing_wrap_up: "Outstanding daily report",
   work_eligibility_alert: "Off-clock work attempt",
-  forecast_risk: "Forecast at risk",
+  forecast_risk: "Project at risk",
   qa_review_needed: "QA review needed",
   qa_passed: "QA passed",
   qa_rejected: "QA rejected",

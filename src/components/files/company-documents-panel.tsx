@@ -39,9 +39,11 @@ function categoryLabel(category: string) {
 export function CompanyDocumentsPanel({
   documents,
   canManage,
+  employeeView = false,
 }: {
   documents: CompanyDocumentView[];
   canManage: boolean;
+  employeeView?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useFlowToast();
@@ -214,7 +216,7 @@ export function CompanyDocumentsPanel({
                   <tr key={doc.id} className="border-b border-border/40 hover:bg-muted/20">
                     <td className="px-4 py-3">
                       <Link
-                        href={fileViewHref("company", doc.id)}
+                        href={fileViewHref("company", doc.id, { employee: employeeView })}
                         className="font-medium text-primary hover:underline"
                       >
                         {doc.title}

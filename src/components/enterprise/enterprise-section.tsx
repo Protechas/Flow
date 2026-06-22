@@ -8,19 +8,20 @@ export function EnterpriseSection({
   actions,
   className,
   workspace,
+  id,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
-  /** Render inside elevated workspace container */
   workspace?: boolean;
+  id?: string;
 }) {
   if (workspace) {
     return (
-      <section className={cn("space-y-3", className)}>
-        <FlowWorkspace title={title} description={description} actions={actions}>
+      <section id={id} className={cn("space-y-3", className)}>
+        <FlowWorkspace title={title} description={description} actions={actions} className="flow-material-workspace">
           {children}
         </FlowWorkspace>
       </section>
@@ -28,7 +29,7 @@ export function EnterpriseSection({
   }
 
   return (
-    <section className={cn("space-y-3", className)}>
+    <section id={id} className={cn("space-y-3", className)}>
       <div className="flex items-start justify-between gap-4 flow-section-header">
         <div>
           <h2 className="enterprise-section-title">{title}</h2>

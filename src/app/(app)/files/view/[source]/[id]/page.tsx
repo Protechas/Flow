@@ -28,6 +28,7 @@ export default async function FileViewPage({
         title={doc.title}
         fileName={doc.file_name}
         mimeType={doc.mime_type}
+        backHref="/files"
       />
     );
   }
@@ -50,6 +51,7 @@ export default async function FileViewPage({
         title={file.file_name}
         fileName={file.file_name}
         mimeType={file.file_type}
+        backHref="/files"
       />
     );
   }

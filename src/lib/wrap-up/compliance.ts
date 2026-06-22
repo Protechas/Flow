@@ -36,6 +36,27 @@ export function requiresWrapUpForClockOut(user: Pick<User, "role" | "pay_type">)
   return requiresShiftClock(user);
 }
 
+/** Wrap-up completion % for a set of users on a given date (hourly employees only). */
+export function getWrapUpCompletionPctForUsers(
+  userIds: string[],
+  wrapDate: string = format(new Date(), "yyyy-MM-dd")
+): number {
+  initFlowStore();
+  const store = getFlowStore();
+  const requiredIds = userIds.filter((id) => {
+    const user = store.users.find((u) => u.id === id);
+    return user?.is_active && requiresShiftClock(user);
+  });
+  if (requiredIds.length === 0) return 100;
+
+  const submitted = requiredIds.filter((id) => {
+    const status = getWrapUpComplianceStatus(id, wrapDate);
+    return status === "submitted" || status === "overridden";
+  }).length;
+
+  return Math.round((submitted / requiredIds.length) * 100);
+}
+
 export function buildDailyWrapUpComplianceReport(
   users: User[],
   wrapDate: string = format(new Date(), "yyyy-MM-dd")

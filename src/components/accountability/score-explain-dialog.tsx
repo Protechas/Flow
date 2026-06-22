@@ -2,11 +2,15 @@
 
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogHeader,
+  WizardDialogScroll,
+} from "@/components/ui/wizard-dialog";
 import type { ComponentScore, FlowScoreBreakdown } from "@/types/flow";
 
 export function ScoreExplainDialog({
@@ -25,16 +29,18 @@ export function ScoreExplainDialog({
       <DialogTrigger render={<button type="button" className="text-left w-full" />}>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="md">
+        <WizardDialogHeader>
           <DialogTitle>
             {title}: {score}
             <span className="text-muted-foreground font-normal text-sm ml-2">
               ({Math.round(breakdown.weight * 100)}% of Flow Score)
             </span>
           </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 text-sm">
+        </WizardDialogHeader>
+        <WizardDialogBody>
+          <WizardDialogScroll>
+            <div className="space-y-4 text-sm">
           <p className="text-muted-foreground">
             Calculated from live work_packages, qa_reviews, corrections, activity_events, and
             time_logs. Each factor contributes to the component score.
@@ -61,8 +67,10 @@ export function ScoreExplainDialog({
             <span>Component score</span>
             <span className="tabular-nums">{breakdown.score}</span>
           </div>
-        </div>
-      </DialogContent>
+            </div>
+          </WizardDialogScroll>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }
@@ -79,11 +87,13 @@ export function FlowScoreExplainDialog({
       <DialogTrigger render={<button type="button" className="text-left" />}>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="lg">
+        <WizardDialogHeader>
           <DialogTitle>Flow Score: {breakdown.flowScore}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground mb-4">{breakdown.formula}</p>
+        </WizardDialogHeader>
+        <WizardDialogBody>
+          <WizardDialogScroll>
+            <p className="text-sm text-muted-foreground mb-4">{breakdown.formula}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {(
             [
@@ -111,10 +121,12 @@ export function FlowScoreExplainDialog({
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-4">
-          Last calculated {new Date(breakdown.calculatedAt).toLocaleString()}
-        </p>
-      </DialogContent>
+            <p className="text-xs text-muted-foreground mt-4">
+              Last calculated {new Date(breakdown.calculatedAt).toLocaleString()}
+            </p>
+          </WizardDialogScroll>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

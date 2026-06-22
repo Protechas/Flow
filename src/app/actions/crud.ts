@@ -50,6 +50,7 @@ import type {
 import type { ProjectTemplateId } from "@/lib/templates/project-templates";
 import { createQuickTask, type QuickTaskInput } from "@/lib/data/create-work-setup";
 import type { ForecastComplexityLevel } from "@/types/flow";
+import { syncDerivedOperationalAlerts } from "@/lib/integrations/sync-derived-alerts";
 
 const PATHS = [
   "/operations",
@@ -61,11 +62,17 @@ const PATHS = [
   "/reports",
   "/work",
   "/performance",
-  "/people",
+  "/planning",
+  "/alert-center",
 ];
 
 function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));
+}
+
+function afterWorkMutation() {
+  syncDerivedOperationalAlerts();
+  revalidateAll();
 }
 
 function assertEmployeeStatusChange(
@@ -365,7 +372,7 @@ export async function createWorkPackageAction(input: WorkPackageInput) {
   if (hasPermission(user.role, "projects:edit")) {
     if (input.assigned_to) await assertCanAssignWorkPackage(user, input.assigned_to);
     const p = createWorkPackage(input);
-    revalidateAll();
+    afterWorkMutation();
     return p;
   }
   throw new Error("FORBIDDEN");
@@ -388,7 +395,7 @@ export async function updateWorkPackageAction(id: string, updates: Partial<WorkP
       metadata: { status: updates.status },
     });
   }
-  revalidateAll();
+  afterWorkMutation();
   return p;
 }
 

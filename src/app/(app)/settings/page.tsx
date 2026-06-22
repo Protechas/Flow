@@ -79,6 +79,9 @@ export default async function SettingsPage() {
                 <Button variant="outline" size="sm" render={<Link href="/settings/users" />}>
                   Manage users
                 </Button>
+                <Button variant="outline" size="sm" render={<Link href="/system-health" />}>
+                  System health
+                </Button>
                 <Button variant="outline" size="sm" render={<Link href="/settings/departments" />}>
                   Manage departments
                 </Button>
@@ -87,6 +90,9 @@ export default async function SettingsPage() {
                 </Button>
                 <Button variant="outline" size="sm" render={<Link href="/settings/workload-alerts" />}>
                   Workload alerts
+                </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/work-visibility" />}>
+                  Work visibility
                 </Button>
               </>
             )}

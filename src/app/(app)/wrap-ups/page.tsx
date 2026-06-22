@@ -1,8 +1,13 @@
-import { PageHeader } from "@/components/layout/page-header";
 import { WrapUpReviewCenter } from "@/components/wrap-up/wrap-up-review-center";
-import { requirePageAccess } from "@/lib/auth/guard";
+import {
+  FlowPageShell,
+  KpiStrip,
+  OperationalPostureStrip,
+  PLATFORM_EYEBROWS,
+  WorkspaceContainer,
+} from "@/components/platform";
+import { requirePageAccess, assertScopedUserIdParam, requireWrapUpAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getTeamMemberIds } from "@/lib/auth/team-scope";
 import { filterDepartmentsForViewer } from "@/lib/departments/scope";
 import { getActiveDepartments } from "@/lib/departments/filters";
 import {
@@ -18,6 +23,7 @@ import {
   getWrapUpVisibleUserIds,
 } from "@/lib/wrap-up/review";
 import { format, subDays } from "date-fns";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 
 export default async function WrapUpsPage({
   searchParams,
@@ -35,9 +41,18 @@ export default async function WrapUpsPage({
   initFlowStore();
   const store = getFlowStore();
 
+  const visibleIds = getWrapUpVisibleUserIds(user);
+  assertScopedUserIdParam(
+    user,
+    userId,
+    visibleIds ?? store.users.filter((u) => u.is_active).map((u) => u.id)
+  );
+  if (id?.trim()) {
+    await requireWrapUpAccess(id.trim());
+  }
+
   const departments = getActiveDepartments(filterDepartmentsForViewer(listDepartments(), user));
   const teams = listTeamsStore();
-  const visibleIds = getWrapUpVisibleUserIds(user);
   const employees = store.users.filter(
     (u) =>
       u.is_active &&
@@ -55,25 +70,70 @@ export default async function WrapUpsPage({
     hasPermission(user.role, "work:view_all") || hasPermission(user.role, "people:view_team");
 
   return (
-    <>
-      <PageHeader
-        title="Daily Wrap-Up Review"
-        description="Review end-of-day submissions from your team — blockers, support requests, and shift summaries"
-      />
-      <WrapUpReviewCenter
-        rows={rows}
-        stats={stats}
-        departments={departments}
-        teams={teams}
-        employees={employees}
-        detail={detail}
-        canReview={canReview}
-        selectedId={id ?? null}
-        initialStatus={status === "submitted" || status === "missing" || status === "overridden" ? status : undefined}
-        initialReviewed={reviewed === "reviewed" || reviewed === "unreviewed" ? reviewed : undefined}
-        initialFollowUp={followUp === "1"}
-        initialUserId={userId}
-      />
-    </>
+    <FlowPageShell
+      title="Daily Report Review"
+      eyebrow={PLATFORM_EYEBROWS.wrapUps}
+      breadcrumbs={[{ label: "Daily Reports" }]}
+      description="Review end-of-day reports from your team — blockers, support requests, and shift summaries"
+      pulse={
+        <OperationalPostureStrip
+          signals={[
+            {
+              id: "missing",
+              label: OPS_COPY.outstandingDailyReports,
+              value: stats.missingToday,
+              status: stats.missingToday > 0 ? "attention" : "healthy",
+            },
+            {
+              id: "unreviewed",
+              label: "Unreviewed",
+              value: stats.unreviewed,
+              status: stats.unreviewed > 0 ? "attention" : "healthy",
+            },
+            {
+              id: "followup",
+              label: "Needs follow-up",
+              value: stats.followUpsNeeded,
+              status: stats.followUpsNeeded > 0 ? "critical" : "healthy",
+            },
+          ]}
+        />
+      }
+      kpis={
+        <KpiStrip
+          columns={4}
+          items={[
+            { id: "missing", label: "Missing today", value: stats.missingToday, warn: stats.missingToday > 0 },
+            { id: "submitted", label: "Submitted today", value: stats.submittedToday },
+            { id: "unreviewed", label: "Unreviewed", value: stats.unreviewed, warn: stats.unreviewed > 0 },
+            { id: "followup", label: "Needs follow-up", value: stats.followUpsNeeded, warn: stats.followUpsNeeded > 0 },
+          ]}
+        />
+      }
+      workspace={
+        <WorkspaceContainer elevated={false} bodyClassName="p-0">
+          <WrapUpReviewCenter
+            rows={rows}
+            stats={stats}
+            departments={departments}
+            teams={teams}
+            employees={employees}
+            detail={detail}
+            canReview={canReview}
+            selectedId={id ?? null}
+            initialStatus={
+              status === "submitted" || status === "missing" || status === "overridden"
+                ? status
+                : undefined
+            }
+            initialReviewed={
+              reviewed === "reviewed" || reviewed === "unreviewed" ? reviewed : undefined
+            }
+            initialFollowUp={followUp === "1"}
+            initialUserId={userId}
+          />
+        </WorkspaceContainer>
+      }
+    />
   );
 }

@@ -2,6 +2,7 @@
 
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { hierarchyLevelForPosition, POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { cn } from "@/lib/utils";
 import type { OrgChartNode, OrgChartStatusFlag, OrgChartUserOps, UserRole } from "@/types/flow";
 import {
@@ -141,7 +142,7 @@ export function OrgChartUserCard({
               <SignalPill label="No help flags" tone="ok" />
             )}
             {flags.includes("missing_wrap_up") && (
-              <SignalPill label="Missing wrap-up" tone="warn" />
+              <SignalPill label={OPS_COPY.outstandingDailyReports} tone="warn" />
             )}
           </div>
 

@@ -15,6 +15,15 @@ export const DUE_DATE_STATUS_LABELS: Record<DueDateStatus, string> = {
   no_forecast: "No Forecast",
 };
 
+/** Plain-language descriptions for tooltips */
+export const DUE_DATE_STATUS_HINTS: Record<DueDateStatus, string> = {
+  on_track: "Forecast suggests the project can meet its due date.",
+  at_risk: "Capacity or timing may become tight — review soon.",
+  behind_capacity: "Due date may be unrealistic based on current workload.",
+  needs_review: "Forecast needs manager review before committing.",
+  no_forecast: "Add document estimates to generate a forecast.",
+};
+
 export const DUE_DATE_STATUS_VARIANT: Record<
   DueDateStatus,
   "default" | "secondary" | "outline" | "destructive"

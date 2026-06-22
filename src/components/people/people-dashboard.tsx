@@ -1,5 +1,6 @@
 "use client";
 
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EnterpriseDataTable, EnterpriseTableHead, EnterpriseTd, EnterpriseTh } from "@/components/enterprise/enterprise-data-table";
@@ -35,7 +36,7 @@ export function PeopleDashboard({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <EnterpriseKpi
-          label="Team Flow Score"
+          label={`Team ${OPS_COPY.operationsScore}`}
           value={
             profiles.length
               ? Math.round(profiles.reduce((s, p) => s + p.flowScore, 0) / profiles.length)
@@ -67,14 +68,14 @@ export function PeopleDashboard({
 
       <EnterpriseSection
         title="Employee Performance"
-        description="Flow Score, workload, and QA metrics"
+        description={`${OPS_COPY.operationsScore}, workload, and QA metrics`}
       >
         <EnterpriseDataTable>
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTh>Employee</EnterpriseTh>
               <EnterpriseTh>Pay</EnterpriseTh>
-              <EnterpriseTh align="right">Flow Score</EnterpriseTh>
+              <EnterpriseTh align="right">{OPS_COPY.operationsScore}</EnterpriseTh>
               <EnterpriseTh align="right">Productivity</EnterpriseTh>
               <EnterpriseTh align="right">Quality</EnterpriseTh>
               <EnterpriseTh align="right">On-Time</EnterpriseTh>

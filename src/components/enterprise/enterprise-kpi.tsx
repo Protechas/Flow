@@ -10,7 +10,9 @@ export function EnterpriseKpi({
   sublabel,
   trend,
   warn,
+  critical,
   spotlight,
+  priority,
   className,
   title,
 }: {
@@ -21,7 +23,10 @@ export function EnterpriseKpi({
   sublabel?: string;
   /** Optional trend delta for executive KPI presentation */
   trend?: { delta: number; label?: string };
+  /** Visual weight — low de-emphasizes informational metrics */
+  priority?: "high" | "normal" | "low";
   warn?: boolean;
+  critical?: boolean;
   spotlight?: boolean;
   className?: string;
   title?: string;
@@ -30,8 +35,12 @@ export function EnterpriseKpi({
   const inner = (
     <div
       className={cn(
-        "flow-kpi-card px-4 py-3.5 min-w-0",
-        warn && "flow-kpi-card-warn",
+        "flow-kpi-card px-[1.125rem] py-4 min-w-0",
+        priority === "low" && "flow-kpi-card-muted",
+        priority === "high" && "flow-kpi-card-priority",
+        critical && "flow-kpi-card-critical",
+        warn && !critical && "flow-kpi-card-warn",
+        spotlight && !warn && !critical && priority !== "low" && "flow-kpi-card-spotlight",
         interactive && "flow-kpi-card-interactive cursor-pointer",
         className
       )}
@@ -39,9 +48,21 @@ export function EnterpriseKpi({
       <div className="relative z-[1]">
         <div className="flex items-start justify-between gap-2">
           <p className="enterprise-label truncate">{label}</p>
-          {!warn && spotlight !== false && <span className="flow-kpi-accent-corner" aria-hidden />}
+          {!warn && !critical && spotlight === true && (
+            <span className="flow-kpi-accent-corner" aria-hidden />
+          )}
         </div>
-        <p className={cn("flow-metric-lg mt-1.5", warn && "text-warning")}>{value}</p>
+        <p
+          className={cn(
+            priority === "high" ? "flow-metric-xl" : "flow-metric-lg",
+            "mt-1.5",
+            critical && "text-destructive",
+            warn && !critical && "text-warning",
+            priority === "low" && "text-foreground/90"
+          )}
+        >
+          {value}
+        </p>
         {trend && (
           <div className="mt-1.5 flex items-center gap-2">
             <TrendBadge

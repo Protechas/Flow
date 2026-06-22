@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import { cn } from "@/lib/utils";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import type { FlowScoreTrendPoint } from "@/types/flow";
 import {
   CartesianGrid,
@@ -17,14 +18,14 @@ import {
 type SeriesKey = "flowScore" | "productivityScore" | "qualityScore";
 
 const SERIES: { key: SeriesKey; label: string; color: string }[] = [
-  { key: "flowScore", label: "Flow Score", color: "var(--chart-2)" },
+  { key: "flowScore", label: OPS_COPY.operationsScore, color: "var(--chart-2)" },
   { key: "productivityScore", label: "Productivity", color: "var(--chart-1)" },
   { key: "qualityScore", label: "Quality", color: "var(--chart-3)" },
 ];
 
 export function PerformanceTrendChart({
   data,
-  title = "Flow Score trend",
+  title = `${OPS_COPY.operationsScore} trend`,
   description,
 }: {
   data: FlowScoreTrendPoint[];

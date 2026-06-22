@@ -18,6 +18,7 @@ import {
   SEVERITY_ORDER,
 } from "@/lib/workload-alerts/calculator";
 import { getWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
+import { getWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 import {
   listWorkloadAlertRecords,
   upsertWorkloadAlertRecord,
@@ -178,13 +179,16 @@ export function syncWorkloadAlerts(
     }
 
     if (isClockedIn && !snapshot.activeTask) {
-      notifyLeaders(
-        employee,
-        users,
-        "workload_clocked_idle",
-        "Clocked in without active task",
-        `${employee.full_name} is clocked in but has no active task.`
-      );
+      const visSettings = getWorkVisibilitySettings();
+      if (!visSettings.enabled || !visSettings.alerts_enabled) {
+        notifyLeaders(
+          employee,
+          users,
+          "workload_clocked_idle",
+          "Clocked in without active task",
+          `${employee.full_name} is clocked in but has no active task.`
+        );
+      }
     }
   }
 

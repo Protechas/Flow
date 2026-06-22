@@ -65,13 +65,19 @@ function WorkloadAlertCard({
   onAction: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const styles = SEVERITY_STYLES[alert.severity];
   const canOps = canAccessHref(role, "/operations");
   const canPeople = canAccessHref(role, `/people/${alert.employee_id}`);
 
   function run(action: () => Promise<void>) {
+    setActionError(null);
     startTransition(() => {
-      void action().then(onAction);
+      void action()
+        .then(onAction)
+        .catch((e) => {
+          setActionError(e instanceof Error ? e.message : "Action failed");
+        });
     });
   }
 
@@ -156,6 +162,16 @@ function WorkloadAlertCard({
             Available tasks
           </Button>
         ) : null}
+        {alert.current_task_id && canOps ? (
+          <Button
+            size="sm"
+            variant="outline"
+            render={<Link href={`/operations?package=${alert.current_task_id}`} />}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View active task
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -181,6 +197,7 @@ function WorkloadAlertCard({
           Dismiss
         </Button>
       </div>
+      {actionError && <p className="text-xs text-destructive">{actionError}</p>}
     </div>
   );
 }

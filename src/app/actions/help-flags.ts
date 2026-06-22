@@ -33,6 +33,12 @@ function revalidateAll() {
   PATHS.forEach((p) => revalidatePath(p));
 }
 
+const LEADER_ROLES = ["admin", "super_admin", "senior_manager", "manager", "teamlead"] as const;
+
+function isLeaderRole(role: string) {
+  return LEADER_ROLES.includes(role as (typeof LEADER_ROLES)[number]);
+}
+
 function assertCanRespond(flagId: string, userId: string, role: string) {
   initFlowStore();
   const store = getFlowStore();
@@ -79,22 +85,29 @@ export async function raiseHelpFlagAction(input: {
     return { ok: false as const, error: "Task not found or not assigned to you." };
   }
 
-  const record = raiseHelpFlag({
-    employee: user,
-    reason: input.reason,
-    notes: input.notes,
-    source: input.source,
-    task: task ?? null,
-    wrapUpId: input.wrapUpId ?? null,
-  });
+  try {
+    const record = raiseHelpFlag({
+      employee: user,
+      reason: input.reason,
+      notes: input.notes,
+      source: input.source,
+      task: task ?? null,
+      wrapUpId: input.wrapUpId ?? null,
+    });
 
-  revalidateAll();
-  return { ok: true as const, id: record.id };
+    revalidateAll();
+    return { ok: true as const, id: record.id };
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: e instanceof Error ? e.message : "Unable to submit help request.",
+    };
+  }
 }
 
 export async function acknowledgeHelpFlagAction(flagId: string, note?: string) {
   const user = await requireUser();
-  if (!["admin", "manager", "teamlead"].includes(user.role)) {
+  if (!isLeaderRole(user.role)) {
     throw new Error("Not authorized");
   }
   assertCanRespond(flagId, user.id, user.role);
@@ -104,7 +117,7 @@ export async function acknowledgeHelpFlagAction(flagId: string, note?: string) {
 
 export async function markHelpFlagInProgressAction(flagId: string, note?: string) {
   const user = await requireUser();
-  if (!["admin", "manager", "teamlead"].includes(user.role)) {
+  if (!isLeaderRole(user.role)) {
     throw new Error("Not authorized");
   }
   assertCanRespond(flagId, user.id, user.role);
@@ -117,7 +130,7 @@ export async function resolveHelpFlagAction(
   resolutionNotes?: string
 ) {
   const user = await requireUser();
-  if (!["admin", "manager", "teamlead"].includes(user.role)) {
+  if (!isLeaderRole(user.role)) {
     throw new Error("Not authorized");
   }
   assertCanRespond(flagId, user.id, user.role);
@@ -127,7 +140,7 @@ export async function resolveHelpFlagAction(
 
 export async function dismissHelpFlagAction(flagId: string, reason?: string) {
   const user = await requireUser();
-  if (!["admin", "manager", "teamlead"].includes(user.role)) {
+  if (!isLeaderRole(user.role)) {
     throw new Error("Not authorized");
   }
   assertCanRespond(flagId, user.id, user.role);
@@ -146,7 +159,7 @@ export async function getMyHelpFlagsAction() {
 
 export async function getHelpFlagsForViewerAction() {
   const user = await requireUser();
-  if (!["admin", "manager", "teamlead"].includes(user.role)) {
+  if (!isLeaderRole(user.role)) {
     return [];
   }
   await hydrateHelpFlagSettings();

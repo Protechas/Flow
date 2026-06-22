@@ -34,6 +34,7 @@ export const NOTIFICATION_TYPE_ICONS: Partial<
   workload_empty: TrendingDown,
   workload_needs_estimate: TrendingDown,
   workload_clocked_idle: TrendingDown,
+  activity_gap: TrendingDown,
   help_flag_raised: LifeBuoy,
   help_flag_escalated: AlertTriangle,
   help_flag_acknowledged: CheckCheck,

@@ -2,21 +2,52 @@
 
 import { useState, useTransition } from "react";
 import { submitDailyWrapUpAction } from "@/app/actions/employee";
+import { WorkDaySummaryPanel } from "@/components/work-visibility/work-day-summary-panel";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+
+const ACTIVITY_CATEGORIES = [
+  { value: "meeting", label: "Meeting" },
+  { value: "training", label: "Training" },
+  { value: "research", label: "Research" },
+  { value: "supervisor_request", label: "Supervisor request" },
+  { value: "qa_review", label: "QA review" },
+  { value: "administrative", label: "Administrative work" },
+  { value: "system_issue", label: "System issue" },
+  { value: "other", label: "Other" },
+] as const;
 
 export function EmployeeWrapUpForm({
   onSubmitted,
   submitLabel = "Save wrap-up",
+  visibility,
 }: {
   onSubmitted?: () => void;
   submitLabel?: string;
+  visibility?: {
+    clockedMinutes: number;
+    recordedTaskMinutes: number;
+    unassignedMinutes: number;
+    taskTrackingCompliancePct: number | null;
+  };
 }) {
   const [pending, startTransition] = useTransition();
   const [needsSupport, setNeedsSupport] = useState(false);
+  const [showActivityDoc, setShowActivityDoc] = useState(false);
+  const [activityCategory, setActivityCategory] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  const hasUnassigned = (visibility?.unassignedMinutes ?? 0) > 0;
 
   return (
     <form
@@ -25,18 +56,42 @@ export function EmployeeWrapUpForm({
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         startTransition(async () => {
-          await submitDailyWrapUpAction({
-            completed_summary: (fd.get("completed") as string) ?? "",
-            blockers: (fd.get("blockers") as string) ?? "",
-            needs_support: needsSupport,
-            needs_support_note: needsSupport
-              ? ((fd.get("support_note") as string) ?? "")
-              : undefined,
-          });
-          onSubmitted?.();
+          setError(null);
+          try {
+            const res = await submitDailyWrapUpAction({
+              completed_summary: (fd.get("completed") as string) ?? "",
+              blockers: (fd.get("blockers") as string) ?? "",
+              needs_support: needsSupport,
+              needs_support_note: needsSupport
+                ? ((fd.get("support_note") as string) ?? "")
+                : undefined,
+              activity_documentation_category:
+                hasUnassigned && showActivityDoc ? activityCategory : undefined,
+              activity_documentation_note:
+                hasUnassigned && showActivityDoc
+                  ? ((fd.get("activity_note") as string) ?? "")
+                  : undefined,
+            });
+            if (!res.ok) {
+              setError("message" in res && res.message ? res.message : "Could not save your daily report. Please try again.");
+              return;
+            }
+            onSubmitted?.();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not save your daily report.");
+          }
         });
       }}
     >
+      {visibility && (
+        <WorkDaySummaryPanel
+          clockedMinutes={visibility.clockedMinutes}
+          recordedTaskMinutes={visibility.recordedTaskMinutes}
+          unassignedMinutes={visibility.unassignedMinutes}
+          taskTrackingCompliancePct={visibility.taskTrackingCompliancePct}
+        />
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="completed">What did you complete today?</Label>
         <Textarea id="completed" name="completed" rows={3} placeholder="Summarize your wins…" />
@@ -55,6 +110,41 @@ export function EmployeeWrapUpForm({
       {needsSupport && (
         <Textarea name="support_note" rows={2} placeholder="What do you need help with?" />
       )}
+
+      {hasUnassigned && (
+        <div className="space-y-3 rounded-lg border border-border/50 p-3">
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={showActivityDoc}
+              onCheckedChange={(v) => setShowActivityDoc(!!v)}
+            />
+            Document non-task activity (optional)
+          </label>
+          {showActivityDoc && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Activity type</Label>
+                <Select value={activityCategory} onValueChange={(v) => v && setActivityCategory(v)}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {ACTIVITY_CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Textarea
+                name="activity_note"
+                rows={2}
+                placeholder="Brief description of activity during unassigned time…"
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
       <DialogFooter>
         <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Saving…" : submitLabel}

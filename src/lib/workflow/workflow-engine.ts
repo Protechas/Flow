@@ -12,6 +12,7 @@ import {
   parseMentionedUserIds,
   workPackageLink,
 } from "@/lib/workflow/recipients";
+import { operationsHref, qaCenterHref } from "@/lib/navigation/deep-links";
 import type {
   Correction,
   NotificationType,
@@ -174,7 +175,7 @@ export function onSubmitToQA(ctx: WorkflowContext, pkg: WorkPackage, _actorId?: 
       message: `"${pkg.title}" is ready for QA review.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/qa-center",
+      link: qaCenterHref({ package: pkg.id }),
     });
   }
   checkQaBacklog(ctx);
@@ -223,7 +224,7 @@ export function onQAReview(
       message: `"${pkg.title}" needs corrections after QA review.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/operations",
+      link: operationsHref({ package: pkg.id }),
     });
   }
 }
@@ -241,7 +242,7 @@ export function onResubmitToQA(ctx: WorkflowContext, pkg: WorkPackage) {
       message: `"${pkg.title}" was resubmitted after corrections.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/qa-center",
+      link: qaCenterHref({ package: pkg.id }),
       dedupe: false,
     });
   }
@@ -269,7 +270,7 @@ export function onCorrectionResolved(ctx: WorkflowContext, correction: Correctio
       message: `Correction on "${pkg.title}" was resolved.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/operations",
+      link: operationsHref({ package: pkg.id }),
     });
   }
 }
@@ -348,7 +349,7 @@ export function onTaskComplete(ctx: WorkflowContext, pkg: WorkPackage, _actorId?
       message: `"${pkg.title}" was marked complete.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/operations",
+      link: operationsHref({ package: pkg.id }),
     });
   }
 }
@@ -373,7 +374,7 @@ export function onTaskOverdue(ctx: WorkflowContext, pkg: WorkPackage) {
       message: `"${pkg.title}" is overdue.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/operations",
+      link: operationsHref({ package: pkg.id }),
     });
   }
 }
@@ -399,7 +400,7 @@ export function onTaskStuck(ctx: WorkflowContext, pkg: WorkPackage) {
       message: `"${pkg.title}" has been stuck too long.`,
       entityType: "work_package",
       entityId: pkg.id,
-      link: "/operations",
+      link: operationsHref({ package: pkg.id }),
     });
   }
 }
@@ -416,7 +417,7 @@ function checkQaBacklog(ctx: WorkflowContext) {
       message: `${queue.length} items are waiting in the QA queue.`,
       entityType: "qa_queue",
       entityId: "queue",
-      link: "/qa-center",
+      link: qaCenterHref(),
     });
   }
 }

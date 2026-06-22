@@ -6,12 +6,16 @@ import { ProjectForecastSection } from "@/components/forecast/project-forecast-s
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogFooter,
+  WizardDialogHeader,
+  WizardDialogScroll,
+} from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -82,11 +86,13 @@ export function EditProjectDialog({
       <DialogTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
         <Pencil className="h-3.5 w-3.5" />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="md">
+        <WizardDialogHeader>
           <DialogTitle>Edit project</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
+        </WizardDialogHeader>
+        <WizardDialogBody>
+          <WizardDialogScroll>
+            <form id="edit-project-form" onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-name">Name *</Label>
             <Input id="edit-name" name="name" required defaultValue={project.name} />
@@ -163,13 +169,16 @@ export function EditProjectDialog({
             manualDueDate={manualDue}
             onManualDueDateChange={setManualDue}
             startDate={startDate || null}
-          />
-
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            />
+            </form>
+          </WizardDialogScroll>
+          <WizardDialogFooter>
+            <Button type="submit" form="edit-project-form" disabled={pending}>
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          </WizardDialogFooter>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

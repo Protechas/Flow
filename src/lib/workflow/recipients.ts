@@ -82,8 +82,10 @@ export function parseMentionedUserIds(body: string, users: User[]): string[] {
   return mentioned;
 }
 
+import { operationsHref, qaCenterHref } from "@/lib/navigation/deep-links";
+
 export function workPackageLink(pkgId: string, role: User["role"]): string {
   if (role === "employee") return `/work/${pkgId}`;
-  if (role === "teamlead") return "/qa-center";
-  return "/operations";
+  if (role === "teamlead") return qaCenterHref({ package: pkgId });
+  return operationsHref({ package: pkgId });
 }

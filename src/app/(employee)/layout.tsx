@@ -7,6 +7,7 @@ import { hydrateAppStore } from "@/lib/data/users";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
+import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { redirect } from "next/navigation";
 
 export default async function EmployeeLayout({
@@ -40,6 +41,7 @@ export default async function EmployeeLayout({
       <main className="flex-1 flow-layer-content px-3 py-4 sm:px-6 sm:py-6 max-w-4xl mx-auto w-full">
         {children}
       </main>
+      <InnovationHubBubble />
     </div>
   );
 }

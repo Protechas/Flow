@@ -9,6 +9,7 @@ import {
 import { createProjectFromTemplateAction } from "@/app/actions/templates";
 import { TemplatePreviewPanel } from "@/components/templates/template-preview-panel";
 import { CreationPreviewPanel } from "@/components/work-creation/creation-preview-panel";
+import { TaskImpactReview } from "@/components/planning/task-impact-review";
 import { WizardStepper } from "@/components/work-creation/wizard-stepper";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogFooter,
+  WizardDialogHeader,
+  WizardDialogScroll,
+} from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,6 +68,7 @@ import type {
   Project,
   Team,
   User,
+  WorkPackage,
 } from "@/types/flow";
 import { ChevronDown, ChevronUp, FolderKanban, Kanban, ListTodo, Plus } from "lucide-react";
 import type { ProjectTemplateId } from "@/lib/templates/project-templates";
@@ -95,6 +104,7 @@ export function NewWorkWizard({
   analysts,
   managers,
   forecastSettings,
+  workPackages = [],
 }: {
   user: User;
   departments: Department[];
@@ -103,6 +113,7 @@ export function NewWorkWizard({
   analysts: User[];
   managers: User[];
   forecastSettings: ForecastSettings;
+  workPackages?: WorkPackage[];
 }) {
   const allowedModes = getAllowedCreationModes(user.role);
   const defaults = buildCreationDefaults(user, departments, teams);
@@ -355,14 +366,16 @@ export function NewWorkWizard({
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="md">
+        <WizardDialogHeader>
           <DialogTitle>New work</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Guided setup with smart defaults — Flow builds the full structure in the background.
           </p>
-        </DialogHeader>
+        </WizardDialogHeader>
 
+        <WizardDialogBody>
+          <WizardDialogScroll>
         {onStep0 && allowedModes.length > 1 && (
           <div className="grid gap-2 sm:grid-cols-3">
             {allowedModes.map((m) => {
@@ -884,10 +897,35 @@ export function NewWorkWizard({
           "templateName" in preview ? (
             <TemplatePreviewPanel preview={preview} />
           ) : (
-            <CreationPreviewPanel preview={preview as CreationPreview} />
+            <div className="space-y-4">
+              <CreationPreviewPanel preview={preview as CreationPreview} />
+              {mode === "task" && (
+                <TaskImpactReview
+                  title={task.name}
+                  documentCount={Number(task.estimatedDocuments) || 0}
+                  complexity={task.complexity}
+                  departmentId={
+                    task.projectMode === "existing"
+                      ? projects.find((p) => p.id === task.projectId)?.department_id
+                      : undefined
+                  }
+                  projectId={task.projectMode === "existing" ? task.projectId : null}
+                  assigneeId={task.assigneeId !== "__none__" ? task.assigneeId : null}
+                  viewer={user}
+                  users={analysts}
+                  packages={workPackages}
+                  projects={projects}
+                  teams={teams.map((t) => ({ id: t.id, department_id: t.department_id ?? "" }))}
+                  settings={forecastSettings}
+                  departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+                />
+              )}
+            </div>
           ))}
 
-        <DialogFooter className="gap-2 sm:gap-0">
+          </WizardDialogScroll>
+
+          <WizardDialogFooter className="gap-2 sm:gap-0">
           {step > 0 && (
             <Button type="button" variant="outline" onClick={() => setStep((s) => s - 1)} disabled={pending}>
               Back
@@ -911,8 +949,9 @@ export function NewWorkWizard({
               {pending ? "Creating…" : "Create work"}
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
+          </WizardDialogFooter>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

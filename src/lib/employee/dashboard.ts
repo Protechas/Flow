@@ -13,6 +13,8 @@ import {
   pickNextTask,
   type EmployeeTaskBoard,
 } from "@/lib/employee/tasks";
+import { buildEmployeeMyQueue, type EmployeeMyQueue } from "@/lib/employee/queue";
+import { buildTaskSubmitChecklist } from "@/lib/employee/submit-checklist";
 import { completedToday } from "@/lib/scoring/flow-score";
 import type {
   ActivityEvent,
@@ -33,6 +35,7 @@ const QA_RESULT_LABEL: Record<string, string> = {
 
 export interface EmployeeDashboard {
   board: EmployeeTaskBoard;
+  myQueue: EmployeeMyQueue;
   nextTask: WorkPackage | null;
   currentTask: WorkPackage | null;
   activeTaskTimer: TaskTimeEntry | null;
@@ -43,6 +46,7 @@ export interface EmployeeDashboard {
   scorecard: EmployeeScorecard | null;
   todayWrapUp: DailyWrapUp | null;
   recentActivity: ActivityEvent[];
+  taskReadyForSubmission: boolean;
 }
 
 function tasksDueToday(tasks: WorkPackage[]): WorkPackage[] {
@@ -170,11 +174,22 @@ export async function getEmployeeDashboard(userId: string): Promise<EmployeeDash
   const activeTaskPkg = activeTaskTimer
     ? packages.find((p) => p.id === activeTaskTimer.task_id) ?? null
     : null;
+  const resolvedCurrent = activeTaskPkg ?? currentTask;
+  const user = store.users.find((u) => u.id === userId);
+  const taskReadyForSubmission =
+    user && activeTaskTimer?.task_id
+      ? buildTaskSubmitChecklist(user, activeTaskTimer.task_id).ready
+      : false;
 
   return {
     board,
+    myQueue: buildEmployeeMyQueue({
+      packages,
+      currentTask: resolvedCurrent,
+      activeTaskTimer,
+    }),
     nextTask,
-    currentTask: activeTaskPkg ?? currentTask,
+    currentTask: resolvedCurrent,
     activeTaskTimer,
     dueToday: tasksDueToday(packages),
     qaReturns: buildQaReturns(board.returned, store),
@@ -192,6 +207,7 @@ export async function getEmployeeDashboard(userId: string): Promise<EmployeeDash
       (w) => w.user_id === userId && w.wrap_date === todayStr
     ) ?? null,
     recentActivity: buildEmployeeRecentActivity(userId, packages, store),
+    taskReadyForSubmission,
   };
 }
 

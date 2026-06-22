@@ -19,12 +19,19 @@ export function EmployeeWrapUp({
   onOpenChange,
   onSubmitted,
   showTrigger = true,
+  visibility,
 }: {
   existing: DailyWrapUp | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSubmitted?: () => void;
   showTrigger?: boolean;
+  visibility?: {
+    clockedMinutes: number;
+    recordedTaskMinutes: number;
+    unassignedMinutes: number;
+    taskTrackingCompliancePct: number | null;
+  };
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -62,6 +69,7 @@ export function EmployeeWrapUp({
         </DialogHeader>
         <EmployeeWrapUpForm
           submitLabel="Save wrap-up"
+          visibility={visibility}
           onSubmitted={() => {
             setOpen(false);
             onSubmitted?.();

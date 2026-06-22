@@ -23,10 +23,15 @@ import {
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { calculateTaskForecast, formatForecastDays } from "@/lib/forecast/engine";
 import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
+import { TaskImpactReview } from "@/components/planning/task-impact-review";
+import { useOperationsPlanning } from "@/components/operations/operations-planning-context";
 import type {
   ForecastComplexityLevel,
   ForecastSettings,
+  Project,
+  Team,
   User,
+  WorkPackage,
   YearWorkItem,
 } from "@/types/flow";
 import { Plus } from "lucide-react";
@@ -37,13 +42,31 @@ export function AddWorkPackageDialog({
   analysts,
   forecastSettings,
   trigger,
+  viewer,
+  workPackages = [],
+  projects = [],
+  teams = [],
+  departments = [],
 }: {
   yearItem: YearWorkItem;
   manufacturerName?: string;
   analysts: User[];
   forecastSettings: ForecastSettings;
   trigger?: React.ReactElement;
+  viewer?: User;
+  workPackages?: WorkPackage[];
+  projects?: Project[];
+  teams?: Team[];
+  departments?: { id: string; name: string }[];
 }) {
+  const planningCtx = useOperationsPlanning();
+  const resolvedViewer = viewer ?? planningCtx?.viewer;
+  const resolvedPackages = workPackages.length > 0 ? workPackages : (planningCtx?.workPackages ?? []);
+  const resolvedProjects = projects.length > 0 ? projects : (planningCtx?.projects ?? []);
+  const resolvedTeams = teams.length > 0 ? teams : (planningCtx?.teams ?? []);
+  const resolvedDepartments =
+    departments.length > 0 ? departments : (planningCtx?.departments ?? []);
+
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [docCount, setDocCount] = useState("");
@@ -71,6 +94,13 @@ export function AddWorkPackageDialog({
       ),
     [docs, complexity, settings]
   );
+
+  const project = resolvedProjects.find((p) => p.id === yearItem.project_id);
+  const departmentId = project?.department_id ?? undefined;
+  const planningDue =
+    docs > 0 && forecast.suggested_due_date
+      ? forecast.suggested_due_date
+      : yearItem.due_date;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -105,7 +135,8 @@ export function AddWorkPackageDialog({
                 assigned_to: assignee && assignee !== "__none__" ? assignee : null,
                 status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
                 priority: yearItem.priority,
-                due_date: yearItem.due_date,
+                due_date: planningDue,
+                manual_due_date: docs > 0 ? forecast.suggested_due_date : null,
                 estimated_hours: yearItem.estimated_hours ?? 8,
                 estimated_document_count: docs > 0 ? docs : null,
                 complexity_level: complexity,
@@ -159,7 +190,25 @@ export function AddWorkPackageDialog({
             </div>
           </div>
 
-          {docs > 0 && (
+          {docs > 0 && resolvedViewer && (
+            <TaskImpactReview
+              title={title}
+              documentCount={docs}
+              complexity={complexity}
+              departmentId={departmentId}
+              projectId={yearItem.project_id}
+              assigneeId={assignee !== "__none__" ? assignee : null}
+              viewer={resolvedViewer}
+              users={analysts}
+              packages={resolvedPackages}
+              projects={resolvedProjects}
+              teams={resolvedTeams.map((t) => ({ id: t.id, department_id: t.department_id ?? "" }))}
+              settings={settings}
+              departments={resolvedDepartments.map((d) => ({ id: d.id, name: d.name }))}
+            />
+          )}
+
+          {docs > 0 && !resolvedViewer && (
             <p className="text-xs text-muted-foreground">
               Planning due for <strong className="text-foreground">{title}</strong>:{" "}
               {forecast.suggested_due_date ?? "—"}

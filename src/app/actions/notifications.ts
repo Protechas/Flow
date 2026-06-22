@@ -21,6 +21,8 @@ import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { syncWorkloadAlerts } from "@/lib/workload-alerts/engine";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { runHelpFlagEscalations } from "@/lib/help-flags/engine";
+import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
+import { syncActivityGaps } from "@/lib/work-visibility/engine";
 
 const REVALIDATE_PATHS = [
   "/operations",
@@ -44,6 +46,8 @@ export async function runWorkflowChecksAction() {
   syncWorkloadAlerts(store.workPackages, store.users);
   await hydrateHelpFlagSettings();
   runHelpFlagEscalations(store.users);
+  await hydrateWorkVisibilitySettings();
+  syncActivityGaps(store.users);
   syncAllNotificationSources();
   if (stuckPackageIds.length) {
     applyStuckStatus(stuckPackageIds);

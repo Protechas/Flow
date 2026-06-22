@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { raiseHelpFlagAction } from "@/app/actions/help-flags";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,9 +30,12 @@ const REASONS = Object.entries(HELP_FLAG_REASON_LABELS) as [HelpFlagReason, stri
 export function HelpFlagDialog({
   taskId,
   source,
-  triggerLabel = "Need help",
+  triggerLabel = OPS_COPY.requestAssistance,
   onSubmitted,
   tile,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: {
   taskId?: string;
   source: "task" | "dashboard" | "timer" | "wrap_up";
@@ -39,15 +43,21 @@ export function HelpFlagDialog({
   onSubmitted?: () => void;
   /** Match employee workspace action tile styling */
   tile?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [pending, startTransition] = useTransition();
   const [reason, setReason] = useState<HelpFlagReason>("stuck_on_task");
   const [error, setError] = useState<string | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {tile ? (
+      {!hideTrigger &&
+        (tile ? (
         <DialogTrigger
           render={
             <button
@@ -72,7 +82,7 @@ export function HelpFlagDialog({
           <LifeBuoy className="h-4 w-4 mr-1.5" />
           {triggerLabel}
         </DialogTrigger>
-      )}
+      ))}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Flag for help</DialogTitle>

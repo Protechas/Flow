@@ -3,10 +3,13 @@
 import { UserSetupWizard } from "@/components/setup/user-setup-wizard";
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogHeader,
+} from "@/components/ui/wizard-dialog";
 import type { Department, Team, User } from "@/types/flow";
 
 export function UserSetupDialog({
@@ -26,19 +29,21 @@ export function UserSetupDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="lg">
+        <WizardDialogHeader>
           <DialogTitle>Complete setup for {user.full_name}</DialogTitle>
-        </DialogHeader>
-        <UserSetupWizard
-          mode="update"
-          initialUser={user}
-          users={users}
-          departments={departments}
-          teams={teams}
-          onComplete={() => onOpenChange(false)}
-        />
-      </DialogContent>
+        </WizardDialogHeader>
+        <WizardDialogBody>
+          <UserSetupWizard
+            mode="update"
+            initialUser={user}
+            users={users}
+            departments={departments}
+            teams={teams}
+            onComplete={() => onOpenChange(false)}
+          />
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

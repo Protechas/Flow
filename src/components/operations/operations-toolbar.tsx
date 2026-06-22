@@ -20,6 +20,7 @@ import { QA_STATUSES, WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
 import type { Project, User } from "@/types/flow";
 import { ChevronDown, ChevronUp, Filter, LayoutGrid, Search, Table2, X } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface OperationsToolbarProps {
   filters: OpsBoardFilters;
@@ -90,9 +91,12 @@ export function OperationsToolbar({
           {OPS_LAYOUT_MODES.map((mode) => (
             <Button
               key={mode.id}
-              variant={layoutMode === mode.id ? "default" : "ghost"}
+              variant="outline"
               size="sm"
-              className="h-7 text-xs px-2.5"
+              className={cn(
+                "h-7 text-xs px-2.5 border-transparent bg-transparent shadow-none",
+                layoutMode === mode.id && "flow-segment-active"
+              )}
               title={mode.description}
               onClick={() => onLayoutModeChange(mode.id)}
             >
@@ -120,9 +124,9 @@ export function OperationsToolbar({
           {OPS_SAVED_VIEWS.map((v) => (
             <Button
               key={v.id}
-              variant={filters.viewId === v.id ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              className="h-8 text-xs"
+              className={cn("h-8 text-xs", filters.viewId === v.id && "flow-segment-active")}
               onClick={() => setView(v.id)}
             >
               {v.label}
@@ -138,7 +142,7 @@ export function OperationsToolbar({
         >
           <Filter className="h-3.5 w-3.5 mr-1" />
           Filters
-          {hasExtraFilters && <span className="ml-1 text-primary">•</span>}
+          {hasExtraFilters && <span className="ml-1 text-warning">•</span>}
         </Button>
 
         {hasExtraFilters && (
@@ -284,25 +288,25 @@ export function OperationsToolbar({
           </Select>
 
           <Button
-            variant={filters.overdue ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className={cn("h-8 text-xs", filters.overdue && "flow-segment-active")}
             onClick={() => onFiltersChange({ ...filters, overdue: !filters.overdue })}
           >
             Overdue
           </Button>
           <Button
-            variant={filters.stuck ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className={cn("h-8 text-xs", filters.stuck && "flow-segment-active")}
             onClick={() => onFiltersChange({ ...filters, stuck: !filters.stuck })}
           >
             Stuck
           </Button>
           <Button
-            variant={filters.correctionNeeded ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className={cn("h-8 text-xs", filters.correctionNeeded && "flow-segment-active")}
             onClick={() =>
               onFiltersChange({ ...filters, correctionNeeded: !filters.correctionNeeded })
             }

@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ActivityFeed } from "@/components/enterprise/activity-feed";
 import {
   DepartmentHealthBadge,
   DepartmentHealthMeter,
 } from "@/components/enterprise/department-health-badge";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
+import {
+  KpiPriorityZone,
+  LiveActivityStream,
+  OperationalInsightList,
+  OperationalPulsePanel,
+  OperationalSignalCard,
+} from "@/components/platform";
 import { PerformanceTrendChart } from "@/components/performance/performance-trend-chart";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -18,65 +24,27 @@ import {
   reportsHref,
   wrapUpsHref,
 } from "@/lib/navigation/deep-links";
-import { cn } from "@/lib/utils";
+import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
 import type { CommandCenterMetrics, UserRole } from "@/types/flow";
 import {
   Activity,
   Building2,
   FolderKanban,
   HelpCircle,
-  LayoutDashboard,
   TrendingDown,
 } from "lucide-react";
-
-function SignalStrip({
-  href,
-  className,
-  children,
-}: {
-  href?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  if (href) {
-    return (
-      <Link href={href} className={cn(className, "transition-colors hover:border-primary/30")}>
-        {children}
-      </Link>
-    );
-  }
-  return <div className={className}>{children}</div>;
-}
 
 function linkHref(role: UserRole, href: string): string | undefined {
   return canAccessHref(role, href) ? href : undefined;
 }
 
-function CommandPulse({ warn }: { warn: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-2 text-xs">
-      <span
-        className={cn(
-          "relative flex h-2.5 w-2.5",
-          warn ? "text-amber-400" : "text-emerald-400"
-        )}
-      >
-        <span
-          className={cn(
-            "absolute inline-flex h-full w-full animate-ping rounded-full opacity-40",
-            warn ? "bg-amber-400" : "bg-emerald-400"
-          )}
-        />
-        <span
-          className={cn(
-            "relative inline-flex h-2.5 w-2.5 rounded-full",
-            warn ? "bg-amber-400" : "bg-emerald-400"
-          )}
-        />
-      </span>
-      {warn ? "Attention required" : "Operations nominal"}
-    </span>
-  );
+function pulseStatus(
+  needsAttention: boolean,
+  critical: boolean
+): "nominal" | "attention" | "critical" {
+  if (critical) return "critical";
+  if (needsAttention) return "attention";
+  return "nominal";
 }
 
 export function ExecutiveDashboardView({
@@ -110,7 +78,13 @@ export function ExecutiveDashboardView({
     data.workloadAlertSummary.open > 0 ||
     data.wrapUpReview.missingToday > 0 ||
     data.projectHealth.atRisk > 0 ||
-    forecastRisk > 0;
+    forecastRisk > 0 ||
+    data.activityGaps.length > 0;
+
+  const hasCritical =
+    data.helpFlagSummary.critical > 0 ||
+    data.workloadAlertSummary.critical > 0 ||
+    data.departmentHealth.some((d) => d.level === "critical");
 
   const productivityTrend =
     data.trends30.length >= 2
@@ -118,35 +92,29 @@ export function ExecutiveDashboardView({
       : undefined;
 
   return (
-    <div className="flow-executive-dashboard space-y-8">
-      {/* Command header */}
-      <section className="flow-executive-command-strip enterprise-panel-elevated p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-primary">
-              <LayoutDashboard className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-widest">
-                Dashboard
-              </span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-              How is the company doing right now?
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Live operational posture across departments, workforce, delivery, quality, and
-              forecast — updated from production data.
-            </p>
-            <CommandPulse warn={needsAttention} />
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <div className="flow-executive-dashboard flow-ambient-command space-y-8">
+      <OperationalPulsePanel
+        pulseStatus={pulseStatus(needsAttention, hasCritical)}
+        subtitle={OPS_TOOLTIPS.operationsOverview}
+        actions={
+          <>
+            {linkHref(role, "/alert-center") && (
+              <Button
+                size="sm"
+                variant={needsAttention ? "default" : "outline"}
+                render={<Link href="/alert-center" />}
+              >
+                Alert Center
+              </Button>
+            )}
+            {linkHref(role, "/planning") && (
+              <Button size="sm" variant="outline" render={<Link href="/planning" />}>
+                Planning & Forecasting
+              </Button>
+            )}
             {linkHref(role, "/org-chart") && (
               <Button size="sm" variant="outline" render={<Link href="/org-chart" />}>
                 Org Chart
-              </Button>
-            )}
-            {linkHref(role, "/alert-center") && (
-              <Button size="sm" variant="outline" render={<Link href="/alert-center" />}>
-                Alert Center
               </Button>
             )}
             {linkHref(role, "/notifications") && (
@@ -154,14 +122,150 @@ export function ExecutiveDashboardView({
                 Notifications
               </Button>
             )}
-          </div>
-        </div>
-      </section>
+          </>
+        }
+        metrics={[
+          {
+            id: "health",
+            label: OPS_COPY.operationsScore,
+            value: data.teamHealth.flowScore,
+            sublabel: OPS_COPY.operationsScore,
+            href: linkHref(role, "/performance"),
+            tone: data.teamHealth.flowScore >= 75 ? "healthy" : "warning",
+          },
+          {
+            id: "online",
+            label: OPS_COPY.employeesClockedIn,
+            value: data.workforce.clockedIn,
+            sublabel: `${data.workforce.activeTaskTimers} active timers`,
+            href: linkHref(role, "/time-clock"),
+            tone: data.workforce.clockedIn > 0 ? "healthy" : "neutral",
+          },
+          {
+            id: "help",
+            label: OPS_COPY.openEscalations,
+            value: data.helpFlagSummary.open,
+            sublabel:
+              data.helpFlagSummary.critical > 0
+                ? `${data.helpFlagSummary.critical} critical`
+                : "Open requests",
+            href: linkHref(role, alertCenterHref({ type: "help" })),
+            tone: data.helpFlagSummary.open > 0 ? "critical" : "healthy",
+          },
+          {
+            id: "visibility",
+            label: OPS_COPY.workVisibilityScore,
+            value: `${data.workVisibility.score}%`,
+            sublabel: `${data.workVisibility.taskTrackingCompliancePct}% task tracking`,
+            href: linkHref(role, "/reports/work-visibility"),
+            tone: data.workVisibility.score >= 85 ? "healthy" : "warning",
+          },
+          {
+            id: "activity_gaps",
+            label: OPS_COPY.activityGap,
+            value: data.activityGaps.length,
+            sublabel:
+              data.activityGaps.length > 0
+                ? `${new Set(data.activityGaps.map((g) => g.employee_id)).size} employees`
+                : "No open gaps",
+            href: linkHref(role, alertCenterHref({ type: "activity_gaps" })),
+            tone: data.activityGaps.length > 0 ? "warning" : "healthy",
+          },
+          {
+            id: "work",
+            label: OPS_COPY.availableCapacity,
+            value: data.workloadAlertSummary.open,
+            sublabel: "Low workload alerts",
+            href: linkHref(role, alertCenterHref({ type: "workload" })),
+            tone: data.workloadAlertSummary.open > 0 ? "warning" : "healthy",
+          },
+          {
+            id: "wrapup",
+            label: OPS_COPY.outstandingDailyReports,
+            value: data.wrapUpReview.missingToday,
+            sublabel: `${data.wrapUpReview.submittedToday} submitted today`,
+            href: linkHref(role, wrapUpsHref({ status: "missing" })),
+            tone: data.wrapUpReview.missingToday > 0 ? "qa" : "healthy",
+          },
+          {
+            id: "forecast",
+            label: OPS_COPY.projectsAtRisk,
+            value: forecastRisk,
+            sublabel: `${data.forecast.tasksAtRisk} tasks at risk`,
+            href: linkHref(role, "/planning") ?? linkHref(role, "/project-health"),
+            tone: forecastRisk > 0 ? "warning" : "healthy",
+          },
+          {
+            id: "qa",
+            label: OPS_COPY.qaPerformance,
+            value: `${data.qaHealth.passRate}%`,
+            sublabel: `${data.qaHealth.queueSize} in queue`,
+            href: linkHref(role, "/qa-center"),
+            tone:
+              data.qaHealth.passRate < 85 || data.qaHealth.queueSize > 5 ? "qa" : "healthy",
+          },
+        ]}
+      />
 
-      {/* Primary executive KPIs */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <KpiPriorityZone
+        title={OPS_COPY.requiresAttention}
+        description="Signals that may need manager action today"
+        variant="attention"
+      >
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 relative z-[1]">
+          <EnterpriseKpi
+            label={OPS_COPY.openEscalations}
+            value={data.helpFlagSummary.open}
+            sublabel={
+              data.helpFlagSummary.critical > 0
+                ? `${data.helpFlagSummary.critical} critical`
+                : "Open escalation requests"
+            }
+            href={linkHref(role, alertCenterHref({ type: "help" }))}
+            warn={data.helpFlagSummary.open > 0}
+            critical={data.helpFlagSummary.critical > 0}
+            priority="high"
+            title={OPS_TOOLTIPS.openEscalations}
+          />
+          <EnterpriseKpi
+            label={OPS_COPY.projectsAtRisk}
+            value={forecastRisk}
+            sublabel={`${data.forecast.tasksBehindForecast} tasks · ${data.forecast.projectsBehindForecast} projects behind`}
+            href={linkHref(role, "/project-health")}
+            warn={forecastRisk > 0}
+            priority="high"
+            title={OPS_TOOLTIPS.projectsAtRisk}
+          />
+          <EnterpriseKpi
+            label={OPS_COPY.outstandingDailyReports}
+            value={data.wrapUpReview.missingToday}
+            sublabel={`${data.wrapUpReview.submittedToday} submitted today`}
+            href={linkHref(role, wrapUpsHref({ status: "missing" }))}
+            warn={data.wrapUpReview.missingToday > 0}
+            priority="high"
+            title={OPS_TOOLTIPS.outstandingDailyReports}
+          />
+          <EnterpriseKpi
+            label={OPS_COPY.overdueTasks}
+            value={data.workload.overdue}
+            sublabel={`${data.workload.stuck} stuck`}
+            href={linkHref(role, operationsHref({ view: "overdue" }))}
+            warn={data.workload.overdue > 0}
+            critical={data.workload.overdue > 5}
+            priority="high"
+            title={OPS_TOOLTIPS.overdueTasks}
+          />
+        </section>
+      </KpiPriorityZone>
+
+      <KpiPriorityZone
+        title={OPS_COPY.operationsOverview}
+        description="Workforce, delivery, and department performance"
+        variant="overview"
+      >
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <EnterpriseKpi
-          label="Department Health"
+          label={OPS_COPY.departmentHealth}
           value={avgDeptHealth}
           sublabel={
             deptsAtRisk > 0
@@ -170,41 +274,42 @@ export function ExecutiveDashboardView({
           }
           href={linkHref(role, "/reports")}
           warn={deptsAtRisk > 0}
+          title={OPS_TOOLTIPS.departmentHealth}
         />
         <EnterpriseKpi
-          label="Employees Online"
+          label={OPS_COPY.employeesClockedIn}
           value={data.workforce.clockedIn}
           sublabel={`${data.workforce.activeTaskTimers} active task timers`}
           href={linkHref(role, "/time-clock")}
+          priority="low"
+          title={OPS_TOOLTIPS.employeesClockedIn}
         />
         <EnterpriseKpi
-          label="Projects Active"
+          label={OPS_COPY.activeProjects}
           value={data.projectHealth.active}
           sublabel={`${data.projectHealth.onTrack} on track`}
           href={linkHref(role, "/project-health")}
+          priority="low"
+          title={OPS_TOOLTIPS.activeProjects}
         />
         <EnterpriseKpi
-          label="Tasks Active"
+          label={OPS_COPY.activeTasks}
           value={data.workload.active}
           sublabel={`${data.workload.inProgress} in progress`}
           href={linkHref(role, "/operations")}
+          priority="low"
+          title={OPS_TOOLTIPS.activeTasks}
         />
         <EnterpriseKpi
-          label="Forecast Risk"
-          value={forecastRisk}
-          sublabel={`${data.forecast.tasksBehindForecast} tasks · ${data.forecast.projectsBehindForecast} projects behind`}
-          href={linkHref(role, "/project-health")}
-          warn={forecastRisk > 0}
-        />
-        <EnterpriseKpi
-          label="QA Performance"
+          label={OPS_COPY.qaPerformance}
           value={`${data.qaHealth.passRate}%`}
           sublabel={`${data.qaHealth.queueSize} in queue · ${data.qaHealth.correctionsToday} corrections today`}
           href={linkHref(role, "/qa-center")}
           warn={data.qaHealth.passRate < 85 || data.qaHealth.queueSize > 5}
+          title={OPS_TOOLTIPS.qaPerformance}
         />
         <EnterpriseKpi
-          label="Workload Risk"
+          label={OPS_COPY.workloadRisk}
           value={data.workloadAlertSummary.open}
           sublabel={
             data.workloadAlertSummary.critical > 0
@@ -213,51 +318,38 @@ export function ExecutiveDashboardView({
           }
           href={linkHref(role, alertCenterHref({ type: "workload" }))}
           warn={data.workloadAlertSummary.open > 0}
+          title={OPS_TOOLTIPS.availableCapacity}
         />
         <EnterpriseKpi
-          label="Help Requests"
-          value={data.helpFlagSummary.open}
-          sublabel={
-            data.helpFlagSummary.critical > 0
-              ? `${data.helpFlagSummary.critical} critical`
-              : "Open help flags"
-          }
-          href={linkHref(role, alertCenterHref({ type: "help" }))}
-          warn={data.helpFlagSummary.open > 0}
-        />
-        <EnterpriseKpi
-          label="Missing Wrap-Ups"
-          value={data.wrapUpReview.missingToday}
-          sublabel={`${data.wrapUpReview.submittedToday} submitted today`}
-          href={linkHref(role, wrapUpsHref({ status: "missing" }))}
-          warn={data.wrapUpReview.missingToday > 0}
-        />
-        <EnterpriseKpi
-          label="Operational Health"
+          label={OPS_COPY.operationsScore}
           value={data.teamHealth.flowScore}
-          sublabel="Company Flow Score"
+          sublabel={OPS_COPY.operationsScore}
           href={linkHref(role, "/performance")}
           trend={
             productivityTrend !== undefined
               ? { delta: productivityTrend, label: "30d trend" }
               : undefined
           }
+          spotlight
+          priority="high"
+          title={OPS_TOOLTIPS.operationsScore}
         />
         <EnterpriseKpi
-          label="Department Capacity"
+          label={OPS_COPY.capacityUtilization}
           value={`${data.workforce.capacityUtilizationPct}%`}
           sublabel="Avg utilization vs target"
           href={linkHref(role, "/reports")}
           warn={data.workforce.capacityUtilizationPct > 90}
+          priority="low"
+          title={OPS_TOOLTIPS.capacityUtilization}
         />
-        <EnterpriseKpi
-          label="Overdue Tasks"
-          value={data.workload.overdue}
-          sublabel={`${data.workload.stuck} stuck`}
-          href={linkHref(role, operationsHref({ view: "overdue" }))}
-          warn={data.workload.overdue > 0}
-        />
-      </section>
+        </section>
+      </KpiPriorityZone>
+
+      {/* Operational insights */}
+      {data.insights.length > 0 && (
+        <OperationalInsightList insights={data.insights} maxItems={5} />
+      )}
 
       {/* Trends + Department health */}
       <div className="grid gap-6 xl:grid-cols-5">
@@ -265,13 +357,13 @@ export function ExecutiveDashboardView({
           <PerformanceTrendChart
             data={data.trends30}
             title="Productivity Trends"
-            description="30-day Flow Score, productivity, and quality trajectory"
+            description="30-day Operations Score, productivity, and quality trajectory"
           />
         </div>
         <div className="xl:col-span-2 space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <Building2 className="h-4 w-4 text-primary" />
-            <h3 className="enterprise-section-title">Department Health</h3>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <h3 className="enterprise-section-title">{OPS_COPY.departmentHealth}</h3>
           </div>
           <div className="flow-dept-health-grid grid sm:grid-cols-2 max-h-[340px] overflow-y-auto enterprise-panel-elevated">
             {data.departmentHealth.length === 0 ? (
@@ -311,10 +403,10 @@ export function ExecutiveDashboardView({
 
       {/* Capacity + At-risk projects */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="enterprise-panel-elevated p-5 space-y-4">
+        <div className="enterprise-panel-elevated p-5 space-y-4 flow-workspace-tier-2">
           <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            <h3 className="enterprise-section-title">Department Capacity</h3>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <h3 className="enterprise-section-title">{OPS_COPY.capacityUtilization}</h3>
           </div>
           <p className="text-xs text-muted-foreground -mt-2">
             Estimated hours loaded by department · {data.workforce.capacityUtilizationPct}% org
@@ -399,59 +491,64 @@ export function ExecutiveDashboardView({
         </div>
       </div>
 
-      {/* Signal strips — no tables */}
       {(data.helpFlagSummary.open > 0 || data.workloadAlertSummary.open > 0) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {data.helpFlagSummary.open > 0 && (
-            <SignalStrip
+            <OperationalSignalCard
               href={linkHref(role, "/alert-center")}
-              className="enterprise-panel p-4 flex items-center gap-3"
-            >
-              <HelpCircle className="h-8 w-8 text-red-400 shrink-0" />
-              <div>
-                <p className="font-semibold">{data.helpFlagSummary.open} help requests</p>
-                <p className="text-xs text-muted-foreground">
-                  {data.helpFlagSummary.critical} critical · employees need assistance
-                </p>
-              </div>
-            </SignalStrip>
+              variant="help"
+              icon={HelpCircle}
+              title={`${data.helpFlagSummary.open} ${OPS_COPY.openEscalations.toLowerCase()}`}
+              description={`${data.helpFlagSummary.critical} critical · employees need assistance`}
+            />
           )}
           {data.workloadAlertSummary.open > 0 && (
-            <SignalStrip
+            <OperationalSignalCard
               href={linkHref(role, "/operations")}
-              className="enterprise-panel p-4 flex items-center gap-3"
-            >
-              <TrendingDown className="h-8 w-8 text-amber-400 shrink-0" />
-              <div>
-                <p className="font-semibold">{data.workloadAlertSummary.open} workload alerts</p>
-                <p className="text-xs text-muted-foreground">
-                  Employees running low on assigned work
-                </p>
-              </div>
-            </SignalStrip>
+              variant="workload"
+              icon={TrendingDown}
+              title={`${data.workloadAlertSummary.open} capacity alerts`}
+              description="Employees with available capacity for additional assignments"
+            />
           )}
         </div>
       )}
 
-      {/* Recent activity */}
-      <section className="flow-live-panel">
-        <div className="flow-live-panel-header flex items-center justify-between gap-3">
-          <div>
-            <h3 className="enterprise-section-title">Recent Activity</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Last {data.recentActivity.length} operational events
-            </p>
-          </div>
-          {linkHref(role, "/operations") && (
+      {data.accountability.attentionList.length > 0 && (
+        <div className="enterprise-panel-elevated p-5 space-y-3">
+          <h3 className="enterprise-section-title">People needing attention</h3>
+          <ul className="space-y-2">
+            {data.accountability.attentionList.slice(0, 6).map((item) => (
+              <li
+                key={`${item.userId}-${item.category}`}
+                className="flex items-start justify-between gap-3 rounded-md border border-border/60 bg-muted/10 px-3 py-2 text-sm flow-card-interactive"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">{item.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.reason}</p>
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                  {item.category}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <LiveActivityStream
+        events={data.recentActivity}
+        maxItems={14}
+        pulseStatus={pulseStatus(needsAttention, hasCritical)}
+        description={`Last ${Math.min(data.recentActivity.length, 14)} operational events`}
+        action={
+          linkHref(role, "/operations") ? (
             <Button size="sm" variant="ghost" render={<Link href="/operations" />}>
               Operations
             </Button>
-          )}
-        </div>
-        <div className="px-4 py-2">
-          <ActivityFeed events={data.recentActivity} maxItems={14} />
-        </div>
-      </section>
+          ) : undefined
+        }
+      />
 
       {/* Footer pulse metrics */}
       <section className="grid gap-3 sm:grid-cols-3 text-center">

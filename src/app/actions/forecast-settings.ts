@@ -6,6 +6,7 @@ import { getForecastSettings, updateForecastSettings } from "@/lib/data/flow-sto
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { writeForecastSettingsCookie } from "@/lib/forecast/settings-persistence";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { persistForecastSettingsToSupabase } from "@/lib/settings/supabase-settings";
 import type { ForecastSettings } from "@/types/flow";
 
 const PATHS = [
@@ -43,6 +44,8 @@ export async function updateForecastSettingsAction(input: {
 
   if (!isSupabaseConfigured()) {
     await writeForecastSettingsCookie(settings);
+  } else {
+    await persistForecastSettingsToSupabase(settings, user.id);
   }
 
   PATHS.forEach((p) => revalidatePath(p));

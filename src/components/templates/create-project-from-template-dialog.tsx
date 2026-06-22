@@ -6,11 +6,15 @@ import { TemplatePreviewPanel } from "@/components/templates/template-preview-pa
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  WizardDialogBody,
+  WizardDialogContent,
+  WizardDialogFooter,
+  WizardDialogHeader,
+  WizardDialogScroll,
+} from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -96,25 +100,27 @@ export function CreateProjectFromTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <WizardDialogContent size="md">
+        <WizardDialogHeader>
           <DialogTitle>Create from: {template.label}</DialogTitle>
-        </DialogHeader>
+        </WizardDialogHeader>
 
-        <div className="space-y-4">
-          <TemplatePreviewPanel preview={preview} />
+        <WizardDialogBody>
+          <WizardDialogScroll>
+            <div className="space-y-4">
+              <TemplatePreviewPanel preview={preview} />
 
-          <div className="space-y-2">
-            <Label>Project name *</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Q2 SI Library Audit"
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>Project name *</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Q2 SI Library Audit"
+                  required
+                />
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs">Department *</Label>
               <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
@@ -178,22 +184,24 @@ export function CreateProjectFromTemplateDialog({
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+          </WizardDialogScroll>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={pending || !name.trim() || !deptCompatible}
-          >
-            {pending ? "Creating…" : "Create project"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          <WizardDialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={submit}
+              disabled={pending || !name.trim() || !deptCompatible}
+            >
+              {pending ? "Creating…" : "Create project"}
+            </Button>
+          </WizardDialogFooter>
+        </WizardDialogBody>
+      </WizardDialogContent>
     </Dialog>
   );
 }

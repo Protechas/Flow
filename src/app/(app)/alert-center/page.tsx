@@ -1,7 +1,15 @@
-import { PageHeader } from "@/components/layout/page-header";
+import Link from "next/link";
 import { HelpFlagsPanel } from "@/components/help-flags/help-flags-panel";
 import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
-import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
+import {
+  FlowPageShell,
+  GlobalAlertBar,
+  KpiStrip,
+  LiveActivityStream,
+  OperationalPostureStrip,
+  PLATFORM_EYEBROWS,
+  WorkspaceContainer,
+} from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import {
   alertCenterHref,
@@ -14,16 +22,20 @@ import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listHelpFlagsForViewer } from "@/lib/help-flags/engine";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
+import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
+import { listActivityGapsForViewer, syncActivityGaps } from "@/lib/work-visibility/engine";
+import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
-import { getVisibleUserIds, isOrgWideRole } from "@/lib/hierarchy/resolver";
+import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
+import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
 import { isOverdue } from "@/lib/scoring/flow-score";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default async function AlertCenterPage() {
   const user = await requirePageAccess("/alert-center");
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
+  await hydrateWorkVisibilitySettings();
   initFlowStore();
   const store = getFlowStore();
   const teams = listTeamsStore();
@@ -31,8 +43,10 @@ export default async function AlertCenterPage() {
 
   const workloadAlerts = listWorkloadAlertsForViewer(user, packages, store.users);
   const helpFlags = listHelpFlagsForViewer(user, packages, store.users);
+  const activityGaps = listActivityGapsForViewer(user, store.users);
+  syncActivityGaps(store.users);
 
-  const visibleIds = isOrgWideRole(user.role)
+  const visibleIds = isHierarchyOrgWide(user)
     ? null
     : new Set(getVisibleUserIds(user, store.users, teams));
 
@@ -43,69 +57,153 @@ export default async function AlertCenterPage() {
   const overdueCount = scopedPackages.filter(isOverdue).length;
   const wrapUpStats = getWrapUpDashboardStats(user);
 
+  const hasAlerts = helpFlags.length > 0 || workloadAlerts.length > 0 || activityGaps.length > 0;
+  const hasCritical =
+    helpFlags.some((f) => f.severity === "critical") ||
+    workloadAlerts.some((a) => a.severity === "critical");
+  const recentActivity = [...store.activity]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 10);
+
   return (
-    <>
-      <PageHeader
-        title="Hierarchy Alert Center"
-        eyebrow="Operational Signals"
-        breadcrumbs={[{ label: "Alert Center" }]}
-        description="Workload, help requests, wrap-ups, and overdue work — scoped to your reporting branch."
-      >
+    <FlowPageShell
+      title="Alert Center"
+      eyebrow={PLATFORM_EYEBROWS.alerts}
+      breadcrumbs={[{ label: "Alert Center" }]}
+      description="Escalations, capacity alerts, daily reports, and overdue work — scoped to your reporting branch."
+      pulse={
+        <OperationalPostureStrip
+          signals={[
+            {
+              id: "help",
+              label: OPS_COPY.openEscalations,
+              value: helpFlags.length,
+              status: helpFlags.length > 0 ? "critical" : "healthy",
+              href: alertCenterHref({ type: "help" }),
+            },
+            {
+              id: "workload",
+              label: OPS_COPY.availableCapacity,
+              value: workloadAlerts.length,
+              status: workloadAlerts.length > 0 ? "attention" : "healthy",
+              href: alertCenterHref({ type: "workload" }),
+            },
+            {
+              id: "activity_gaps",
+              label: OPS_COPY.activityGap,
+              value: activityGaps.length,
+              status: activityGaps.length > 0 ? "attention" : "healthy",
+              href: alertCenterHref({ type: "activity_gaps" }),
+            },
+            {
+              id: "wrapup",
+              label: OPS_COPY.outstandingDailyReports,
+              value: wrapUpStats.missingToday,
+              status: wrapUpStats.missingToday > 0 ? "attention" : "healthy",
+              href: wrapUpsHref({ status: "missing" }),
+            },
+            {
+              id: "overdue",
+              label: OPS_COPY.overdueTasks,
+              value: overdueCount,
+              status: overdueCount > 0 ? "attention" : "healthy",
+              href: operationsHref({ view: "overdue" }),
+            },
+          ]}
+        />
+      }
+      headerActions={
         <Button variant="outline" size="sm" render={<Link href="/org-chart" />}>
           View org chart
         </Button>
-      </PageHeader>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <EnterpriseKpi
-          label="Workload alerts"
-          value={workloadAlerts.length}
-          warn={workloadAlerts.length > 0}
-          href={alertCenterHref({ type: "workload" })}
-          title="Jump to workload alerts"
+      }
+      kpis={
+        <KpiStrip
+          columns={4}
+          items={[
+            {
+              id: "workload",
+              label: OPS_COPY.availableCapacity,
+              value: workloadAlerts.length,
+              warn: workloadAlerts.length > 0,
+              critical: workloadAlerts.some((a) => a.severity === "critical"),
+              href: alertCenterHref({ type: "workload" }),
+              title: OPS_TOOLTIPS.availableCapacity,
+            },
+            {
+              id: "help",
+              label: OPS_COPY.openEscalations,
+              value: helpFlags.length,
+              warn: helpFlags.length > 0,
+              critical: helpFlags.some((f) => f.severity === "critical"),
+              href: alertCenterHref({ type: "help" }),
+              title: OPS_TOOLTIPS.openEscalations,
+            },
+            {
+              id: "activity_gaps",
+              label: OPS_COPY.activityGap,
+              value: activityGaps.length,
+              warn: activityGaps.length > 0,
+              href: alertCenterHref({ type: "activity_gaps" }),
+            },
+            {
+              id: "wrapup",
+              label: OPS_COPY.outstandingDailyReports,
+              value: wrapUpStats.missingToday,
+              warn: wrapUpStats.missingToday > 0,
+              href: wrapUpsHref({ status: "missing" }),
+              title: OPS_TOOLTIPS.outstandingDailyReports,
+            },
+            {
+              id: "overdue",
+              label: OPS_COPY.overdueTasks,
+              value: overdueCount,
+              warn: overdueCount > 0,
+              href: operationsHref({ view: "overdue" }),
+              title: OPS_TOOLTIPS.overdueTasks,
+            },
+          ]}
         />
-        <EnterpriseKpi
-          label="Help requests"
-          value={helpFlags.length}
-          warn={helpFlags.length > 0}
-          href={alertCenterHref({ type: "help" })}
-          title="Jump to help requests"
-        />
-        <EnterpriseKpi
-          label="Missing wrap-ups"
-          value={wrapUpStats.missingToday}
-          warn={wrapUpStats.missingToday > 0}
-          href={wrapUpsHref({ status: "missing" })}
-          title="Review missing wrap-ups"
-        />
-        <EnterpriseKpi
-          label="Overdue tasks"
-          value={overdueCount}
-          warn={overdueCount > 0}
-          href={operationsHref({ view: "overdue" })}
-          title="View overdue tasks in operations"
-        />
-      </div>
-
-      {helpFlags.length > 0 && (
-        <div id="help-flags" className="mb-8 scroll-mt-24">
-          <HelpFlagsPanel flags={helpFlags} role={user.role} />
-        </div>
-      )}
-
-      {workloadAlerts.length > 0 && (
-        <div id="workload-alerts" className="scroll-mt-24">
-          <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} />
-        </div>
-      )}
-
-      {helpFlags.length === 0 && workloadAlerts.length === 0 && (
-        <div className="flow-alert-strip flow-alert-strip-healthy">
-          <p className="text-sm text-muted-foreground">
-            No open hierarchy alerts in your branch. Team capacity looks healthy.
-          </p>
-        </div>
-      )}
-    </>
+      }
+      alerts={
+        !hasAlerts ? (
+          <GlobalAlertBar variant="healthy">
+            No open alerts in your branch. Team capacity looks healthy.
+          </GlobalAlertBar>
+        ) : (
+          <GlobalAlertBar variant={hasCritical ? "danger" : "warn"} pulse={hasCritical}>
+            {hasCritical
+              ? "Critical alerts require immediate attention in your branch."
+              : "Open alerts in your branch — review escalations and capacity signals below."}
+          </GlobalAlertBar>
+        )
+      }
+      workspace={
+        <WorkspaceContainer elevated={false} bodyClassName="space-y-8 p-0">
+          {helpFlags.length > 0 && (
+            <div id="help-flags" className="scroll-mt-24">
+              <HelpFlagsPanel flags={helpFlags} role={user.role} />
+            </div>
+          )}
+          {workloadAlerts.length > 0 && (
+            <div id="workload-alerts" className="scroll-mt-24">
+              <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} />
+            </div>
+          )}
+          {activityGaps.length > 0 && (
+            <div id="activity-gaps" className="scroll-mt-24">
+              <ActivityGapsPanel gaps={activityGaps} />
+            </div>
+          )}
+          <LiveActivityStream
+            events={recentActivity}
+            title="Alert Activity"
+            description="Recent help, workload, and status events in your branch"
+            maxItems={8}
+            pulseStatus={hasCritical ? "critical" : hasAlerts ? "attention" : "nominal"}
+          />
+        </WorkspaceContainer>
+      }
+    />
   );
 }
