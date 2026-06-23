@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   BellRing,
+  BookOpen,
   Building2,
   ChevronDown,
   ClipboardList,
@@ -73,6 +74,7 @@ const ICONS = {
   Factory,
   HeartPulse,
   TrendingUp,
+  BookOpen,
 } as const;
 
 const SIDEBAR_SECTIONS_STORAGE_KEY = "flow-sidebar-sections";

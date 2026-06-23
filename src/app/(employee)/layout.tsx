@@ -38,7 +38,7 @@ export default async function EmployeeLayout({
         activeClock={activeClock}
         todayClockEntries={todayClockEntries}
       />
-      <main className="flex-1 flow-layer-content px-3 py-4 sm:px-6 sm:py-6 max-w-4xl mx-auto w-full">
+      <main className="flex-1 flow-layer-content px-3 py-4 sm:px-6 sm:py-6 max-w-6xl mx-auto w-full">
         {children}
       </main>
       <InnovationHubBubble />

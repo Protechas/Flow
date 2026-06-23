@@ -419,6 +419,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/innovation-hub": "innovation_hub:manage",
 
+  "/docs": ["dashboard:view", "work:view_own", "work:view_team", "reports:view_team"],
+
   "/unauthorized": "dashboard:view",
 
 };
@@ -486,6 +488,8 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/innovation-hub": ["admin", "super_admin", "senior_manager", "manager"],
 
+  "/docs": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"],
+
 };
 
 
@@ -536,7 +540,9 @@ export type NavItemId =
 
   | "settings"
 
-  | "system-health";
+  | "system-health"
+
+  | "docs";
 
 
 
@@ -598,7 +604,7 @@ export const NAV_ITEM_ORDER: Record<NavGroupId, NavItemId[]> = {
 
   workforce: ["people", "time-clock", "org-chart"],
 
-  reporting: ["reports", "analytics", "planning", "team-reports", "team-analytics"],
+  reporting: ["reports", "analytics", "planning", "team-reports", "team-analytics", "docs"],
 
   administration: ["departments", "templates", "user-management", "system-health", "innovation-hub", "settings"],
 
@@ -680,6 +686,8 @@ export const NAV_CONFIG: {
 
   { id: "settings", href: "/settings", label: "Settings", icon: "Settings", group: "administration", permissions: "settings:manage", roles: ["admin", "super_admin"] },
 
+  { id: "docs", href: "/docs", label: "Help & Docs", icon: "BookOpen", group: "reporting", permissions: ["dashboard:view", "work:view_own", "work:view_team", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"] },
+
 ];
 
 
@@ -691,6 +699,8 @@ export const EMPLOYEE_NAV = [
   { href: "/work/files", label: "Files & SOPs", icon: "FileStack" },
 
   { href: "/scorecard", label: "My Scorecard", icon: "Award" },
+
+  { href: "/docs", label: "Help & Docs", icon: "BookOpen" },
 
 ] as const;
 
@@ -706,6 +716,9 @@ export function isEmployeeNavActive(href: string, pathname: string): boolean {
   }
   if (href === "/work/files") {
     return pathname === "/work/files" || pathname.startsWith("/work/files/");
+  }
+  if (href === "/docs") {
+    return pathname === "/docs" || pathname.startsWith("/docs/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -769,6 +782,10 @@ export function isTeamLeadRole(role: UserRole | string): boolean {
 export function canAccessRoute(role: UserRole | string, pathname: string): boolean {
 
   const r = normalizeRole(role);
+
+  if (pathname === "/docs" || pathname.startsWith("/docs/")) {
+    return true;
+  }
 
 
 
