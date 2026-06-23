@@ -27,6 +27,10 @@ export function SignUpForm() {
           firstName: fd.get("first_name") as string,
           lastName: fd.get("last_name") as string,
         });
+        if (!res.ok) {
+          setError(res.error);
+          return;
+        }
         if (res.needsEmailConfirmation) {
           setEmail(submittedEmail);
           setSubmitted(true);

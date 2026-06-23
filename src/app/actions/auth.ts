@@ -20,6 +20,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/supabase/site-url";
+import { formatSignupError } from "@/lib/auth/signup-errors";
 import { requirePermission } from "@/lib/auth/session";
 import { MOCK_USERS } from "@/lib/data/mock-data";
 import type { UserRole } from "@/types/flow";
@@ -90,14 +91,18 @@ export async function requestPasswordResetAction(email: string) {
   return { ok: true as const };
 }
 
+export type SignUpActionResult =
+  | { ok: true; needsEmailConfirmation: true }
+  | { ok: false; error: string };
+
 export async function signUpAction(input: {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-}) {
+}): Promise<SignUpActionResult> {
   if (!isSupabaseConfigured()) {
-    throw new Error("Account creation requires Supabase authentication");
+    return { ok: false, error: "Account creation requires Supabase authentication" };
   }
 
   const email = input.email.trim().toLowerCase();
@@ -106,10 +111,10 @@ export async function signUpAction(input: {
   const password = input.password;
 
   if (!email || !password) {
-    throw new Error("Email and password are required");
+    return { ok: false, error: "Email and password are required" };
   }
   if (password.length < 8) {
-    throw new Error("Password must be at least 8 characters");
+    return { ok: false, error: "Password must be at least 8 characters" };
   }
 
   const supabase = await createClient();
@@ -131,15 +136,24 @@ export async function signUpAction(input: {
     },
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    return {
+      ok: false,
+      error: formatSignupError(error.message, error.code ?? null),
+    };
+  }
 
   if (data.session && data.user) {
-    await recordLastLogin(data.user.id);
+    try {
+      await recordLastLogin(data.user.id);
+    } catch {
+      // Profile row may still be syncing; login should still proceed.
+    }
     revalidatePath("/", "layout");
     redirect("/work");
   }
 
-  return { ok: true as const, needsEmailConfirmation: true as const };
+  return { ok: true, needsEmailConfirmation: true };
 }
 
 export async function inviteUserAction(
