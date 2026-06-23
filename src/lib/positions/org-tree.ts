@@ -280,6 +280,10 @@ function collectPositionIdsFromNodes(nodes: OrgChartNode[]): Set<string> {
   return ids;
 }
 
+function headerOnlyNode(node: OrgChartNode): OrgChartNode {
+  return { ...node, children: [] };
+}
+
 export function buildDepartmentGroupedSections(
   tree: OrgTreeResult,
   departments: Department[],
@@ -303,9 +307,8 @@ export function buildDepartmentGroupedSections(
           (pos.position_level === "senior_manager" || !pos.team_id)
         );
       })
-      .sort((a, b) =>
-        comparePositions(a.position!, b.position!)
-      );
+      .sort((a, b) => comparePositions(a.position!, b.position!))
+      .map(headerOnlyNode);
 
     const teamSections: TeamOrgSection[] = deptTeams.map((team) => {
       const managerRoots = tree.activePositions
@@ -323,7 +326,11 @@ export function buildDepartmentGroupedSections(
     });
 
     return { department, departmentRoots, teams: teamSections };
-  });
+  }).filter(
+    (section) =>
+      section.departmentRoots.length > 0 ||
+      section.teams.some((t) => t.roots.length > 0)
+  );
 }
 
 export function hasGroupedDepartmentStructure(

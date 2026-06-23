@@ -913,6 +913,13 @@
   .flow-org-chart {
     position: relative;
   }
+  .flow-org-chart-tree {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  .flow-org-branch {
+    max-width: 42rem;
+  }
   .flow-org-chart-toolbar {
     border: 1px solid var(--border-subtle);
     border-top-color: var(--border-raised);
@@ -922,12 +929,14 @@
   }
   .flow-org-node-rail {
     position: relative;
-    margin-left: 1.25rem;
-    padding-left: 1rem;
+    margin-left: 1rem;
+    padding-left: 0.75rem;
     border-left: 1px solid color-mix(in oklch, var(--border-subtle) 80%, var(--primary) 20%);
   }
   .flow-org-user-card {
     position: relative;
+    width: 100%;
+    max-width: 42rem;
     border: 1px solid var(--border-subtle);
     border-top-color: var(--border-raised);
     border-radius: var(--radius-md);

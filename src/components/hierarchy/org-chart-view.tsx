@@ -202,32 +202,30 @@ function GroupedDepartmentChart({
             />
           ))}
 
-          {section.teams.map((teamSection) => (
-            <div key={teamSection.team.id} className="ml-2 sm:ml-4 space-y-2">
+          {section.teams
+            .filter((teamSection) => teamSection.roots.length > 0)
+            .map((teamSection) => (
+            <div key={teamSection.team.id} className="ml-2 sm:ml-4 space-y-2 flow-org-branch">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="text-border">├──</span>
                 <span>{teamSection.team.name}</span>
               </div>
-              <div className="ml-4 sm:ml-6">
-                {teamSection.roots.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2">No position seats for this team yet.</p>
-                ) : (
-                  teamSection.roots.map((root) => (
-                    <OrgBranch
-                      key={`team-${teamSection.team.id}-${nodeKey(root)}`}
-                      node={root}
-                      depth={1}
-                      forceOpen={expandAll || !!search.trim()}
-                      opsMap={opsMap}
-                      selectedId={selectedId}
-                      onSelectUser={onSelectUser}
-                      onAssignPosition={onAssignPosition}
-                      onManagePosition={onManagePosition}
-                      canAssignPositions={canAssignPositions}
-                      canManagePositions={canManagePositions}
-                    />
-                  ))
-                )}
+              <div className="ml-4 sm:ml-6 flow-org-branch">
+                {teamSection.roots.map((root) => (
+                  <OrgBranch
+                    key={`team-${teamSection.team.id}-${nodeKey(root)}`}
+                    node={root}
+                    depth={1}
+                    forceOpen={expandAll || !!search.trim()}
+                    opsMap={opsMap}
+                    selectedId={selectedId}
+                    onSelectUser={onSelectUser}
+                    onAssignPosition={onAssignPosition}
+                    onManagePosition={onManagePosition}
+                    canAssignPositions={canAssignPositions}
+                    canManagePositions={canManagePositions}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -267,8 +265,8 @@ function OrgBranch({
   const isPosition = !!node.position;
 
   return (
-    <div className={cn(depth > 0 && "flow-org-node-rail")}>
-      <div className="flex items-start gap-2 py-2">
+    <div className={cn("flow-org-branch", depth > 0 && "flow-org-node-rail")}>
+      <div className="flex items-start gap-2 py-1.5">
         {hasChildren ? (
           <button
             type="button"
@@ -577,7 +575,7 @@ export function OrgChartView({
           </Button>
         </div>
 
-        <div className="min-h-[360px]">
+        <div className="min-h-[360px] flow-org-chart-tree">
           {!hasChartContent ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
@@ -626,7 +624,7 @@ export function OrgChartView({
       </div>
 
       {permissions.canManagePositions && unassignedUsers.length > 0 && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 border-t border-border/40 pt-4 mt-2">
           <UnassignedUsersPanel
             users={unassignedUsers}
             positions={positions}
