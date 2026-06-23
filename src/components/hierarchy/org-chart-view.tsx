@@ -30,6 +30,7 @@ import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { alertCenterHref, wrapUpsHref } from "@/lib/navigation/deep-links";
 import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
 import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
+import type { DepartmentOrgSection } from "@/lib/positions/grouped-chart";
 import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { cn } from "@/lib/utils";
 import type {
@@ -118,6 +119,122 @@ function filterTree(
     .map((c) => filterTree(c, search, departmentId, teamId, roleFilter, departments))
     .filter((n): n is OrgChartNode => n !== null);
   return { ...node, children };
+}
+
+function filterGroupedSections(
+  sections: DepartmentOrgSection[],
+  search: string,
+  departmentId: string,
+  teamId: string,
+  roleFilter: string,
+  departments: { id: string; name: string }[]
+): DepartmentOrgSection[] {
+  return sections
+    .filter((section) => !departmentId || section.department.id === departmentId)
+    .map((section) => ({
+      ...section,
+      departmentRoots: section.departmentRoots
+        .map((r) => filterTree(r, search, departmentId, teamId, roleFilter, departments))
+        .filter((n): n is OrgChartNode => n !== null),
+      teams: section.teams
+        .filter((t) => !teamId || t.team.id === teamId)
+        .map((t) => ({
+          ...t,
+          roots: t.roots
+            .map((r) => filterTree(r, search, departmentId, teamId, roleFilter, departments))
+            .filter((n): n is OrgChartNode => n !== null),
+        }))
+        .filter((t) => t.roots.length > 0 || (!search && !roleFilter)),
+    }))
+    .filter(
+      (section) =>
+        section.departmentRoots.length > 0 ||
+        section.teams.some((t) => t.roots.length > 0) ||
+        (!search && !roleFilter && (!departmentId || section.department.id === departmentId))
+    );
+}
+
+function GroupedDepartmentChart({
+  sections,
+  expandAll,
+  search,
+  opsMap,
+  selectedId,
+  onSelectUser,
+  onAssignPosition,
+  onManagePosition,
+  canAssignPositions,
+  canManagePositions,
+}: {
+  sections: DepartmentOrgSection[];
+  expandAll: boolean;
+  search: string;
+  opsMap: Record<string, import("@/types/flow").OrgChartUserOps>;
+  selectedId: string | null;
+  onSelectUser: (userId: string) => void;
+  onAssignPosition: (position: OrgPosition) => void;
+  onManagePosition: (position: OrgPosition) => void;
+  canAssignPositions: boolean;
+  canManagePositions: boolean;
+}) {
+  return (
+    <div className="space-y-8">
+      {sections.map((section) => (
+        <div key={section.department.id} className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+            <Briefcase className="h-4 w-4 text-primary shrink-0" />
+            <h3 className="font-semibold text-sm">{section.department.name}</h3>
+          </div>
+
+          {section.departmentRoots.map((root) => (
+            <OrgBranch
+              key={`dept-root-${nodeKey(root)}`}
+              node={root}
+              depth={0}
+              forceOpen={expandAll || !!search.trim()}
+              opsMap={opsMap}
+              selectedId={selectedId}
+              onSelectUser={onSelectUser}
+              onAssignPosition={onAssignPosition}
+              onManagePosition={onManagePosition}
+              canAssignPositions={canAssignPositions}
+              canManagePositions={canManagePositions}
+            />
+          ))}
+
+          {section.teams.map((teamSection) => (
+            <div key={teamSection.team.id} className="ml-2 sm:ml-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <span className="text-border">├──</span>
+                <span>{teamSection.team.name}</span>
+              </div>
+              <div className="ml-4 sm:ml-6">
+                {teamSection.roots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No position seats for this team yet.</p>
+                ) : (
+                  teamSection.roots.map((root) => (
+                    <OrgBranch
+                      key={`team-${teamSection.team.id}-${nodeKey(root)}`}
+                      node={root}
+                      depth={1}
+                      forceOpen={expandAll || !!search.trim()}
+                      opsMap={opsMap}
+                      selectedId={selectedId}
+                      onSelectUser={onSelectUser}
+                      onAssignPosition={onAssignPosition}
+                      onManagePosition={onManagePosition}
+                      canAssignPositions={canAssignPositions}
+                      canManagePositions={canManagePositions}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function OrgBranch({
@@ -223,6 +340,8 @@ export function OrgChartView({
   unassignedUsers = [],
   vacantPositionCount = 0,
   usePositionChart = false,
+  useGroupedDisplay = false,
+  groupedSections = [],
   opsMap,
   profiles,
   permissions,
@@ -239,6 +358,8 @@ export function OrgChartView({
   unassignedUsers?: User[];
   vacantPositionCount?: number;
   usePositionChart?: boolean;
+  useGroupedDisplay?: boolean;
+  groupedSections?: DepartmentOrgSection[];
   opsMap: Record<string, import("@/types/flow").OrgChartUserOps>;
   profiles: Record<string, OrgChartProfileDetail>;
   permissions: OrgChartViewerPermissions;
@@ -277,6 +398,32 @@ export function OrgChartView({
       .map((r) => filterTree(r, search, departmentId, teamId, roleFilter, departments))
       .filter((n): n is OrgChartNode => n !== null);
   }, [roots, search, departmentId, teamId, roleFilter, departments]);
+
+  const filteredGroupedSections = useMemo(() => {
+    if (!useGroupedDisplay) return [];
+    const hasFilter = search || departmentId || teamId || roleFilter;
+    if (!hasFilter) return groupedSections;
+    return filterGroupedSections(
+      groupedSections,
+      search,
+      departmentId,
+      teamId,
+      roleFilter,
+      departments
+    );
+  }, [
+    useGroupedDisplay,
+    groupedSections,
+    search,
+    departmentId,
+    teamId,
+    roleFilter,
+    departments,
+  ]);
+
+  const hasChartContent = useGroupedDisplay
+    ? filteredGroupedSections.length > 0
+    : filteredRoots.length > 0;
 
   const selectedUser = selectedId ? allUsers.find((u) => u.id === selectedId) ?? null : null;
   const selectedProfile = selectedId ? profiles[selectedId] ?? null : null;
@@ -429,7 +576,7 @@ export function OrgChartView({
         </div>
 
         <div className="min-h-[360px]">
-          {filteredRoots.length === 0 ? (
+          {!hasChartContent ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 {usePositionChart
@@ -443,6 +590,19 @@ export function OrgChartView({
                 </Button>
               )}
             </div>
+          ) : useGroupedDisplay ? (
+            <GroupedDepartmentChart
+              sections={filteredGroupedSections}
+              expandAll={expandAll}
+              search={search}
+              opsMap={opsMap}
+              selectedId={selectedId}
+              onSelectUser={setSelectedId}
+              onAssignPosition={setAssignPosition}
+              onManagePosition={setManagePosition}
+              canAssignPositions={permissions.canAssignPositions}
+              canManagePositions={permissions.canManagePositions}
+            />
           ) : (
             filteredRoots.map((root) => (
               <OrgBranch

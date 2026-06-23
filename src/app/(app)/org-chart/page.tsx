@@ -16,6 +16,12 @@ import {
   countVacantPositions,
   listUnassignedUsers,
 } from "@/lib/positions/resolver";
+import { OrgStructureBuilder } from "@/components/hierarchy/org-structure-builder";
+import { ensureDepartmentsLoaded } from "@/lib/data/departments-db";
+import {
+  buildDepartmentGroupedSections,
+  hasGroupedDepartmentStructure,
+} from "@/lib/positions/grouped-chart";
 import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import {
@@ -43,6 +49,7 @@ export default async function OrgChartPage({
   initFlowStore();
   const allUsers = await listUsers();
   await hydrateAppStore();
+  await ensureDepartmentsLoaded();
   await ensureOrgPositionsLoaded();
   const departments = listDepartments().filter((d) => d.status === "active");
   const teams = listTeamsStore();
@@ -102,6 +109,10 @@ export default async function OrgChartPage({
 
   const positions = listActiveOrgPositions();
   const usePositionChart = hasOrgPositions();
+  const useGroupedDisplay = hasGroupedDepartmentStructure(departments, positions);
+  const groupedSections = useGroupedDisplay
+    ? buildDepartmentGroupedSections(scopedRoots, departments, teams, positions)
+    : [];
   const unassignedUsers = listUnassignedUsers(allUsers);
   const vacantPositionCount = countVacantPositions(positions);
 
@@ -182,6 +193,15 @@ export default async function OrgChartPage({
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
+          {permissions.canManagePositions && (
+            <div className="p-4 pb-0">
+              <OrgStructureBuilder
+                departments={departments}
+                users={allUsers}
+                canManage={permissions.canManagePositions}
+              />
+            </div>
+          )}
           <OrgChartView
             roots={scopedRoots}
             departments={departments}
@@ -190,6 +210,8 @@ export default async function OrgChartPage({
             unassignedUsers={unassignedUsers}
             vacantPositionCount={vacantPositionCount}
             usePositionChart={usePositionChart}
+            useGroupedDisplay={useGroupedDisplay}
+            groupedSections={groupedSections}
             opsMap={opsMap}
             profiles={profiles}
             permissions={permissions}

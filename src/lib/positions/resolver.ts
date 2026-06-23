@@ -90,6 +90,20 @@ export function getVisiblePositionIds(
     return new Set([viewerPosition.id]);
   }
 
+  if (scopeRole === "senior_manager" && viewerPosition.department_id) {
+    const inDept = active
+      .filter((p) => p.department_id === viewerPosition.department_id)
+      .map((p) => p.id);
+    return new Set([viewerPosition.id, ...inDept]);
+  }
+
+  if (scopeRole === "manager" && viewerPosition.team_id) {
+    const inTeam = active
+      .filter((p) => p.team_id === viewerPosition.team_id)
+      .map((p) => p.id);
+    return new Set([viewerPosition.id, ...inTeam]);
+  }
+
   if (scopeRole === "team_lead") {
     const directChildren = getChildPositionIds(viewerPosition.id, active);
     return new Set([viewerPosition.id, ...directChildren]);

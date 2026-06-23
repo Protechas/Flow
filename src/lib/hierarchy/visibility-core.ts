@@ -7,7 +7,8 @@ import {
   getPrimaryHierarchyForUser,
   listHierarchyRecords,
 } from "@/lib/hierarchy/store";
-import { listOrgPositions } from "@/lib/positions/store";
+import { getVisiblePositionIds } from "@/lib/positions/resolver";
+import { hasOrgPositions, listOrgPositions } from "@/lib/positions/store";
 import {
   getEffectiveScopeMode,
   getTeamScopedUserIds,
@@ -72,6 +73,18 @@ export function getVisibleUserIds(
 
   if (isHierarchyOrgWide(viewer)) {
     return active.map((u) => u.id);
+  }
+
+  if (hasOrgPositions()) {
+    const positions = listOrgPositions().filter((p) => p.status !== "inactive");
+    const visiblePositionIds = getVisiblePositionIds(viewer, positions, active);
+    const ids = new Set<string>([viewer.id]);
+    for (const position of positions) {
+      if (visiblePositionIds.has(position.id) && position.assigned_user_id) {
+        ids.add(position.assigned_user_id);
+      }
+    }
+    return [...ids];
   }
 
   if (scopeRoleForUser(viewer) === "employee") {

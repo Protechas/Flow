@@ -28,6 +28,7 @@ import {
   deriveUserFieldsFromPosition,
 } from "@/lib/positions/sync";
 import type { OrganizationalPosition, OrgPositionInput, OrgPositionStatus } from "@/types/flow";
+import { syncDepartmentTeamFromPosition, clearDepartmentTeamSeat } from "@/lib/positions/team-sync";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function revalidateAll() {
@@ -150,6 +151,8 @@ export async function assignUserToPositionAction(positionId: string, userId: str
   const derived = deriveUserFieldsFromPosition(refreshed, listOrgPositions(), users);
   const updated = await updateUserProfile(userId, derived);
   await syncUserAssignedPositionDb(userId, positionId);
+  const filled = getOrgPositionById(positionId)!;
+  await syncDepartmentTeamFromPosition(filled);
 
   await writeAuditLog({
     action: "assignment_changed",
@@ -178,6 +181,7 @@ export async function unassignUserFromPositionAction(positionId: string) {
 
   if (userId) {
     const users = getFlowStore().users;
+    await clearDepartmentTeamSeat(position, userId);
     clearPositionAssignmentFromStore(userId, users, (id, fields) => updateUser(id, fields));
     await updateUserProfile(userId, { assigned_position_id: null });
     await syncUserAssignedPositionDb(userId, null);
