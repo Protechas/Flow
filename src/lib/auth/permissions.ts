@@ -441,7 +441,7 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/operations/templates": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
-  "/projects": ["admin", "manager", "teamlead"],
+  "/projects": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/people": ["admin", "manager", "teamlead", "viewer"],
 
@@ -644,7 +644,7 @@ export const NAV_CONFIG: {
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "manager", "teamlead"] },
+  { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "production", href: "/production", label: "Production", icon: "Factory", group: "operations", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 

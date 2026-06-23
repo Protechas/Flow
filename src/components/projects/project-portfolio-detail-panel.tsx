@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ProjectForecastPanel } from "@/components/forecast/project-forecast-panel";
-import { ProjectMetricsPanel } from "@/components/projects/project-metrics-panel";
 import { DueDateStatusBadge } from "@/components/forecast/due-date-status-badge";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
+import { ProjectSummaryPanel } from "@/components/projects/project-summary-panel";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,19 +12,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { HIERARCHY_LABELS } from "@/lib/projects/hierarchy-labels";
 import {
   buildManufacturerRollupContext,
-  buildProjectRollupContext,
-  departmentLabel,
   formatLastActivity,
-  formatProjectType,
-  healthStatusLabel,
   type ProjectWithStats,
 } from "@/lib/projects/portfolio-utils";
-import {
-  canManageProjectMetrics,
-  canUpdateProjectMetricValues,
-} from "@/lib/metrics/project-metrics-permissions";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatForecastHours } from "@/lib/forecast/engine";
 import type {
@@ -69,6 +61,8 @@ export function ProjectPortfolioDetailPanel({
   activity,
   viewer,
   canEdit = false,
+  canDelete = false,
+  managers = [],
 }: {
   selection: PortfolioSelection;
   onClose: () => void;
@@ -82,6 +76,8 @@ export function ProjectPortfolioDetailPanel({
   activity: ActivityEvent[];
   viewer?: User;
   canEdit?: boolean;
+  canDelete?: boolean;
+  managers?: User[];
 }) {
   const open = selection !== null;
 
@@ -115,10 +111,10 @@ export function ProjectPortfolioDetailPanel({
     description = "Project portfolio details";
   } else if (selection?.kind === "manufacturer" && manufacturer) {
     title = manufacturer.name;
-    description = project?.name ?? "Manufacturer";
+    description = project?.name ?? HIERARCHY_LABELS.workstream;
   } else if (selection?.kind === "year" && yearItem && manufacturer) {
     title = `${manufacturer.name} · ${yearItem.year}`;
-    description = project?.name ?? "Model year";
+    description = project?.name ?? HIERARCHY_LABELS.phase;
   } else if (selection?.kind === "task" && task) {
     title = task.title;
     description = project?.name ?? "Task";
@@ -129,7 +125,7 @@ export function ProjectPortfolioDetailPanel({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="pr-8">{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
@@ -137,54 +133,20 @@ export function ProjectPortfolioDetailPanel({
 
         <div className="mt-6 space-y-6">
           {selection?.kind === "project" && project && (
-            <>
-              <div className="space-y-1">
-                <DetailRow label="Department" value={departmentLabel(project, departments)} />
-                <DetailRow label="Category" value={formatProjectType(project.project_type)} />
-                <DetailRow label="Progress" value={`${project.completedPct}%`} />
-                <DetailRow
-                  label="Health Status"
-                  value={
-                    <DueDateStatusBadge status={project.project_due_date_status} />
-                  }
-                />
-                <DetailRow
-                  label="Forecast Confidence"
-                  value={`${project.forecast_confidence ?? 0}%`}
-                />
-                <DetailRow
-                  label="Last Activity"
-                  value={formatLastActivity(
-                    buildProjectRollupContext(
-                      project,
-                      packages,
-                      manufacturers,
-                      yearItems,
-                      qaReviews,
-                      activity
-                    ).lastActivityAt
-                  )}
-                />
-              </div>
-              <ProjectMetricsPanel
-                project={project}
-                user={viewer}
-                canManage={Boolean(viewer && canEdit && canManageProjectMetrics(viewer))}
-                canUpdateValues={Boolean(
-                  viewer && canUpdateProjectMetricValues(viewer, project)
-                )}
-              />
-              <ProjectForecastPanel project={project} />
-              <div>
-                <p className="enterprise-label mb-2">Structure</p>
-                <p className="text-sm text-muted-foreground">
-                  {manufacturers.filter((m) => m.project_id === project.id && !m.is_archived).length}{" "}
-                  manufacturers ·{" "}
-                  {yearItems.filter((y) => y.project_id === project.id).length} years ·{" "}
-                  {packages.filter((p) => p.project_id === project.id).length} tasks
-                </p>
-              </div>
-            </>
+            <ProjectSummaryPanel
+              project={project}
+              packages={packages}
+              manufacturers={manufacturers}
+              yearItems={yearItems}
+              departments={departments}
+              analysts={analysts}
+              managers={managers}
+              qaReviews={qaReviews}
+              activity={activity}
+              viewer={viewer}
+              canEdit={canEdit}
+              canDelete={canDelete}
+            />
           )}
 
           {selection?.kind === "manufacturer" && manufacturer && project && (
@@ -201,8 +163,8 @@ export function ProjectPortfolioDetailPanel({
                   <div className="space-y-1">
                     <DetailRow label="Project" value={project.name} />
                     <DetailRow label="Progress" value={`${rollup.completedPct}%`} />
-                    <DetailRow label="Years" value={rollup.yearCount} />
-                    <DetailRow label="Tasks" value={rollup.totalPackages} />
+                    <DetailRow label={HIERARCHY_LABELS.phasePlural} value={rollup.yearCount} />
+                    <DetailRow label={HIERARCHY_LABELS.taskPlural} value={rollup.totalPackages} />
                     <DetailRow label="Ready for QA" value={rollup.readyForQa} />
                     <DetailRow label="Issue Count" value={rollup.correctionCount + rollup.overdueCount} />
                     <DetailRow
@@ -217,13 +179,13 @@ export function ProjectPortfolioDetailPanel({
 
           {selection?.kind === "year" && yearItem && manufacturer && (
             <div className="space-y-1">
-              <DetailRow label="Manufacturer" value={manufacturer.name} />
-              <DetailRow label="Model Year" value={yearItem.year} />
+              <DetailRow label={HIERARCHY_LABELS.workstream} value={manufacturer.name} />
+              <DetailRow label={HIERARCHY_LABELS.phase} value={yearItem.year} />
               <DetailRow label="Assigned User" value={assigneeName(yearItem.assigned_to)} />
               <DetailRow label="Status" value={<StatusBadge status={yearItem.status} />} />
               <DetailRow label="Due Date" value={yearItem.due_date ?? "—"} />
               <DetailRow
-                label="Tasks"
+                label={HIERARCHY_LABELS.taskPlural}
                 value={packages.filter((p) => p.year_work_item_id === yearItem.id).length}
               />
             </div>
@@ -254,13 +216,6 @@ export function ProjectPortfolioDetailPanel({
             </div>
           )}
 
-          {project && selection?.kind === "project" && (
-            <p className="text-xs text-muted-foreground">
-              Health: {healthStatusLabel(project.project_due_date_status)}
-              {project.project_due_date_status === "behind_capacity" &&
-                " — Due date may be unrealistic based on current capacity."}
-            </p>
-          )}
         </div>
       </SheetContent>
     </Sheet>

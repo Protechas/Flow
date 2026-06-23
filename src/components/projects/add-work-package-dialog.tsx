@@ -69,6 +69,7 @@ export function AddWorkPackageDialog({
 
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [confirmStep, setConfirmStep] = useState(false);
   const [docCount, setDocCount] = useState("");
   const [complexity, setComplexity] = useState<ForecastComplexityLevel>("standard");
   const [assignee, setAssignee] = useState(yearItem.assigned_to ?? "__none__");
@@ -103,7 +104,13 @@ export function AddWorkPackageDialog({
       : yearItem.due_date;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setConfirmStep(false);
+      }}
+    >
       <DialogTrigger
         render={
           trigger ?? (
@@ -114,42 +121,15 @@ export function AddWorkPackageDialog({
           )
         }
       />
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add task</DialogTitle>
           <p className="text-sm text-muted-foreground">
             {mfr} · {yearItem.year}
           </p>
         </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            startTransition(async () => {
-              await createWorkPackageAction({
-                project_id: yearItem.project_id,
-                manufacturer_id: yearItem.manufacturer_id,
-                year_work_item_id: yearItem.id,
-                year: yearItem.year,
-                title,
-                assigned_to: assignee && assignee !== "__none__" ? assignee : null,
-                status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
-                priority: yearItem.priority,
-                due_date: planningDue,
-                manual_due_date: docs > 0 ? forecast.suggested_due_date : null,
-                estimated_hours: yearItem.estimated_hours ?? 8,
-                estimated_document_count: docs > 0 ? docs : null,
-                complexity_level: complexity,
-                notes: null,
-              });
-              setOpen(false);
-              setDocCount("");
-              setTaskTitle("");
-              setAssignee(yearItem.assigned_to ?? "__none__");
-              setComplexity("standard");
-            });
-          }}
-        >
+        {!confirmStep ? (
+          <div className="space-y-3">
           <div className="space-y-2">
             <Label className="text-xs">Assign to</Label>
             <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "__none__")}>
@@ -190,7 +170,56 @@ export function AddWorkPackageDialog({
             </div>
           </div>
 
-          {docs > 0 && resolvedViewer && (
+          <div className="space-y-2">
+            <Label className="text-xs">Title (optional)</Label>
+            <Input
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder={defaultTitle}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={() => setConfirmStep(true)}>
+              Review impact
+            </Button>
+          </DialogFooter>
+          </div>
+        ) : (
+          <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            startTransition(async () => {
+              await createWorkPackageAction({
+                project_id: yearItem.project_id,
+                manufacturer_id: yearItem.manufacturer_id,
+                year_work_item_id: yearItem.id,
+                year: yearItem.year,
+                title,
+                assigned_to: assignee && assignee !== "__none__" ? assignee : null,
+                status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
+                priority: yearItem.priority,
+                due_date: planningDue,
+                manual_due_date: docs > 0 ? forecast.suggested_due_date : null,
+                estimated_hours: yearItem.estimated_hours ?? 8,
+                estimated_document_count: docs > 0 ? docs : null,
+                complexity_level: complexity,
+                notes: null,
+              });
+              setOpen(false);
+              setConfirmStep(false);
+              setDocCount("");
+              setTaskTitle("");
+              setAssignee(yearItem.assigned_to ?? "__none__");
+              setComplexity("standard");
+            });
+          }}
+        >
+          {resolvedViewer ? (
             <TaskImpactReview
               title={title}
               documentCount={docs}
@@ -206,9 +235,7 @@ export function AddWorkPackageDialog({
               settings={settings}
               departments={resolvedDepartments.map((d) => ({ id: d.id, name: d.name }))}
             />
-          )}
-
-          {docs > 0 && !resolvedViewer && (
+          ) : (
             <p className="text-xs text-muted-foreground">
               Planning due for <strong className="text-foreground">{title}</strong>:{" "}
               {forecast.suggested_due_date ?? "—"}
@@ -216,21 +243,16 @@ export function AddWorkPackageDialog({
             </p>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-xs">Title (optional)</Label>
-            <Input
-              value={taskTitle}
-              onChange={(e) => setTaskTitle(e.target.value)}
-              placeholder={defaultTitle}
-            />
-          </div>
-
           <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setConfirmStep(false)}>
+              Back
+            </Button>
             <Button type="submit" disabled={pending} size="sm">
-              {pending ? "Creating…" : "Create task"}
+              {pending ? "Creating…" : "Confirm & create task"}
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -11,6 +11,7 @@ import { TemplatePreviewPanel } from "@/components/templates/template-preview-pa
 import { CreationPreviewPanel } from "@/components/work-creation/creation-preview-panel";
 import { TaskImpactReview } from "@/components/planning/task-impact-review";
 import { WizardStepper } from "@/components/work-creation/wizard-stepper";
+import { useFlowToast } from "@/components/ui/flow-toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -74,6 +75,11 @@ import { ChevronDown, ChevronUp, FolderKanban, Kanban, ListTodo, Plus } from "lu
 import type { ProjectTemplateId } from "@/lib/templates/project-templates";
 import { listEnterpriseTemplates } from "@/lib/templates/template-registry";
 import { buildEnterpriseTemplatePreview } from "@/lib/templates/preview";
+import {
+  PROJECT_GUIDED_STEPS,
+  projectMetricsPreview,
+  projectQaPreview,
+} from "@/lib/work-creation/project-guided-steps";
 
 const MODE_META: Record<
   WorkCreationMode,
@@ -116,6 +122,7 @@ export function NewWorkWizard({
   workPackages?: WorkPackage[];
 }) {
   const allowedModes = getAllowedCreationModes(user.role);
+  const { toast } = useFlowToast();
   const defaults = buildCreationDefaults(user, departments, teams);
   const boardProjects = filterBoardProjects(projects);
   const programProjects = filterProgramProjects(projects);
@@ -164,12 +171,36 @@ export function NewWorkWizard({
     priority: defaults.priority,
   });
 
-  const steps =
-    mode === "board"
-      ? ["Template", "Details", "Review"]
-      : mode === "project"
-        ? ["Template", "Details", "Review"]
-        : ["Details", "Review"];
+  const steps = useMemo(() => {
+    if (mode === "board") return ["Template", "Details", "Review"];
+    if (mode === "task") return ["Details", "Review"];
+    return allowedModes.length > 1 ? ["Work type", ...PROJECT_GUIDED_STEPS] : [...PROJECT_GUIDED_STEPS];
+  }, [mode, allowedModes.length]);
+
+  const projectStep =
+    mode === "project" ? (allowedModes.length > 1 ? step - 1 : step) : -1;
+
+  const selectedEnterpriseTemplate =
+    enterpriseTemplates.find((t) => t.id === project.enterpriseTemplateId) ?? enterpriseTemplates[0];
+
+  const metricsPreview = useMemo(
+    () =>
+      projectMetricsPreview(
+        project.projectCreationMode === "from_template"
+          ? project.enterpriseTemplateId
+          : project.templateId,
+        project.projectCreationMode === "from_template"
+      ),
+    [project]
+  );
+
+  const qaPreview = useMemo(
+    () =>
+      projectQaPreview(
+        project.projectCreationMode === "from_template" ? selectedEnterpriseTemplate : null
+      ),
+    [project.projectCreationMode, selectedEnterpriseTemplate]
+  );
 
   const deptName = (id: string) =>
     departments.find((d) => d.id === id)?.name ?? id;
@@ -276,6 +307,7 @@ export function NewWorkWizard({
 
   function submit() {
     startTransition(async () => {
+      try {
       if (mode === "board") {
         await createBoardAction({
           name: board.name,
@@ -342,6 +374,13 @@ export function NewWorkWizard({
       }
       setOpen(false);
       resetWizard();
+      } catch (e) {
+        toast({
+          variant: "error",
+          title: "Could not create work",
+          description: e instanceof Error ? e.message : "Something went wrong. Try again.",
+        });
+      }
     });
   }
 
@@ -349,6 +388,7 @@ export function NewWorkWizard({
 
   const onStep0 = step === 0;
   const onReview = step === steps.length - 1;
+  const showModePick = onStep0 && allowedModes.length > 1;
 
   return (
     <Dialog
@@ -376,7 +416,7 @@ export function NewWorkWizard({
 
         <WizardDialogBody>
           <WizardDialogScroll>
-        {onStep0 && allowedModes.length > 1 && (
+        {showModePick && (
           <div className="grid gap-2 sm:grid-cols-3">
             {allowedModes.map((m) => {
               const meta = MODE_META[m];
@@ -487,8 +527,82 @@ export function NewWorkWizard({
           </div>
         )}
 
-        {/* PROJECT FLOW */}
-        {mode === "project" && step === 0 && (
+        {/* PROJECT FLOW — guided 7-step creation */}
+        {mode === "project" && projectStep === 0 && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Project name *</Label>
+              <Input
+                value={project.name}
+                onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Q3 SI Production"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Description (optional)</Label>
+              <Textarea
+                value={project.description}
+                onChange={(e) => setProject((p) => ({ ...p, description: e.target.value }))}
+                rows={3}
+                placeholder="What outcomes should this project deliver?"
+              />
+            </div>
+          </div>
+        )}
+
+        {mode === "project" && projectStep === 1 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Department</Label>
+                <Select
+                  value={project.departmentId}
+                  onValueChange={(v) => v && setProject((p) => ({ ...p, departmentId: v }))}
+                >
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Linked board (optional)</Label>
+                <Select
+                  value={project.boardProjectId}
+                  onValueChange={(v) => v && setProject((p) => ({ ...p, boardProjectId: v }))}
+                >
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Optional" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No board</SelectItem>
+                    {boardProjects.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Project owner / lead</Label>
+              <Select
+                value={project.ownerId}
+                onValueChange={(v) => v && setProject((p) => ({ ...p, ownerId: v }))}
+              >
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {managers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {mode === "project" && projectStep === 2 && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs">How do you want to start?</Label>
@@ -601,162 +715,129 @@ export function NewWorkWizard({
           </div>
         )}
 
-        {mode === "project" && step === 1 && (
+        {mode === "project" && projectStep === 3 && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Project name *</Label>
-              <Input
-                value={project.name}
-                onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs">Department</Label>
-                <Select
-                  value={project.departmentId}
-                  onValueChange={(v) => v && setProject((p) => ({ ...p, departmentId: v }))}
-                >
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Board</Label>
-                <Select
-                  value={project.boardProjectId}
-                  onValueChange={(v) => v && setProject((p) => ({ ...p, boardProjectId: v }))}
-                >
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Optional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No board</SelectItem>
-                    {boardProjects.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {project.projectCreationMode === "blank" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs">Est. total documents</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={project.estimatedDocuments}
-                  onChange={(e) =>
-                    setProject((p) => ({ ...p, estimatedDocuments: e.target.value }))
-                  }
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Complexity</Label>
-                <Select
-                  value={project.complexity}
-                  onValueChange={(v) =>
-                    v && setProject((p) => ({ ...p, complexity: v as typeof p.complexity }))
-                  }
-                >
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {COMPLEXITY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            )}
-            <div className="space-y-2">
-              <Label className="text-xs">Project owner</Label>
-              <Select
-                value={project.ownerId}
-                onValueChange={(v) => v && setProject((p) => ({ ...p, ownerId: v }))}
-              >
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {managers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {project.projectCreationMode === "from_template" && (
-              <div className="space-y-2">
-                <Label className="text-xs">Notes (optional)</Label>
-                <Textarea
-                  value={project.description}
-                  onChange={(e) =>
-                    setProject((p) => ({ ...p, description: e.target.value }))
-                  }
-                  rows={2}
-                  placeholder="Additional project context"
-                />
-              </div>
-            )}
-            {project.projectCreationMode === "blank" && (
-            <button
-              type="button"
-              className="flex items-center gap-1 text-xs text-muted-foreground"
-              onClick={() => setShowAdvanced((s) => !s)}
-            >
-              {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              Advanced settings
-            </button>
-            )}
-            {showAdvanced && project.projectCreationMode === "blank" && (
-              <div className="space-y-3 border rounded-md p-3 bg-muted/10">
-                <div className="space-y-2">
-                  <Label className="text-xs">Manual due date</Label>
-                  <Input
-                    type="date"
-                    value={project.manualDueDate}
-                    onChange={(e) =>
-                      setProject((p) => ({ ...p, manualDueDate: e.target.value }))
-                    }
-                  />
+            {project.projectCreationMode === "blank" ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Est. total documents</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={project.estimatedDocuments}
+                      onChange={(e) =>
+                        setProject((p) => ({ ...p, estimatedDocuments: e.target.value }))
+                      }
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Complexity</Label>
+                    <Select
+                      value={project.complexity}
+                      onValueChange={(v) =>
+                        v && setProject((p) => ({ ...p, complexity: v as typeof p.complexity }))
+                      }
+                    >
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {COMPLEXITY_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Priority</Label>
-                  <Select
-                    value={project.priority}
-                    onValueChange={(v) =>
-                      v && setProject((p) => ({ ...p, priority: v as typeof p.priority }))
-                    }
-                  >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {WORK_PRIORITIES.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Manual due date</Label>
+                    <Input
+                      type="date"
+                      value={project.manualDueDate}
+                      onChange={(e) =>
+                        setProject((p) => ({ ...p, manualDueDate: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Priority</Label>
+                    <Select
+                      value={project.priority}
+                      onValueChange={(v) =>
+                        v && setProject((p) => ({ ...p, priority: v as typeof p.priority }))
+                      }
+                    >
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {WORK_PRIORITIES.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Description</Label>
-                  <Textarea
-                    value={project.description}
-                    onChange={(e) =>
-                      setProject((p) => ({ ...p, description: e.target.value }))
-                    }
-                    rows={2}
-                  />
-                </div>
+              </>
+            ) : (
+              <div className="rounded-md border border-border/60 bg-muted/10 p-4 text-sm space-y-2">
+                <p className="font-medium">Forecasting from template</p>
+                <p className="text-muted-foreground text-xs">
+                  {selectedEnterpriseTemplate?.forecastingEnabled
+                    ? "Planning forecast, due dates, and confidence will be generated from template tasks and defaults."
+                    : "This template does not enable forecasting — you can add estimates after creation."}
+                </p>
+                {selectedEnterpriseTemplate?.defaultEstimatedDocuments ? (
+                  <p className="text-xs">
+                    Default documents: {selectedEnterpriseTemplate.defaultEstimatedDocuments.toLocaleString()}
+                  </p>
+                ) : null}
               </div>
             )}
           </div>
         )}
 
+        {mode === "project" && projectStep === 4 && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Custom metrics that will be tracked for this project (optional — add more later in project settings).
+            </p>
+            {metricsPreview.length > 0 ? (
+              <ul className="rounded-md border border-border/60 divide-y divide-border/40">
+                {metricsPreview.map((name) => (
+                  <li key={name} className="px-3 py-2 text-sm">
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground border border-dashed rounded-md p-4 text-center">
+                No default metrics for this template. Add custom metrics after creation.
+              </p>
+            )}
+          </div>
+        )}
+
+        {mode === "project" && projectStep === 5 && (
+          <div className="space-y-3">
+            <div className="rounded-md border border-border/60 bg-muted/10 p-4 text-sm space-y-2">
+              <p className="font-medium">QA & file requirements</p>
+              <p className="text-xs text-muted-foreground">
+                QA enabled: {qaPreview.qaEnabled ? "Yes" : "No"} · Files required:{" "}
+                {qaPreview.fileUploadsRequired ? "Yes" : "No"} · Template tasks: {qaPreview.taskCount}
+              </p>
+              {qaPreview.qaTasks.length > 0 && (
+                <ul className="text-xs list-disc pl-4 space-y-1">
+                  {qaPreview.qaTasks.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TASK FLOW */}
-        {mode === "task" && step === 0 && (
+        {mode === "task" && step === (allowedModes.length > 1 ? 1 : 0) && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Task name *</Label>
@@ -937,9 +1018,11 @@ export function NewWorkWizard({
               onClick={() => setStep((s) => s + 1)}
               disabled={
                 pending ||
-                (mode === "board" && step === 1 && !board.name.trim()) ||
-                (mode === "project" && step === 1 && !project.name.trim()) ||
-                (mode === "task" && step === 0 && !task.name.trim())
+                (mode === "board" && step === (allowedModes.length > 1 ? 2 : 1) && !board.name.trim()) ||
+                (mode === "project" && projectStep === 0 && !project.name.trim()) ||
+                (mode === "task" &&
+                  step === (allowedModes.length > 1 ? 1 : 0) &&
+                  !task.name.trim())
               }
             >
               Continue

@@ -14,6 +14,7 @@ export type KpiItem = {
   spotlight?: boolean;
   priority?: "high" | "normal" | "low";
   title?: string;
+  className?: string;
 };
 
 export function KpiStrip({
@@ -53,6 +54,7 @@ export function KpiStrip({
             spotlight={item.spotlight}
             priority={item.priority}
             title={item.title}
+            className={item.className}
           />
         ))}
       </div>

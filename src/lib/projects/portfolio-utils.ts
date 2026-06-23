@@ -22,19 +22,28 @@ export type ProjectWithStats = Project & {
 
 export type PortfolioFilter =
   | "all"
+  | "my_department"
+  | "my_team"
+  | "at_risk"
   | "behind_capacity"
   | "due_soon"
   | "missing_tasks"
+  | "missing_estimates"
   | "ready_for_qa"
+  | "open_tasks"
+  | "forecasted_late"
+  | "completed"
   | "archived";
 
 export interface PortfolioKpis {
   activeProjects: number;
+  projectsAtRisk: number;
   behindCapacity: number;
   dueThisWeek: number;
   readyForQa: number;
-  totalEstimatedHours: number;
   openTasks: number;
+  forecastedLate: number;
+  totalEstimatedHours: number;
 }
 
 export interface NextAction {
@@ -62,6 +71,35 @@ function isDueWithinDays(dateStr: string | null | undefined, days: number): bool
   } catch {
     return false;
   }
+}
+
+export function projectIsAtRisk(project: Project): boolean {
+  return ["at_risk", "behind_capacity"].includes(project.project_due_date_status ?? "");
+}
+
+export function projectIsForecastedLate(
+  project: Project,
+  packages: WorkPackage[]
+): boolean {
+  if (project.project_due_date_status === "behind_capacity") return true;
+  const due = primaryDueDate(project);
+  if (!due) return false;
+  const forecast =
+    project.active_project_due_date ??
+    project.suggested_project_due_date ??
+    project.planning_project_due_date;
+  if (!forecast) return false;
+  try {
+    return parseISO(forecast) > parseISO(due);
+  } catch {
+    return false;
+  }
+}
+
+export function projectHasMissingEstimates(project: Project, packages: WorkPackage[]): boolean {
+  if (!project.estimated_total_documents && !project.estimated_total_hours) return true;
+  const projPackages = packages.filter((p) => p.project_id === project.id && p.status !== "done");
+  return projPackages.some((p) => !p.estimated_document_count && !p.estimated_hours);
 }
 
 export function projectHasMissingTasks(
@@ -127,15 +165,26 @@ export function buildPortfolioKpis(
     (p) =>
       activeProjects.some((proj) => proj.id === p.project_id) && p.status !== "done"
   ).length;
+  const projectsAtRisk = activeProjects.filter((p) => projectIsAtRisk(p)).length;
+  const forecastedLate = activeProjects.filter((p) =>
+    projectIsForecastedLate(p, packages)
+  ).length;
 
   return {
     activeProjects: activeProjects.length,
+    projectsAtRisk,
     behindCapacity,
     dueThisWeek,
     readyForQa,
-    totalEstimatedHours,
     openTasks,
+    forecastedLate,
+    totalEstimatedHours,
   };
+}
+
+export interface PortfolioScope {
+  departmentId?: string;
+  teamId?: string;
 }
 
 export function filterProjectsForPortfolio(
@@ -143,32 +192,62 @@ export function filterProjectsForPortfolio(
   filter: PortfolioFilter,
   packages: WorkPackage[],
   yearItems: YearWorkItem[],
-  manufacturers: Manufacturer[]
+  manufacturers: Manufacturer[],
+  scope?: PortfolioScope
 ): ProjectWithStats[] {
+  let pool = projects;
+
+  if (scope?.departmentId) {
+    pool = pool.filter((p) => p.department_id === scope.departmentId);
+  }
+  if (scope?.teamId) {
+    pool = pool.filter((p) => p.team_id === scope.teamId);
+  }
+
   switch (filter) {
     case "archived":
-      return projects.filter((p) => p.status === "archived");
+      return pool.filter((p) => p.status === "archived");
+    case "at_risk":
+      return pool.filter((p) => p.status !== "archived" && projectIsAtRisk(p));
     case "behind_capacity":
-      return projects.filter(
+      return pool.filter(
         (p) => p.status !== "archived" && p.project_due_date_status === "behind_capacity"
       );
     case "due_soon":
-      return projects.filter(
+      return pool.filter(
         (p) => p.status !== "archived" && projectIsDueSoon(p, packages, yearItems)
       );
     case "missing_tasks":
-      return projects.filter(
+      return pool.filter(
         (p) =>
           p.status !== "archived" &&
           projectHasMissingTasks(p.id, manufacturers, yearItems, packages)
       );
+    case "missing_estimates":
+      return pool.filter(
+        (p) => p.status !== "archived" && projectHasMissingEstimates(p, packages)
+      );
     case "ready_for_qa":
-      return projects.filter(
+      return pool.filter(
         (p) => p.status !== "archived" && projectReadyForQa(packages, p.id)
       );
+    case "open_tasks":
+      return pool.filter((p) => {
+        if (p.status === "archived") return false;
+        return packages.some((pkg) => pkg.project_id === p.id && pkg.status !== "done");
+      });
+    case "forecasted_late":
+      return pool.filter(
+        (p) => p.status !== "archived" && projectIsForecastedLate(p, packages)
+      );
+    case "completed":
+      return pool.filter((p) => p.status === "completed" || p.completedPct >= 100);
+    case "my_department":
+    case "my_team":
+      return pool.filter((p) => p.status !== "archived");
     case "all":
     default:
-      return projects.filter((p) => p.status !== "archived");
+      return pool.filter((p) => p.status !== "archived");
   }
 }
 
@@ -184,7 +263,7 @@ export function getProjectNextAction(
 
   const mfrs = manufacturers.filter((m) => m.project_id === project.id && !m.is_archived);
   if (mfrs.length === 0) {
-    return { label: "Add manufacturer", tone: "warn" };
+    return { label: "Add workstream", tone: "warn" };
   }
 
   const years = yearItems.filter((y) => y.project_id === project.id);
@@ -192,7 +271,7 @@ export function getProjectNextAction(
     (m) => !years.some((y) => y.manufacturer_id === m.id)
   );
   if (mfrWithoutYears) {
-    return { label: "Add years", tone: "warn" };
+    return { label: "Add phases", tone: "warn" };
   }
 
   const yearsWithoutTasks = years.filter(
@@ -230,7 +309,7 @@ export function getManufacturerNextAction(
   packages: WorkPackage[]
 ): NextAction {
   if (years.length === 0) {
-    return { label: "Add years", tone: "warn" };
+    return { label: "Add phases", tone: "warn" };
   }
   const emptyYears = years.filter((y) => !packages.some((p) => p.year_work_item_id === y.id));
   if (emptyYears.length > 0) {
@@ -301,19 +380,21 @@ export function formatHoursSummary(hours: number | null | undefined): string {
 }
 
 export function kpiFilterForCard(
-  id: "active" | "behind" | "due" | "qa" | "hours" | "open"
+  id: "active" | "at_risk" | "due" | "qa" | "open" | "late" | "hours"
 ): PortfolioFilter | "hours_sort" {
   switch (id) {
     case "active":
       return "all";
-    case "behind":
-      return "behind_capacity";
+    case "at_risk":
+      return "at_risk";
     case "due":
       return "due_soon";
     case "qa":
       return "ready_for_qa";
     case "open":
-      return "all";
+      return "open_tasks";
+    case "late":
+      return "forecasted_late";
     default:
       return "hours_sort";
   }

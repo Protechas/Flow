@@ -23,7 +23,6 @@ import {
   type PortfolioSelection,
 } from "@/components/projects/project-portfolio-detail-panel";
 import { ProjectPortfolioKpis } from "@/components/projects/project-portfolio-kpis";
-import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,10 +66,11 @@ import {
   getManufacturerNextAction,
   getProjectNextAction,
   type PortfolioFilter,
+  type PortfolioScope,
   type ProjectWithStats,
 } from "@/lib/projects/portfolio-utils";
+import { HIERARCHY_LABELS } from "@/lib/projects/hierarchy-labels";
 import { YEAR_RANGE } from "@/lib/templates/project-templates";
-import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 import { cn } from "@/lib/utils";
 import type {
   ActivityEvent,
@@ -117,10 +117,15 @@ interface ProjectWorkspaceProps {
 
 const FILTER_CHIPS: { id: PortfolioFilter; label: string }[] = [
   { id: "all", label: "All Projects" },
-  { id: "behind_capacity", label: "Behind Capacity" },
+  { id: "my_department", label: "My Department" },
+  { id: "my_team", label: "My Team" },
+  { id: "at_risk", label: "At Risk" },
   { id: "due_soon", label: "Due Soon" },
+  { id: "ready_for_qa", label: "Ready For QA" },
+  { id: "open_tasks", label: "Open Tasks" },
+  { id: "missing_estimates", label: "Missing Estimates" },
+  { id: "forecasted_late", label: "Forecasted Late" },
   { id: "missing_tasks", label: "Missing Tasks" },
-  { id: "ready_for_qa", label: "Ready for QA" },
   { id: "archived", label: "Archived" },
 ];
 
@@ -171,12 +176,21 @@ export function ProjectWorkspace({
     setSelection({ kind: "project", projectId: initialProjectId });
   }, [initialProjectId, activeProjects]);
 
-  const allowedModes = user ? getAllowedCreationModes(user.role) : [];
-
   const kpis = useMemo(
     () => buildPortfolioKpis(activeProjects, workPackages, yearItems, allMfrs),
     [activeProjects, workPackages, yearItems, allMfrs]
   );
+
+  const portfolioScope = useMemo((): PortfolioScope | undefined => {
+    if (portfolioFilter === "my_team" && user?.team_id) {
+      return { teamId: user.team_id };
+    }
+    if (portfolioFilter === "my_department" && user?.team_id) {
+      const deptId = teams.find((t) => t.id === user.team_id)?.department_id;
+      if (deptId) return { departmentId: deptId };
+    }
+    return undefined;
+  }, [portfolioFilter, user?.team_id, teams]);
 
   const filteredProjects = useMemo(() => {
     const pool =
@@ -187,7 +201,8 @@ export function ProjectWorkspace({
             portfolioFilter === "hours_sort" ? "all" : portfolioFilter,
             workPackages,
             yearItems,
-            allMfrs
+            allMfrs,
+            portfolioScope
           );
 
     if (portfolioFilter === "hours_sort") {
@@ -196,7 +211,7 @@ export function ProjectWorkspace({
       );
     }
     return pool;
-  }, [activeProjects, archivedProjects, portfolioFilter, workPackages, yearItems, allMfrs]);
+  }, [activeProjects, archivedProjects, portfolioFilter, workPackages, yearItems, allMfrs, portfolioScope]);
 
   const atRiskProjects = useMemo(
     () =>
@@ -226,7 +241,7 @@ export function ProjectWorkspace({
               variant="ghost"
               size="sm"
               className="h-7 text-xs"
-              onClick={() => setFilter("behind_capacity")}
+              onClick={() => setFilter("at_risk")}
             >
               View all at risk
             </Button>
@@ -269,8 +284,8 @@ export function ProjectWorkspace({
               onClick={() => setFilter(chip.id)}
             >
               {chip.label}
-              {chip.id === "behind_capacity" && kpis.behindCapacity > 0 && (
-                <span className="ml-1.5 tabular-nums opacity-80">{kpis.behindCapacity}</span>
+              {chip.id === "at_risk" && kpis.projectsAtRisk > 0 && (
+                <span className="ml-1.5 tabular-nums opacity-80">{kpis.projectsAtRisk}</span>
               )}
               {chip.id === "ready_for_qa" && kpis.readyForQa > 0 && (
                 <span className="ml-1.5 tabular-nums opacity-80">{kpis.readyForQa}</span>
@@ -278,18 +293,6 @@ export function ProjectWorkspace({
             </Button>
           ))}
         </div>
-        {canEdit && user && allowedModes.length > 0 && (
-          <NewWorkWizard
-            user={user}
-            departments={departments}
-            teams={teams}
-            projects={activeProjects}
-            analysts={analysts}
-            managers={managers}
-            forecastSettings={forecastSettings}
-            workPackages={workPackages}
-          />
-        )}
       </div>
 
       {filteredProjects.length === 0 ? (
@@ -470,8 +473,8 @@ export function ProjectWorkspace({
                     <ProjectForecastPanel project={project} />
                     {mfrs.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-                        <p>This project has no manufacturers yet.</p>
-                        <p className="mt-1">Add a manufacturer to begin building the work structure.</p>
+                        <p>This project has no {HIERARCHY_LABELS.workstreamPlural.toLowerCase()} yet.</p>
+                        <p className="mt-1">Add a workstream to begin building the work structure.</p>
                         {canEdit && (
                           <div className="mt-4 flex justify-center">
                             <AddManufacturerDialog projectId={project.id} analysts={analysts} />
@@ -550,6 +553,8 @@ export function ProjectWorkspace({
         activity={activity}
         viewer={user}
         canEdit={canEdit}
+        canDelete={canDelete}
+        managers={managers}
       />
     </div>
   );
@@ -924,7 +929,7 @@ function AddYearDialog({ mfr }: { mfr: Manufacturer }) {
           }}
         >
           <div className="space-y-2 py-2">
-            <Label>Model year</Label>
+            <Label>{HIERARCHY_LABELS.phase}</Label>
             <Input name="year" type="number" min={1990} max={2035} required defaultValue={2026} />
           </div>
           <DialogFooter>
@@ -1027,17 +1032,17 @@ function AddManufacturerDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm" className="h-8" />}>
         <Plus className="h-3.5 w-3.5 mr-1" />
-        Add Manufacturer
+        Add {HIERARCHY_LABELS.workstreamShort}
       </DialogTrigger>
       <WizardDialogContent size="md">
         <WizardDialogHeader>
-          <DialogTitle>Add Manufacturer</DialogTitle>
+          <DialogTitle>Add {HIERARCHY_LABELS.workstreamShort}</DialogTitle>
         </WizardDialogHeader>
         <WizardDialogBody>
           <WizardDialogScroll>
             <form id="workspace-add-manufacturer-form" onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mfr-name">Manufacturer name *</Label>
+            <Label htmlFor="mfr-name">{HIERARCHY_LABELS.workstream} name *</Label>
             <Input id="mfr-name" name="name" required placeholder="Toyota" />
           </div>
           <div className="grid grid-cols-2 gap-3">
