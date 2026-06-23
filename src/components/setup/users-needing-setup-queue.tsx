@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UserAccountDialog } from "@/components/setup/user-account-dialog";
 import { UserSetupDialog } from "@/components/setup/user-setup-dialog";
 import { getAccountSetupSummary } from "@/lib/setup/account";
 import { USER_ROLES } from "@/lib/constants";
@@ -15,13 +16,16 @@ export function UsersNeedingSetupQueue({
   departments,
   teams,
   departmentUsers,
+  canSetPassword = false,
 }: {
   users: User[];
   departments: Department[];
   teams: Team[];
   departmentUsers: DepartmentUser[];
+  canSetPassword?: boolean;
 }) {
   const [setupUser, setSetupUser] = useState<User | null>(null);
+  const [manageUser, setManageUser] = useState<User | null>(null);
 
   const needingSetup = users
     .map((user) => ({
@@ -96,7 +100,10 @@ export function UsersNeedingSetupQueue({
                   <td className="py-3 px-4 text-muted-foreground text-xs">
                     {summary.missingFields.join(" · ") || "—"}
                   </td>
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-3 px-4 text-right space-x-2">
+                    <Button size="sm" variant="outline" onClick={() => setManageUser(user)}>
+                      Manage account
+                    </Button>
                     <Button size="sm" onClick={() => setSetupUser(user)}>
                       Complete setup
                     </Button>
@@ -116,6 +123,19 @@ export function UsersNeedingSetupQueue({
           users={users}
           departments={departments}
           teams={teams}
+        />
+      )}
+
+      {manageUser && (
+        <UserAccountDialog
+          user={manageUser}
+          users={users}
+          departments={departments}
+          teams={teams}
+          departmentUsers={departmentUsers}
+          canSetPassword={canSetPassword}
+          open={Boolean(manageUser)}
+          onOpenChange={(open) => !open && setManageUser(null)}
         />
       )}
     </>

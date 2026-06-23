@@ -48,39 +48,12 @@ export default async function UsersAdminPage() {
         description="Guided setup for people, roles, and reporting chains. Flow handles permissions and dashboard scope automatically."
       />
       <div className="space-y-8">
-        {canCreate ? (
-          <UserSetupWizard users={users} departments={departments} teams={teams} positions={positions} />
-        ) : (
-          <p className="text-sm text-amber-400/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-            Add SUPABASE_SERVICE_ROLE_KEY to enable guided user creation.
-          </p>
-        )}
-
-        <UsersNeedingSetupQueue
-          users={users}
-          departments={departments}
-          teams={teams}
-          departmentUsers={departmentUsers}
-        />
-
-        {unassignedUsers.length > 0 && (
-          <UnassignedUsersPanel
-            users={unassignedUsers}
-            positions={positions}
-            departments={departments}
-            canAssign
-          />
-        )}
-
-        {canCreate ? <BulkInvitePanel departments={departments} teams={teams} managers={managers} /> : null}
-
-        <BulkUserAssignment users={users} departments={departments} teams={teams} />
-
-        <section className="space-y-3">
+        <section id="all-users" className="space-y-3 scroll-mt-6">
           <div>
             <h2 className="text-lg font-semibold">All users</h2>
             <p className="text-sm text-muted-foreground">
-              Advanced editing for existing users. Users missing hierarchy data are marked Needs setup.
+              Edit profiles, set passwords, and manage access. Scroll right in the table for actions.
+              Users missing hierarchy data are marked Needs setup.
             </p>
           </div>
           <UsersAdmin
@@ -94,6 +67,38 @@ export default async function UsersAdminPage() {
             resetPasswordEnabled={supabaseAuth && isAdminConfigured()}
           />
         </section>
+
+        {canCreate ? (
+          <UserSetupWizard users={users} departments={departments} teams={teams} positions={positions} />
+        ) : (
+          <p className="text-sm text-amber-400/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            Add SUPABASE_SERVICE_ROLE_KEY to enable guided user creation.
+          </p>
+        )}
+
+        <UsersNeedingSetupQueue
+          users={users}
+          departments={departments}
+          teams={teams}
+          departmentUsers={departmentUsers}
+          canSetPassword={supabaseAuth && isAdminConfigured()}
+        />
+
+        {unassignedUsers.length > 0 && (
+          <UnassignedUsersPanel
+            users={unassignedUsers}
+            positions={positions}
+            departments={departments}
+            teams={teams}
+            allUsers={users}
+            canAssign
+            canManageAccounts={supabaseAuth && isAdminConfigured()}
+          />
+        )}
+
+        {canCreate ? <BulkInvitePanel departments={departments} teams={teams} managers={managers} /> : null}
+
+        <BulkUserAssignment users={users} departments={departments} teams={teams} />
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Audit log</h2>

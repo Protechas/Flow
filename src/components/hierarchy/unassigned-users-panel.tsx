@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { UserAccountDialog } from "@/components/setup/user-account-dialog";
 import { assignUserToPositionAction } from "@/app/actions/positions";
 import { formatActionError } from "@/lib/errors/action-messages";
 import { getOrganizationalPosition, getSystemAccessLevel } from "@/lib/auth/access-level";
@@ -95,17 +97,24 @@ export function UnassignedUsersPanel({
   users,
   positions,
   departments,
+  teams = [],
+  allUsers = [],
   canAssign,
+  canManageAccounts = false,
   onAssigned,
 }: {
   users: User[];
   positions: OrgPosition[];
   departments: { id: string; name: string }[];
+  teams?: import("@/types/flow").Team[];
+  allUsers?: User[];
   canAssign: boolean;
+  canManageAccounts?: boolean;
   onAssigned?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null);
+  const [manageUser, setManageUser] = useState<User | null>(null);
   const [positionId, setPositionId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -152,8 +161,16 @@ export function UnassignedUsersPanel({
       </div>
       <p className="text-xs text-muted-foreground">
         These users are not linked to an org position. Assign them to a seat to derive reporting,
-        department, and team automatically.
+        department, and team automatically. Use <strong>Manage account</strong> to set a password or
+        complete setup.
       </p>
+      {canManageAccounts && (
+        <p className="text-xs">
+          <Link href="/settings/users" className="text-primary hover:underline">
+            Open full user management →
+          </Link>
+        </p>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
@@ -187,8 +204,20 @@ export function UnassignedUsersPanel({
                     {suggested?.title ?? "—"}
                   </td>
                   <td className="py-2.5 text-right">
-                    {canAssign && (
-                      isAssigning ? (
+                    <div className="flex items-center justify-end gap-2">
+                      {canManageAccounts && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-8"
+                          onClick={() => setManageUser(user)}
+                        >
+                          Manage account
+                        </Button>
+                      )}
+                      {canAssign &&
+                        (isAssigning ? (
                         <div className="flex items-center justify-end gap-2">
                           <Select
                             value={positionId || suggested?.id || "__pick__"}
@@ -242,8 +271,8 @@ export function UnassignedUsersPanel({
                         >
                           Assign to position
                         </Button>
-                      )
-                    )}
+                      ))}
+                    </div>
                   </td>
                 </tr>
               );
@@ -251,6 +280,19 @@ export function UnassignedUsersPanel({
           </tbody>
         </table>
       </div>
+
+      {manageUser && (
+        <UserAccountDialog
+          user={manageUser}
+          users={allUsers.length ? allUsers : users}
+          departments={departments as import("@/types/flow").Department[]}
+          teams={teams}
+          positions={positions}
+          canSetPassword={canManageAccounts}
+          open={Boolean(manageUser)}
+          onOpenChange={(open) => !open && setManageUser(null)}
+        />
+      )}
     </div>
   );
 }

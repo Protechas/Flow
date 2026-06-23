@@ -350,6 +350,7 @@ export function OrgChartView({
   visibleUserIds,
   attention,
   initialUserId,
+  canManageAccounts = false,
 }: {
   roots: OrgChartNode[];
   departments?: Department[];
@@ -368,6 +369,7 @@ export function OrgChartView({
   visibleUserIds: string[];
   attention: { needsHelp: number; needsWork: number; missingWrapUp: number };
   initialUserId?: string | null;
+  canManageAccounts?: boolean;
 }) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
@@ -629,7 +631,10 @@ export function OrgChartView({
             users={unassignedUsers}
             positions={positions}
             departments={departments}
+            teams={teams}
+            allUsers={allUsers}
             canAssign={permissions.canAssignPositions}
+            canManageAccounts={canManageAccounts}
             onAssigned={refresh}
           />
         </div>

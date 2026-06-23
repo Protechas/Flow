@@ -23,6 +23,7 @@ import {
   hasGroupedDepartmentStructure,
 } from "@/lib/positions/grouped-chart";
 import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
+import { isAdminConfigured } from "@/lib/supabase/admin";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import {
   buildOrgChartOpsMap,
@@ -106,6 +107,9 @@ export default async function OrgChartPage({
     canManagePositions: hasPermission(permissionRole, "users:manage"),
     canAssignPositions: hasPermission(permissionRole, "users:manage"),
   };
+
+  const canManageAccounts =
+    permissions.canManagePositions && isAdminConfigured();
 
   const positions = listActiveOrgPositions();
   const usePositionChart = hasOrgPositions();
@@ -220,6 +224,7 @@ export default async function OrgChartPage({
             visibleUserIds={visibleUserIds}
             attention={attention}
             initialUserId={safeInitialUserId}
+            canManageAccounts={canManageAccounts}
           />
         </WorkspaceContainer>
       }

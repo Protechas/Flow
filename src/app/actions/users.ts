@@ -195,6 +195,30 @@ export async function createUserManuallyAction(data: {
   return { ok: true as const, userId };
 }
 
+export async function adminSetPasswordAction(userId: string, password: string) {
+  await requirePermission("users:manage");
+  if (!isSupabaseConfigured() || !isAdminConfigured()) {
+    throw new Error("Setting passwords requires SUPABASE_SERVICE_ROLE_KEY on the server");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(error.message);
+
+  const profile = await getUserById(userId);
+  await writeAuditLog({
+    action: "password_reset",
+    entityType: "user",
+    entityId: userId,
+    summary: `Admin set password for ${profile?.email ?? userId}`,
+  });
+
+  return { ok: true as const };
+}
+
 export async function adminResetPasswordAction(userId: string, email: string) {
   await requirePermission("users:manage");
   if (!isSupabaseConfigured() || !isAdminConfigured()) {

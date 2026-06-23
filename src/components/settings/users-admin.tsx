@@ -3,13 +3,21 @@
 import { useState, useTransition } from "react";
 import {
   adminResetPasswordAction,
+  adminSetPasswordAction,
   setUserActiveAction,
   updateUserDetailsAction,
   updateUserAccessLevelsAction,
 } from "@/app/actions/users";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -62,13 +70,13 @@ export function UsersAdmin({
   const [error, setError] = useState<string | null>(null);
   const [setupUser, setSetupUser] = useState<User | null>(null);
 
-  function run(action: () => Promise<unknown>) {
+  function run(action: () => Promise<unknown>, successMessage = "Saved") {
     setMessage(null);
     setError(null);
     startTransition(async () => {
       try {
         await action();
-        setMessage("Saved");
+        setMessage(successMessage);
       } catch (e) {
         setError(formatActionError(e));
       }
@@ -124,6 +132,12 @@ export function UsersAdmin({
                 onResetPassword={() =>
                   run(() => adminResetPasswordAction(u.id, u.email))
                 }
+                onSetPassword={(password) =>
+                  run(
+                    () => adminSetPasswordAction(u.id, password),
+                    "Password updated"
+                  )
+                }
                 resetPasswordEnabled={resetPasswordEnabled}
               />
             ))}
@@ -159,6 +173,7 @@ function UserRow({
   onAccessLevels,
   onToggleActive,
   onResetPassword,
+  onSetPassword,
   resetPasswordEnabled,
 }: {
   user: User;
@@ -172,16 +187,19 @@ function UserRow({
   onAccessLevels: (position: OrganizationalPosition, access: SystemAccessLevel) => void;
   onToggleActive: (active: boolean) => void;
   onResetPassword: () => void;
+  onSetPassword: (password: string) => void;
   resetPasswordEnabled: boolean;
 }) {
   const [first, setFirst] = useState(user.first_name);
   const [last, setLast] = useState(user.last_name);
   const [hireDate, setHireDate] = useState(user.hire_date ?? "");
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const orgPosition = getOrganizationalPosition(user);
   const systemAccess = getSystemAccessLevel(user);
 
   return (
-    <tr className="border-t border-border/40 align-top">
+    <tr id={`user-${user.id}`} className="border-t border-border/40 align-top scroll-mt-24">
       <td className="py-3 px-3">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold shrink-0">
@@ -400,21 +418,65 @@ function UserRow({
           {user.is_active ? "Disable" : "Reactivate"}
         </Button>
         {resetPasswordEnabled ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs w-full"
-            onClick={onResetPassword}
-          >
-            Reset password
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs w-full"
+              onClick={() => setPasswordOpen(true)}
+            >
+              Set password
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs w-full text-muted-foreground"
+              onClick={onResetPassword}
+            >
+              Email reset link
+            </Button>
+          </>
         ) : (
           <p className="text-[10px] text-muted-foreground leading-snug">
-            Password reset requires Supabase admin configuration.
+            Password management requires SUPABASE_SERVICE_ROLE_KEY on the server.
           </p>
         )}
       </td>
+
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set password for {user.full_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor={`pw-${user.id}`}>New password</Label>
+              <Input
+                id={`pw-${user.id}`}
+                type="password"
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+              />
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              disabled={newPassword.length < 8}
+              onClick={() => {
+                onSetPassword(newPassword);
+                setNewPassword("");
+                setPasswordOpen(false);
+              }}
+            >
+              Save password
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </tr>
   );
 }
