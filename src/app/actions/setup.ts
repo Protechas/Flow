@@ -37,78 +37,105 @@ async function assignUserToDepartmentBranch(
 export async function completeDepartmentSetupAction(input: {
   name: string;
   purpose?: string;
-  senior_manager_id: string;
-  manager_ids: string[];
+  senior_manager_id?: string;
+  manager_ids?: string[];
   teams: {
     name: string;
-    team_lead_id: string;
+    team_lead_id?: string;
     manager_id?: string;
     employee_ids?: string[];
   }[];
 }) {
   const actor = await requirePermission("departments:manage");
   initFlowStore();
+  await import("@/lib/data/departments-db").then((m) => m.ensureDepartmentsLoaded());
   const users = getFlowStore().users;
+  const managerIds = input.manager_ids ?? [];
 
   validateDepartmentSetupInput({
     name: input.name,
     senior_manager_id: input.senior_manager_id,
-    manager_ids: input.manager_ids,
+    manager_ids: managerIds,
     team_definitions: input.teams.map((t) => ({
       name: t.name,
       team_lead_id: t.team_lead_id,
       manager_id: t.manager_id,
     })),
+    structure_only: !input.senior_manager_id,
   });
 
-  const dept = createDepartment({
-    name: input.name.trim(),
-    description: input.purpose?.trim() || null,
-    lead_user_id: input.senior_manager_id,
-  });
+  const { insertDepartmentDb, insertTeamDb } = await import("@/lib/data/departments-db");
+  const { isSupabaseConfigured } = await import("@/lib/supabase/client");
 
-  await assignUserToDepartmentBranch(input.senior_manager_id, dept.id, "manager");
-  await updateUserDetailsAction(input.senior_manager_id, {
-    role: "senior_manager",
-    manager_id: users.find((u) => u.role === "admin" || u.role === "super_admin")?.id ?? null,
-  });
+  const dept = isSupabaseConfigured()
+    ? await insertDepartmentDb({
+        name: input.name.trim(),
+        description: input.purpose?.trim() || null,
+        lead_user_id: input.senior_manager_id || null,
+      })
+    : createDepartment({
+        name: input.name.trim(),
+        description: input.purpose?.trim() || null,
+        lead_user_id: input.senior_manager_id || null,
+      });
 
-  for (const managerId of input.manager_ids) {
+  if (input.senior_manager_id) {
+    await assignUserToDepartmentBranch(input.senior_manager_id, dept.id, "manager");
+    await updateUserDetailsAction(input.senior_manager_id, {
+      role: "senior_manager",
+      manager_id: users.find((u) => u.role === "admin" || u.role === "super_admin")?.id ?? null,
+    });
+  }
+
+  for (const managerId of managerIds) {
     await assignUserToDepartmentBranch(managerId, dept.id, "manager");
     await updateUserDetailsAction(managerId, {
       role: "manager",
-      manager_id: input.senior_manager_id,
+      manager_id: input.senior_manager_id ?? null,
     });
   }
 
   for (const teamDef of input.teams) {
+    if (!teamDef.name.trim()) continue;
+
     const managerId =
       teamDef.manager_id ??
-      input.manager_ids.find((id) => {
+      managerIds.find((id) => {
         const lead = users.find((u) => u.id === teamDef.team_lead_id);
         return lead?.manager_id === id;
       }) ??
-      input.manager_ids[0];
+      managerIds[0] ??
+      null;
 
-    const team = createTeam({
-      name: teamDef.name.trim(),
-      department_id: dept.id,
-      manager_id: managerId,
-    });
+    const team = isSupabaseConfigured()
+      ? await insertTeamDb({
+          name: teamDef.name.trim(),
+          department_id: dept.id,
+          manager_id: managerId,
+          team_lead_user_id: teamDef.team_lead_id ?? null,
+        })
+      : createTeam({
+          name: teamDef.name.trim(),
+          department_id: dept.id,
+          manager_id: managerId,
+          team_lead_user_id: teamDef.team_lead_id ?? null,
+        });
 
-    await assignUserToDepartmentBranch(teamDef.team_lead_id, dept.id, "lead");
-    await updateUserDetailsAction(teamDef.team_lead_id, {
-      role: "teamlead",
-      team_id: team.id,
-      manager_id: managerId,
-    });
+    if (teamDef.team_lead_id) {
+      await assignUserToDepartmentBranch(teamDef.team_lead_id, dept.id, "lead");
+      await updateUserDetailsAction(teamDef.team_lead_id, {
+        role: "teamlead",
+        team_id: team.id,
+        manager_id: managerId,
+      });
+    }
 
     for (const employeeId of teamDef.employee_ids ?? []) {
       await assignUserToDepartmentBranch(employeeId, dept.id, "member");
       await updateUserDetailsAction(employeeId, {
         role: "employee",
         team_id: team.id,
-        manager_id: teamDef.team_lead_id,
+        manager_id: teamDef.team_lead_id ?? null,
       });
     }
   }

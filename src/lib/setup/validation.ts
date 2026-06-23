@@ -75,28 +75,33 @@ export function validateUserSetupInput(input: {
 export function validateDepartmentSetupInput(input: {
   name: string;
   senior_manager_id?: string | null;
-  manager_ids: string[];
-  team_definitions: { name: string; team_lead_id: string; manager_id?: string }[];
+  manager_ids?: string[];
+  team_definitions?: { name: string; team_lead_id?: string | null; manager_id?: string }[];
+  structure_only?: boolean;
 }): void {
   if (!input.name.trim()) {
     throw new SetupValidationError("Department name is required.");
   }
 
+  if (input.structure_only) {
+    return;
+  }
+
   if (!input.senior_manager_id) {
     throw new SetupValidationError(
-      "Select a senior manager to lead this department branch."
+      "Select a senior manager to lead this department branch, or use structure-only setup."
     );
   }
 
-  if (input.manager_ids.length === 0) {
+  if ((input.manager_ids ?? []).length === 0) {
     throw new SetupValidationError("Add at least one manager for this department.");
   }
 
-  if (input.team_definitions.length === 0) {
-    throw new SetupValidationError("Add at least one team with a team lead.");
+  if ((input.team_definitions ?? []).length === 0) {
+    throw new SetupValidationError("Add at least one team.");
   }
 
-  for (const team of input.team_definitions) {
+  for (const team of input.team_definitions ?? []) {
     if (!team.name.trim()) {
       throw new SetupValidationError("Every team needs a name.");
     }

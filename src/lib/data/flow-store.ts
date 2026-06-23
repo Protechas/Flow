@@ -1385,6 +1385,16 @@ export function getWrapUpBlockAttempt(
 
 // ——— Departments ———
 
+export function replaceDepartmentStructureStore(
+  depts: Department[],
+  teamsList: Team[],
+  deptUsers: DepartmentUser[]
+): void {
+  departments = depts;
+  teams = teamsList;
+  departmentUsers = deptUsers;
+}
+
 export function listDepartments(): Department[] {
   initFlowStore();
   return [...departments];
@@ -1405,6 +1415,7 @@ export function createTeam(input: {
   description?: string | null;
   department_id?: string | null;
   manager_id?: string | null;
+  team_lead_user_id?: string | null;
 }): Team {
   initFlowStore();
   const team: Team = {
@@ -1413,6 +1424,7 @@ export function createTeam(input: {
     description: input.description ?? null,
     department_id: input.department_id ?? null,
     manager_id: input.manager_id ?? null,
+    team_lead_user_id: input.team_lead_user_id ?? null,
     created_at: ts(),
     updated_at: ts(),
   };
@@ -1422,7 +1434,7 @@ export function createTeam(input: {
 
 export function updateTeam(
   id: string,
-  updates: Partial<Pick<Team, "name" | "description" | "department_id" | "manager_id">>
+  updates: Partial<Pick<Team, "name" | "description" | "department_id" | "manager_id" | "team_lead_user_id">>
 ): Team | null {
   initFlowStore();
   const idx = teams.findIndex((t) => t.id === id);

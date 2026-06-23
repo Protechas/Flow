@@ -108,9 +108,9 @@ export function DepartmentSetupWizard({
 
   function canAdvance(): boolean {
     if (step === 0) return name.trim().length > 0;
-    if (step === 1) return Boolean(seniorManagerId) && managerIds.length > 0;
+    if (step === 1) return true;
     if (step === 2) {
-      return teams.every((t) => t.name.trim() && t.team_lead_id);
+      return teams.some((t) => t.name.trim());
     }
     return true;
   }
@@ -123,11 +123,11 @@ export function DepartmentSetupWizard({
         await completeDepartmentSetupAction({
           name: name.trim(),
           purpose: purpose.trim() || undefined,
-          senior_manager_id: seniorManagerId,
+          senior_manager_id: seniorManagerId || undefined,
           manager_ids: managerIds,
           teams: teams.map((t) => ({
             name: t.name.trim(),
-            team_lead_id: t.team_lead_id,
+            team_lead_id: t.team_lead_id || undefined,
             manager_id: t.manager_id || undefined,
             employee_ids: t.employee_ids,
           })),
@@ -186,11 +186,15 @@ export function DepartmentSetupWizard({
 
       {step === 1 && (
         <div className="space-y-4 max-w-xl">
+          <p className="text-xs text-muted-foreground">
+            Optional — skip leadership now and assign vacant slots later from Department structure.
+          </p>
           <div className="space-y-2">
             <Label>Senior manager</Label>
-            <Select value={seniorManagerId} onValueChange={(v) => v && setSeniorManagerId(v)}>
-              <SelectTrigger><SelectValue placeholder="Who leads this department branch?" /></SelectTrigger>
+            <Select value={seniorManagerId || "__none__"} onValueChange={(v) => setSeniorManagerId(!v || v === "__none__" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Vacant — assign later" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Vacant — assign later</SelectItem>
                 {seniorManagers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                 ))}
@@ -261,9 +265,9 @@ export function DepartmentSetupWizard({
                     )
                   }
                 >
-                  <SelectTrigger><SelectValue placeholder="Team lead" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Team lead (optional)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select team lead…</SelectItem>
+                    <SelectItem value="__none__">Vacant — assign later</SelectItem>
                     {teamLeadPool.map((u) => (
                       <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                     ))}

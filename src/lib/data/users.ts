@@ -46,6 +46,8 @@ export async function hydrateAppStore(): Promise<User[]> {
   }
   const users = await listUsers();
   setStoreUsers(users);
+  const { ensureDepartmentsLoaded } = await import("@/lib/data/departments-db");
+  await ensureDepartmentsLoaded();
   const { initHierarchyFromStore } = await import("@/lib/auth/team-scope");
   initHierarchyFromStore(users);
   return users;

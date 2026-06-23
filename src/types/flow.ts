@@ -325,6 +325,7 @@ export interface Team {
   description?: string | null;
   department_id?: string | null;
   manager_id?: string | null;
+  team_lead_user_id?: string | null;
   created_at: string;
   updated_at: string;
 }
