@@ -308,3 +308,76 @@ export async function removeDepartmentUserDb(userId: string, departmentId: strin
   }
   removeUserDepartmentMembership(userId, departmentId);
 }
+
+export async function deleteTeamDb(teamId: string): Promise<void> {
+  const { deleteTeam } = await import("@/lib/data/flow-store");
+  if (!isSupabaseConfigured()) {
+    deleteTeam(teamId);
+    return;
+  }
+
+  const client = await dbClient();
+  const { error: userError } = await client
+    .from("users")
+    .update({ team_id: null, updated_at: new Date().toISOString() })
+    .eq("team_id", teamId);
+  if (userError && !isUnavailable(userError)) {
+    throw new Error(userError.hint ? `${userError.message} (${userError.hint})` : userError.message);
+  }
+
+  const { error } = await client.from("teams").delete().eq("id", teamId);
+  if (error) {
+    if (isUnavailable(error)) {
+      deleteTeam(teamId);
+      return;
+    }
+    throw new Error(error.hint ? `${error.message} (${error.hint})` : error.message);
+  }
+  deleteTeam(teamId);
+}
+
+export async function deleteDepartmentDb(departmentId: string): Promise<void> {
+  const { deleteDepartment, listTeamsStore } = await import("@/lib/data/flow-store");
+  if (!isSupabaseConfigured()) {
+    deleteDepartment(departmentId);
+    return;
+  }
+
+  const client = await dbClient();
+  const teamIds = listTeamsStore()
+    .filter((t) => t.department_id === departmentId)
+    .map((t) => t.id);
+
+  if (teamIds.length > 0) {
+    const { error: userError } = await client
+      .from("users")
+      .update({ team_id: null, updated_at: new Date().toISOString() })
+      .in("team_id", teamIds);
+    if (userError && !isUnavailable(userError)) {
+      throw new Error(userError.hint ? `${userError.message} (${userError.hint})` : userError.message);
+    }
+
+    const { error: teamError } = await client.from("teams").delete().eq("department_id", departmentId);
+    if (teamError && !isUnavailable(teamError)) {
+      throw new Error(teamError.hint ? `${teamError.message} (${teamError.hint})` : teamError.message);
+    }
+  }
+
+  const { error: duError } = await client
+    .from("department_users")
+    .delete()
+    .eq("department_id", departmentId);
+  if (duError && !isUnavailable(duError)) {
+    throw new Error(duError.hint ? `${duError.message} (${duError.hint})` : duError.message);
+  }
+
+  const { error } = await client.from("departments").delete().eq("id", departmentId);
+  if (error) {
+    if (isUnavailable(error)) {
+      deleteDepartment(departmentId);
+      return;
+    }
+    throw new Error(error.hint ? `${error.message} (${error.hint})` : error.message);
+  }
+  deleteDepartment(departmentId);
+}

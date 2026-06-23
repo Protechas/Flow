@@ -1512,3 +1512,39 @@ export function removeUserDepartmentMembership(userId: string, departmentId: str
   );
   return departmentUsers.length < before;
 }
+
+export function deleteTeam(id: string): boolean {
+  initFlowStore();
+  const idx = teams.findIndex((t) => t.id === id);
+  if (idx < 0) return false;
+  teams = teams.filter((t) => t.id !== id);
+  for (const user of activeUsers()) {
+    if (user.team_id === id) {
+      updateUser(user.id, { team_id: null });
+    }
+  }
+  return true;
+}
+
+export function deleteDepartment(id: string): boolean {
+  initFlowStore();
+  const idx = departments.findIndex((d) => d.id === id);
+  if (idx < 0) return false;
+
+  const teamIds = teams.filter((t) => t.department_id === id).map((t) => t.id);
+  teams = teams.filter((t) => t.department_id !== id);
+  departmentUsers = departmentUsers.filter((du) => du.department_id !== id);
+  departments = departments.filter((d) => d.id !== id);
+
+  for (const user of activeUsers()) {
+    if (user.team_id && teamIds.includes(user.team_id)) {
+      updateUser(user.id, { team_id: null });
+    }
+  }
+  return true;
+}
+
+export function countProjectsForDepartment(departmentId: string): number {
+  initFlowStore();
+  return projects.filter((p) => p.department_id === departmentId && p.status !== "archived").length;
+}

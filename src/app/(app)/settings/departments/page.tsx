@@ -51,7 +51,7 @@ export default async function DepartmentsSettingsPage() {
           <div>
             <h2 className="text-lg font-semibold">Department structure</h2>
             <p className="text-sm text-muted-foreground">
-              Vacant leadership slots are highlighted. Use Manage or Assign to fill seats later.
+              Vacant leadership slots are highlighted. Use Manage to edit, assign, or delete departments and teams.
             </p>
           </div>
           <DepartmentStructureView

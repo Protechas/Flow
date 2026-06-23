@@ -7,6 +7,8 @@ import {
   assignTeamManagerAction,
   assignUserToDepartmentTeamAction,
   createTeamAction,
+  deleteDepartmentAction,
+  deleteTeamAction,
   updateDepartmentAction,
   updateTeamAction,
 } from "@/app/actions/departments";
@@ -29,12 +31,14 @@ export function DepartmentManageDialog({
   users,
   onClose,
   onUpdated,
+  onDeleted,
 }: {
   department: Department;
   teams: Team[];
   users: User[];
   onClose: () => void;
   onUpdated?: () => void;
+  onDeleted?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +113,14 @@ export function DepartmentManageDialog({
       <div className="border-t border-border/50 pt-4 space-y-3">
         <Label>Teams</Label>
         {deptTeams.map((team) => (
-          <TeamManageRow key={team.id} team={team} users={managerPool} pending={pending} onRun={run} />
+          <TeamManageRow
+            key={team.id}
+            team={team}
+            users={managerPool}
+            pending={pending}
+            onRun={run}
+            onDeleted={onUpdated}
+          />
         ))}
         <div className="flex gap-2">
           <Input
@@ -138,7 +149,29 @@ export function DepartmentManageDialog({
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="border-t border-border/50 pt-4 flex flex-wrap items-center justify-between gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          disabled={pending}
+          onClick={() => {
+            if (
+              !window.confirm(
+                `Permanently delete "${department.name}" and all its teams? Users on those teams will be unassigned. This cannot be undone.`
+              )
+            ) {
+              return;
+            }
+            run(async () => {
+              await deleteDepartmentAction(department.id);
+              onDeleted?.();
+              onClose();
+            });
+          }}
+        >
+          Delete department
+        </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onClose}>Close</Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -151,11 +184,13 @@ function TeamManageRow({
   users,
   pending,
   onRun,
+  onDeleted,
 }: {
   team: Team;
   users: User[];
   pending: boolean;
   onRun: (action: () => Promise<unknown>) => void;
+  onDeleted?: () => void;
 }) {
   const [managerId, setManagerId] = useState(team.manager_id ?? "");
   const [leadId, setLeadId] = useState(team.team_lead_user_id ?? "");
@@ -183,26 +218,46 @@ function TeamManageRow({
           </SelectContent>
         </Select>
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="h-7 text-xs"
-        disabled={pending}
-        onClick={() =>
-          onRun(async () => {
-            if (managerId !== (team.manager_id ?? "")) {
-              await assignTeamManagerAction(team.id, managerId || null);
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={pending}
+          onClick={() =>
+            onRun(async () => {
+              if (managerId !== (team.manager_id ?? "")) {
+                await assignTeamManagerAction(team.id, managerId || null);
+              }
+              if (leadId !== (team.team_lead_user_id ?? "")) {
+                await assignTeamLeadAction(team.id, leadId || null);
+              }
+              await updateTeamAction(team.id, { name: team.name });
+            })
+          }
+        >
+          Save team slots
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs text-destructive hover:text-destructive"
+          disabled={pending}
+          onClick={() => {
+            if (!window.confirm(`Delete team "${team.name}"? Members will be unassigned from this team.`)) {
+              return;
             }
-            if (leadId !== (team.team_lead_user_id ?? "")) {
-              await assignTeamLeadAction(team.id, leadId || null);
-            }
-            await updateTeamAction(team.id, { name: team.name });
-          })
-        }
-      >
-        Save team slots
-      </Button>
+            onRun(async () => {
+              await deleteTeamAction(team.id);
+              onDeleted?.();
+            });
+          }}
+        >
+          Delete team
+        </Button>
+      </div>
     </div>
   );
 }

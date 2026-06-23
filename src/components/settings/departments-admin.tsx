@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   createDepartmentAction,
+  deleteDepartmentAction,
   updateDepartmentAction,
 } from "@/app/actions/departments";
+import { formatActionError } from "@/lib/errors/action-messages";
 import { DepartmentBadge } from "@/components/departments/department-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,7 @@ export function DepartmentsAdmin({
   departments: Department[];
   managers: User[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +48,13 @@ export function DepartmentsAdmin({
         await action();
         setMessage("Saved");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Action failed");
+        setError(formatActionError(e));
       }
     });
+  }
+
+  function refresh() {
+    router.refresh();
   }
 
   return (
@@ -120,7 +128,30 @@ export function DepartmentsAdmin({
           </thead>
           <tbody className={pending ? "opacity-60" : ""}>
             {departments.map((dept) => (
-              <DepartmentRow key={dept.id} department={dept} managers={managers} onSave={(u) => run(() => updateDepartmentAction(dept.id, u))} />
+              <DepartmentRow
+                key={dept.id}
+                department={dept}
+                managers={managers}
+                onSave={(u) =>
+                  run(async () => {
+                    await updateDepartmentAction(dept.id, u);
+                    refresh();
+                  })
+                }
+                onDelete={() =>
+                  run(async () => {
+                    if (
+                      !window.confirm(
+                        `Permanently delete "${dept.name}" and all its teams? This cannot be undone.`
+                      )
+                    ) {
+                      return;
+                    }
+                    await deleteDepartmentAction(dept.id);
+                    refresh();
+                  })
+                }
+              />
             ))}
           </tbody>
         </table>
@@ -135,10 +166,12 @@ function DepartmentRow({
   department,
   managers,
   onSave,
+  onDelete,
 }: {
   department: Department;
   managers: User[];
   onSave: (updates: Parameters<typeof updateDepartmentAction>[1]) => void;
+  onDelete: () => void;
 }) {
   const [name, setName] = useState(department.name);
   const [desc, setDesc] = useState(department.description ?? "");
@@ -188,6 +221,14 @@ function DepartmentRow({
           }
         >
           {department.status === "active" ? "Archive" : "Reactivate"}
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          className="h-7 text-xs w-full"
+          onClick={onDelete}
+        >
+          Delete permanently
         </Button>
       </td>
     </tr>

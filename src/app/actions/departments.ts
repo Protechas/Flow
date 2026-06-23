@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { canManageDepartment } from "@/lib/departments/scope";
 import { requireUser, requirePermission } from "@/lib/auth/session";
 import {
+  countProjectsForDepartment,
   createDepartment,
   createTeam,
   getFlowStore,
@@ -19,6 +20,8 @@ import {
   updateTeam,
 } from "@/lib/data/flow-store";
 import {
+  deleteDepartmentDb,
+  deleteTeamDb,
   ensureDepartmentsLoaded,
   insertDepartmentDb,
   insertTeamDb,
@@ -435,4 +438,55 @@ export async function completeDepartmentStructureAction(input: {
   });
   revalidateDeptPaths();
   return { ok: true as const, departmentId: dept.id };
+}
+
+export async function deleteTeamAction(teamId: string) {
+  const actor = await requirePermission("departments:manage");
+  initFlowStore();
+  await ensureDepartmentsLoaded();
+
+  const team = listTeamsStore().find((t) => t.id === teamId);
+  if (!team) throw new Error("Team not found.");
+
+  await deleteTeamDb(teamId);
+
+  await writeAuditLog({
+    action: "team_changed",
+    entityType: "team",
+    entityId: teamId,
+    summary: `Deleted team ${team.name}`,
+    actorId: actor.id,
+    actorEmail: actor.email,
+  });
+  revalidateDeptPaths();
+  return { ok: true as const };
+}
+
+export async function deleteDepartmentAction(departmentId: string) {
+  const actor = await requirePermission("departments:manage");
+  initFlowStore();
+  await ensureDepartmentsLoaded();
+
+  const department = listDepartments().find((d) => d.id === departmentId);
+  if (!department) throw new Error("Department not found.");
+
+  const projectCount = countProjectsForDepartment(departmentId);
+  if (projectCount > 0) {
+    throw new Error(
+      `Cannot delete "${department.name}" — ${projectCount} active project(s) are assigned to it. Archive or reassign those projects first.`
+    );
+  }
+
+  await deleteDepartmentDb(departmentId);
+
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "department",
+    entityId: departmentId,
+    summary: `Deleted department ${department.name}`,
+    actorId: actor.id,
+    actorEmail: actor.email,
+  });
+  revalidateDeptPaths();
+  return { ok: true as const };
 }

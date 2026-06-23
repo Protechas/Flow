@@ -216,6 +216,10 @@ export function DepartmentStructureView({
               users={users}
               onClose={() => setManageDept(null)}
               onUpdated={refresh}
+              onDeleted={() => {
+                setManageDept(null);
+                refresh();
+              }}
             />
           )}
         </DialogContent>
