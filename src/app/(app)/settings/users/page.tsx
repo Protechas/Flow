@@ -12,7 +12,6 @@ import {
 } from "@/app/actions/users";
 import { getDepartmentUsersAction, getDepartmentsAction } from "@/app/actions/departments";
 import { requirePagePermission } from "@/lib/auth/guard";
-import { getReportingChain } from "@/lib/auth/team-scope";
 import { listOrgPositionsAction } from "@/app/actions/positions";
 import { initFlowStore } from "@/lib/data/flow-store";
 import { listUnassignedUsers } from "@/lib/positions/resolver";
@@ -35,9 +34,6 @@ export default async function UsersAdminPage() {
   );
   initFlowStore();
   const unassignedUsers = listUnassignedUsers(users, positions);
-  const reportingChains = Object.fromEntries(
-    users.map((u) => [u.id, getReportingChain(u.id, users)])
-  );
   const supabaseAuth = isSupabaseConfigured();
   const canCreate = (supabaseAuth && isAdminConfigured()) || !supabaseAuth;
 
@@ -52,8 +48,8 @@ export default async function UsersAdminPage() {
           <div>
             <h2 className="text-lg font-semibold">All users</h2>
             <p className="text-sm text-muted-foreground">
-              Edit profiles, set passwords, and manage access. Scroll right in the table for actions.
-              Users missing hierarchy data are marked Needs setup.
+              Search, review, and edit users from the table. Use Edit to open the full profile
+              editor for organization, access, and account actions.
             </p>
           </div>
           <UsersAdmin
@@ -62,7 +58,6 @@ export default async function UsersAdminPage() {
             managers={managers}
             departments={departments}
             departmentUsers={departmentUsers}
-            reportingChains={reportingChains}
             positions={positions}
             resetPasswordEnabled={supabaseAuth && isAdminConfigured()}
           />

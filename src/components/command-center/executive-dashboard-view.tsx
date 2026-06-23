@@ -207,6 +207,27 @@ export function ExecutiveDashboardView({
         ]}
       />
 
+      {data.outcomeMetrics.length > 0 && (
+        <KpiPriorityZone
+          title="Project outcomes"
+          description="Aggregated success metrics across active projects"
+          variant="overview"
+        >
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {data.outcomeMetrics.map((metric) => (
+              <EnterpriseKpi
+                key={metric.id}
+                label={metric.metric_name}
+                value={metric.aggregate_value}
+                sublabel={`${metric.project_count} project${metric.project_count === 1 ? "" : "s"} · ${metric.unit_label}`}
+                href={linkHref(role, "/projects")}
+                title={metric.metric_name}
+              />
+            ))}
+          </section>
+        </KpiPriorityZone>
+      )}
+
       <KpiPriorityZone
         title={OPS_COPY.requiresAttention}
         description="Signals that may need manager action today"

@@ -1,4 +1,4 @@
-import type { User } from "@/types/flow";
+import type { EmploymentStatus, User } from "@/types/flow";
 import { normalizePayType } from "@/lib/users/pay-type";
 import type { OrganizationalPosition, SystemAccessLevel } from "@/types/flow";
 
@@ -27,6 +27,10 @@ export function normalizeUser(row: Record<string, unknown>): User {
     pay_type: normalizePayType(row.pay_type, row.role as User["role"]),
     team_id: (row.team_id as string | null) ?? null,
     manager_id: (row.manager_id as string | null) ?? null,
+    assigned_position_id: (row.assigned_position_id as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+    job_title: (row.job_title as string | null) ?? null,
+    employment_status: normalizeEmploymentStatus(row.employment_status),
     avatar_url: (row.avatar_url as string | null) ?? null,
     hire_date: (row.hire_date as string | null) ?? null,
     last_login_at: (row.last_login_at as string | null) ?? null,
@@ -35,6 +39,11 @@ export function normalizeUser(row: Record<string, unknown>): User {
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
+}
+
+function normalizeEmploymentStatus(value: unknown): EmploymentStatus {
+  if (value === "on_leave" || value === "terminated") return value;
+  return "active";
 }
 
 export function userDisplayInitials(user: Pick<User, "first_name" | "last_name" | "full_name">): string {

@@ -9,6 +9,7 @@ import {
 import type { Project } from "@/types/flow";
 import type { CreateProjectFromTemplateInput, EnterpriseProjectTemplate } from "./enterprise-types";
 import { getEnterpriseTemplate, recordTemplateUsage } from "./template-registry";
+import { seedMetricsForProject } from "@/lib/metrics/template-metric-defaults";
 
 function taskNotes(task: EnterpriseProjectTemplate["tasks"][0]): string | null {
   const flags: string[] = [];
@@ -100,6 +101,7 @@ export function generateProjectFromTemplate(
   }
 
   recordTemplateUsage(template.id, project.id);
+  seedMetricsForProject(project.id, template.id);
   return project;
 }
 

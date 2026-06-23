@@ -42,9 +42,11 @@ export default async function AppLayout({
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar user={user} />
-        <SidebarInset className="flow-layer-content min-h-svh">
+        <SidebarInset className="flow-layer-content min-h-svh min-w-0 overflow-x-hidden">
           <AppHeader user={user} demoMode={demoMode && hasDemoCookie} />
-          <main className="flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full">{children}</main>
+          <div className="flow-app-content flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full min-w-0 overflow-x-hidden">
+            {children}
+          </div>
           <InnovationHubBubble />
         </SidebarInset>
       </SidebarProvider>

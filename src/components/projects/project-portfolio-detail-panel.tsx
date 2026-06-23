@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ProjectForecastPanel } from "@/components/forecast/project-forecast-panel";
+import { ProjectMetricsPanel } from "@/components/projects/project-metrics-panel";
 import { DueDateStatusBadge } from "@/components/forecast/due-date-status-badge";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,10 @@ import {
   healthStatusLabel,
   type ProjectWithStats,
 } from "@/lib/projects/portfolio-utils";
+import {
+  canManageProjectMetrics,
+  canUpdateProjectMetricValues,
+} from "@/lib/metrics/project-metrics-permissions";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatForecastHours } from "@/lib/forecast/engine";
 import type {
@@ -62,6 +67,8 @@ export function ProjectPortfolioDetailPanel({
   analysts,
   qaReviews,
   activity,
+  viewer,
+  canEdit = false,
 }: {
   selection: PortfolioSelection;
   onClose: () => void;
@@ -73,6 +80,8 @@ export function ProjectPortfolioDetailPanel({
   analysts: User[];
   qaReviews: QaReview[];
   activity: ActivityEvent[];
+  viewer?: User;
+  canEdit?: boolean;
 }) {
   const open = selection !== null;
 
@@ -157,6 +166,14 @@ export function ProjectPortfolioDetailPanel({
                   )}
                 />
               </div>
+              <ProjectMetricsPanel
+                project={project}
+                user={viewer}
+                canManage={Boolean(viewer && canEdit && canManageProjectMetrics(viewer))}
+                canUpdateValues={Boolean(
+                  viewer && canUpdateProjectMetricValues(viewer, project)
+                )}
+              />
               <ProjectForecastPanel project={project} />
               <div>
                 <p className="enterprise-label mb-2">Structure</p>

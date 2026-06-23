@@ -575,41 +575,27 @@ export function OrgChartView({
           </Button>
         </div>
 
-        <div className="min-h-[360px] flow-org-chart-tree">
-          {!hasChartContent ? (
-            <div className="py-12 text-center space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {usePositionChart
-                  ? "No positions match your filters."
-                  : "No people match your filters in this reporting branch."}
-              </p>
-              {permissions.canManagePositions && !usePositionChart && (
-                <Button type="button" size="sm" variant="outline" onClick={() => setBuilderOpen(true)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Create first position
-                </Button>
-              )}
-            </div>
-          ) : useGroupedDisplay ? (
-            <GroupedDepartmentChart
-              sections={filteredGroupedSections}
-              expandAll={expandAll}
-              search={search}
-              opsMap={opsMap}
-              selectedId={selectedId}
-              onSelectUser={setSelectedId}
-              onAssignPosition={setAssignPosition}
-              onManagePosition={setManagePosition}
-              canAssignPositions={permissions.canAssignPositions}
-              canManagePositions={permissions.canManagePositions}
-            />
-          ) : (
-            filteredRoots.map((root) => (
-              <OrgBranch
-                key={nodeKey(root)}
-                node={root}
-                depth={0}
-                forceOpen={expandAll || !!search.trim()}
+        <div className="min-h-[360px] space-y-4">
+          <div className="flow-org-chart-tree">
+            {!hasChartContent ? (
+              <div className="py-12 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {usePositionChart
+                    ? "No positions match your filters."
+                    : "No people match your filters in this reporting branch."}
+                </p>
+                {permissions.canManagePositions && !usePositionChart && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => setBuilderOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create first position
+                  </Button>
+                )}
+              </div>
+            ) : useGroupedDisplay ? (
+              <GroupedDepartmentChart
+                sections={filteredGroupedSections}
+                expandAll={expandAll}
+                search={search}
                 opsMap={opsMap}
                 selectedId={selectedId}
                 onSelectUser={setSelectedId}
@@ -618,25 +604,42 @@ export function OrgChartView({
                 canAssignPositions={permissions.canAssignPositions}
                 canManagePositions={permissions.canManagePositions}
               />
-            ))
+            ) : (
+              filteredRoots.map((root) => (
+                <OrgBranch
+                  key={nodeKey(root)}
+                  node={root}
+                  depth={0}
+                  forceOpen={expandAll || !!search.trim()}
+                  opsMap={opsMap}
+                  selectedId={selectedId}
+                  onSelectUser={setSelectedId}
+                  onAssignPosition={setAssignPosition}
+                  onManagePosition={setManagePosition}
+                  canAssignPositions={permissions.canAssignPositions}
+                  canManagePositions={permissions.canManagePositions}
+                />
+              ))
+            )}
+          </div>
+
+          {permissions.canManagePositions && unassignedUsers.length > 0 && (
+            <div className="flow-org-branch border-t border-border/40 pt-4">
+              <UnassignedUsersPanel
+                users={unassignedUsers}
+                positions={positions}
+                departments={departments}
+                teams={teams}
+                allUsers={allUsers}
+                canAssign={permissions.canAssignPositions}
+                canManageAccounts={canManageAccounts}
+                defaultExpanded={false}
+                onAssigned={refresh}
+              />
+            </div>
           )}
         </div>
       </div>
-
-      {permissions.canManagePositions && unassignedUsers.length > 0 && (
-        <div className="px-4 pb-4 border-t border-border/40 pt-4 mt-2">
-          <UnassignedUsersPanel
-            users={unassignedUsers}
-            positions={positions}
-            departments={departments}
-            teams={teams}
-            allUsers={allUsers}
-            canAssign={permissions.canAssignPositions}
-            canManageAccounts={canManageAccounts}
-            onAssigned={refresh}
-          />
-        </div>
-      )}
 
       <OrgChartProfilePanel
         open={!!selectedId}

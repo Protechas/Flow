@@ -14,7 +14,7 @@ import { listTeamsStore } from "@/lib/data/flow-store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { OrganizationalPosition, SystemAccessLevel, Team, User, UserRole } from "@/types/flow";
+import type { EmploymentStatus, OrganizationalPosition, SystemAccessLevel, Team, User, UserRole } from "@/types/flow";
 
 function mapDbUser(row: Record<string, unknown>): User {
   return hydrateUserAccessFields({
@@ -65,6 +65,7 @@ export async function updateUserProfile(
       User,
       | "first_name"
       | "last_name"
+      | "full_name"
       | "role"
       | "organizational_position"
       | "system_access_level"
@@ -76,16 +77,21 @@ export async function updateUserProfile(
       | "avatar_url"
       | "pay_type"
       | "branch_view_access"
+      | "phone"
+      | "job_title"
+      | "employment_status"
     >
   >
 ): Promise<User | null> {
   const full_name =
-    updates.first_name !== undefined || updates.last_name !== undefined
-      ? formatFullName(
-          updates.first_name ?? "",
-          updates.last_name ?? ""
-        )
-      : undefined;
+    updates.full_name !== undefined
+      ? updates.full_name.trim()
+      : updates.first_name !== undefined || updates.last_name !== undefined
+        ? formatFullName(
+            updates.first_name ?? "",
+            updates.last_name ?? ""
+          )
+        : undefined;
 
   const payload = {
     ...updates,
@@ -115,7 +121,17 @@ export async function updateUserProfile(
     .select()
     .single();
   if (error) throw error;
-  return data ? mapDbUser(data as Record<string, unknown>) : null;
+  const updated = data ? mapDbUser(data as Record<string, unknown>) : null;
+  if (updated && updates.manager_id !== undefined) {
+    initFlowStore();
+    syncHierarchyOnManagerChange(
+      userId,
+      updates.manager_id,
+      getFlowStore().users,
+      updates.team_id ?? updated.team_id
+    );
+  }
+  return updated;
 }
 
 export async function updateUserRole(

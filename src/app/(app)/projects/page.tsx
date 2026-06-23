@@ -23,6 +23,7 @@ import {
   getYearWorkItems,
 } from "@/lib/data/projects";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
+import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 
@@ -39,6 +40,7 @@ export default async function ProjectsPage({
   const departmentFilter = parseDepartmentFilter({ department: deptParam });
 
   await hydrateForecastSettings();
+  await ensureProjectMetricsHydrated();
   initFlowStore();
   const store = getFlowStore();
   const departments = getActiveDepartments(

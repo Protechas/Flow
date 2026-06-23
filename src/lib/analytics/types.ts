@@ -1,5 +1,10 @@
 import type { DepartmentHealthSummary } from "@/lib/design/department-health";
-import type { FlowScoreTrendPoint, ForecastReportMetrics } from "@/types/flow";
+import type {
+  ExecutiveOutcomeMetric,
+  FlowScoreTrendPoint,
+  ForecastReportMetrics,
+  ProjectMetricExportRow,
+} from "@/types/flow";
 
 export interface AnalyticsEmployeeSpeed {
   userId: string;
@@ -137,5 +142,15 @@ export interface FlowAnalyticsSnapshot {
     production: { date: string; avgMinutesPerDocument: number; submissions: number; avgDocsPerHour: number }[];
     flowScore: FlowScoreTrendPoint[];
     minutesPerDocumentTrend: { date: string; value: number }[];
+  };
+
+  outcomes: {
+    summary: ExecutiveOutcomeMetric[];
+    byProject: {
+      projectId: string;
+      projectName: string;
+      metrics: { name: string; value: string; target: string | null }[];
+    }[];
+    exportRows: ProjectMetricExportRow[];
   };
 }

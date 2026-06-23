@@ -3,11 +3,14 @@ import { getMockStore } from "@/lib/data/mock-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
+import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
+import { resolveProjectMetrics } from "@/lib/metrics/project-metrics-resolver";
 import type { ProjectHealth } from "@/types/flow";
 import { addDays, format } from "date-fns";
 
 export async function getProjectHealthList(): Promise<ProjectHealth[]> {
   await hydrateForecastSettings();
+  await ensureProjectMetricsHydrated();
   initFlowStore();
   const forecastSettings = getFlowStore().forecastSettings;
   const store = getMockStore();
@@ -54,6 +57,7 @@ export async function getProjectHealthList(): Promise<ProjectHealth[]> {
       projectedCompletion:
         projectedDays > 0 ? format(addDays(new Date(), projectedDays), "yyyy-MM-dd") : null,
       rollup,
+      customMetrics: resolveProjectMetrics(project),
     };
   });
 }

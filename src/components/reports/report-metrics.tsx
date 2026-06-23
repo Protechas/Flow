@@ -5,6 +5,7 @@ import Link from "next/link";
 import { EnterpriseDataTable, EnterpriseTableHead, EnterpriseTd, EnterpriseTh } from "@/components/enterprise/enterprise-data-table";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
+import { ProjectOutcomesReportSection } from "@/components/metrics/project-outcomes-report-section";
 import type { ReportMetrics } from "@/types/flow";
 import { operationsHref, projectHealthHref, qaCenterHref } from "@/lib/navigation/deep-links";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
@@ -44,6 +45,12 @@ export function ReportMetricsView({ metrics }: { metrics: ReportMetrics }) {
           title="View overdue tasks"
         />
       </div>
+
+      <ProjectOutcomesReportSection
+        outcomeMetrics={metrics.outcomeMetrics}
+        projectMetricRows={metrics.projectMetricRows}
+        exportFilename="flow-reports-project-metrics.csv"
+      />
 
       <EnterpriseSection title="Due date forecasting" description="Planning and live production forecasts">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">

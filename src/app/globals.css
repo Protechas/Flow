@@ -490,6 +490,10 @@
   .flow-layer-content {
     background-color: var(--surface-primary);
     background-image: var(--surface-gradient);
+    min-width: 0;
+  }
+  .flow-app-content {
+    isolation: isolate;
   }
   .flow-layer-sidebar {
     background-color: var(--sidebar);
@@ -912,9 +916,11 @@
   /* Enterprise org chart — authority depth */
   .flow-org-chart {
     position: relative;
+    overflow-x: clip;
   }
   .flow-org-chart-tree {
     overflow-x: auto;
+    overflow-y: visible;
     padding-bottom: 0.5rem;
   }
   .flow-org-branch {

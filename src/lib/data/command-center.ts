@@ -26,6 +26,8 @@ import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver"
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
 import { getWrapUpCompletionPctForUsers } from "@/lib/wrap-up/compliance";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { buildExecutiveOutcomeMetrics } from "@/lib/metrics/project-metrics-aggregate";
+import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
 import {
   getProductionStore,
@@ -378,6 +380,9 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
     packages
   );
 
+  await ensureProjectMetricsHydrated();
+  const outcomeMetrics = buildExecutiveOutcomeMetrics();
+
   return {
     teamHealth: {
       flowScore: acc.departmentAvgFlowScore,
@@ -494,5 +499,6 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
     workloadAlertSummary,
     helpFlags,
     helpFlagSummary,
+    outcomeMetrics,
   };
 }

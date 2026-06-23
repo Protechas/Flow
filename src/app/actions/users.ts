@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache";
 import { listAuditLog, writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission, requireUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
+import { syncLegacyRoleFromAccessFields } from "@/lib/auth/access-level";
 import { teamLeadCanViewPerson } from "@/lib/auth/team-scope";
+import { getDepartmentUsersAction, removeUserDepartmentAction, setUserDepartmentAction } from "@/app/actions/departments";
+import { assignUserToPositionAction, unassignUserFromPositionAction } from "@/app/actions/positions";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   createUserRecord,
   getUserById,
+  hydrateAppStore,
   listTeams,
   listUsers,
   setUserActive,
@@ -16,11 +20,22 @@ import {
   updateUserAccessLevels,
   updateUserRole,
 } from "@/lib/data/users";
+import { auditUserFieldChanges } from "@/lib/users/profile-audit";
+import {
+  UserProfileValidationError,
+  validateUserProfileInput,
+} from "@/lib/users/profile-validation";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/supabase/site-url";
 import { formatFullName } from "@/lib/users/format";
-import type { OrganizationalPosition, PayType, SystemAccessLevel, UserRole } from "@/types/flow";
+import type {
+  EmploymentStatus,
+  OrganizationalPosition,
+  PayType,
+  SystemAccessLevel,
+  UserRole,
+} from "@/types/flow";
 
 export async function getUsersAction() {
   await requirePermission("users:manage");
@@ -274,4 +289,210 @@ export async function updateEmployeePayTypeAction(userId: string, pay_type: PayT
   }
 
   throw new Error("FORBIDDEN");
+}
+
+export type SaveUserProfileInput = {
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  job_title?: string | null;
+  department_id?: string | null;
+  team_id?: string | null;
+  manager_id?: string | null;
+  assigned_position_id?: string | null;
+  organizational_position: OrganizationalPosition;
+  system_access_level: SystemAccessLevel;
+  pay_type?: PayType | null;
+  hire_date?: string | null;
+  employment_status?: EmploymentStatus;
+  is_active?: boolean;
+  branch_view_access?: boolean;
+};
+
+function primaryDepartmentId(
+  userId: string,
+  departmentUsers: Awaited<ReturnType<typeof getDepartmentUsersAction>>
+): string | null {
+  const primary = departmentUsers.find((du) => du.user_id === userId && du.is_primary);
+  return (
+    primary?.department_id ??
+    departmentUsers.find((du) => du.user_id === userId)?.department_id ??
+    null
+  );
+}
+
+export async function saveUserProfileAction(userId: string, input: SaveUserProfileInput) {
+  const actor = await requirePermission("users:manage");
+  const [before, users, teams, departmentUsers] = await Promise.all([
+    getUserById(userId),
+    listUsers(),
+    listTeams(),
+    getDepartmentUsersAction(),
+  ]);
+  if (!before) throw new UserProfileValidationError("User not found.");
+
+  validateUserProfileInput({
+    userId,
+    first_name: input.first_name,
+    last_name: input.last_name,
+    full_name: input.full_name,
+    email: input.email,
+    manager_id: input.manager_id,
+    department_id: input.department_id,
+    team_id: input.team_id,
+    users,
+    teams,
+  });
+
+  const changes: Array<{
+    field: string;
+    previous: unknown;
+    next: unknown;
+    action?: import("@/types/flow").AuditAction;
+  }> = [];
+
+  const pushChange = (field: string, previous: unknown, next: unknown, action?: import("@/types/flow").AuditAction) => {
+    changes.push({ field, previous, next, action });
+  };
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  if (normalizedEmail !== before.email.trim().toLowerCase()) {
+    if (!isSupabaseConfigured() || !isAdminConfigured()) {
+      throw new UserProfileValidationError(
+        "Changing login email requires Supabase admin configuration on the server."
+      );
+    }
+    const admin = createAdminClient();
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+      email: normalizedEmail,
+    });
+    if (authError) throw new UserProfileValidationError(authError.message);
+
+    const { error: profileError } = await admin
+      .from("users")
+      .update({ email: normalizedEmail, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (profileError) throw new UserProfileValidationError(profileError.message);
+
+    pushChange("email", before.email, normalizedEmail, "email_changed");
+  }
+
+  const prevDepartmentId = primaryDepartmentId(userId, departmentUsers);
+  const nextDepartmentId = input.department_id ?? null;
+  if (nextDepartmentId !== prevDepartmentId) {
+    if (nextDepartmentId) {
+      await setUserDepartmentAction(userId, nextDepartmentId, { is_primary: true });
+    } else if (prevDepartmentId) {
+      await removeUserDepartmentAction(userId, prevDepartmentId);
+    }
+    pushChange("department_id", prevDepartmentId, nextDepartmentId, "team_changed");
+  }
+
+  const nextPositionId = input.assigned_position_id ?? null;
+  if (nextPositionId !== (before.assigned_position_id ?? null)) {
+    await hydrateAppStore();
+    if (nextPositionId) {
+      await assignUserToPositionAction(nextPositionId, userId);
+    } else if (before.assigned_position_id) {
+      await unassignUserFromPositionAction(before.assigned_position_id);
+    }
+    pushChange("assigned_position_id", before.assigned_position_id, nextPositionId, "assignment_changed");
+  }
+
+  const syncedRole = syncLegacyRoleFromAccessFields(
+    input.organizational_position,
+    input.system_access_level
+  );
+
+  const profilePayload = {
+    first_name: input.first_name.trim(),
+    last_name: input.last_name.trim(),
+    full_name: input.full_name.trim(),
+    phone: input.phone?.trim() || null,
+    job_title: input.job_title?.trim() || null,
+    team_id: input.team_id ?? null,
+    manager_id: input.manager_id ?? null,
+    hire_date: input.hire_date ?? null,
+    pay_type: input.pay_type ?? before.pay_type ?? null,
+    employment_status: input.employment_status ?? before.employment_status ?? "active",
+    is_active: input.is_active ?? before.is_active,
+    branch_view_access: input.branch_view_access ?? before.branch_view_access ?? false,
+    organizational_position: input.organizational_position,
+    system_access_level: input.system_access_level,
+    role: syncedRole,
+  };
+
+  const fieldMap: Array<[string, unknown, unknown]> = [
+    ["first_name", before.first_name, profilePayload.first_name],
+    ["last_name", before.last_name, profilePayload.last_name],
+    ["full_name", before.full_name, profilePayload.full_name],
+    ["phone", before.phone ?? null, profilePayload.phone],
+    ["job_title", before.job_title ?? null, profilePayload.job_title],
+    ["team_id", before.team_id, profilePayload.team_id],
+    ["manager_id", before.manager_id, profilePayload.manager_id],
+    ["hire_date", before.hire_date, profilePayload.hire_date],
+    ["pay_type", before.pay_type, profilePayload.pay_type],
+    ["employment_status", before.employment_status ?? "active", profilePayload.employment_status],
+    ["is_active", before.is_active, profilePayload.is_active],
+    ["branch_view_access", before.branch_view_access, profilePayload.branch_view_access],
+    ["organizational_position", before.organizational_position, profilePayload.organizational_position],
+    ["system_access_level", before.system_access_level, profilePayload.system_access_level],
+    ["role", before.role, profilePayload.role],
+  ];
+
+  for (const [field, previous, next] of fieldMap) {
+    pushChange(field, previous, next);
+  }
+
+  const updated = await updateUserProfile(userId, profilePayload);
+  if (!updated) throw new UserProfileValidationError("Could not save user profile.");
+
+  await auditUserFieldChanges({
+    userId,
+    userLabel: updated.full_name,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    changes,
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true as const, user: updated };
+}
+
+export async function adminResendInviteAction(userId: string) {
+  const actor = await requirePermission("users:manage");
+  const user = await getUserById(userId);
+  if (!user) throw new Error("User not found.");
+
+  if (!isSupabaseConfigured() || !isAdminConfigured()) {
+    throw new Error("Invite resend requires Supabase admin configuration");
+  }
+
+  const admin = createAdminClient();
+  const siteUrl = getSiteUrl();
+  const { error } = await admin.auth.admin.inviteUserByEmail(user.email, {
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+    data: {
+      first_name: user.first_name,
+      last_name: user.last_name,
+      full_name: user.full_name,
+      role: user.role,
+      team_id: user.team_id,
+      manager_id: user.manager_id,
+    },
+  });
+  if (error) throw new Error(error.message);
+
+  await writeAuditLog({
+    action: "user_invited",
+    entityType: "user",
+    entityId: userId,
+    summary: `Resent invite to ${user.email}`,
+    actorId: actor.id,
+    actorEmail: actor.email,
+  });
+
+  return { ok: true as const };
 }

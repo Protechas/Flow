@@ -26,6 +26,8 @@ const REST_TABLES = [
   "org_positions",
   "company_documents",
   "feedback_submissions",
+  "project_metric_definitions",
+  "project_metric_values",
 ];
 
 const DB_CHECKS = [
@@ -47,6 +49,19 @@ const DB_CHECKS = [
   {
     label: "organizational_position enum",
     sql: `SELECT 1 FROM pg_type WHERE typname='organizational_position'`,
+  },
+  {
+    label: "users.phone",
+    sql: `SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='users' AND column_name='phone'`,
+  },
+  {
+    label: "project_metric_definitions table",
+    sql: "SELECT to_regclass('public.project_metric_definitions') AS v",
+  },
+  {
+    label: "project_metric_values table",
+    sql: "SELECT to_regclass('public.project_metric_values') AS v",
   },
 ];
 

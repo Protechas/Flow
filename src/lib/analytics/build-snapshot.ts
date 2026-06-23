@@ -23,6 +23,12 @@ import {
 import { getWrapUpCompletionPctForUsers } from "@/lib/wrap-up/compliance";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
 import { buildWorkloadAlertReportMetrics } from "@/lib/workload-alerts/engine";
+import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
+import {
+  buildAnalyticsOutcomesByProject,
+  buildProjectMetricExportRows,
+  buildProjectOutcomeSummary,
+} from "@/lib/metrics/project-metrics-reporting";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { listWorkloadAlertRecords } from "@/lib/workload-alerts/store";
 import { listHelpFlagRecords } from "@/lib/help-flags/store";
@@ -293,6 +299,7 @@ export async function buildFlowAnalyticsSnapshot(
   initFlowStore();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
+  await ensureProjectMetricsHydrated();
   const store = getFlowStore();
 
   let packages = await getWorkPackages();
@@ -540,6 +547,15 @@ export async function buildFlowAnalyticsSnapshot(
       })),
       flowScore: performance.trends,
       minutesPerDocumentTrend,
+    },
+    outcomes: {
+      summary: buildProjectOutcomeSummary(),
+      byProject: buildAnalyticsOutcomesByProject(),
+      exportRows: buildProjectMetricExportRows(
+        teamMemberIds?.length
+          ? [...new Set(packages.map((p) => p.project_id))]
+          : undefined
+      ),
     },
   };
 }

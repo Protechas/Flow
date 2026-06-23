@@ -14,12 +14,18 @@ import { buildWorkloadAlertReportMetrics } from "@/lib/workload-alerts/engine";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { buildHelpFlagReportMetrics } from "@/lib/help-flags/engine";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
+import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
+import {
+  buildProjectMetricExportRows,
+  buildProjectOutcomeSummary,
+} from "@/lib/metrics/project-metrics-reporting";
 import type { ReportMetrics } from "@/types/flow";
 
 export async function getReportMetrics(teamMemberIds?: string[]): Promise<ReportMetrics> {
   initFlowStore();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
+  await ensureProjectMetricsHydrated();
   const store = getFlowStore();
   let packages = await getWorkPackages();
   if (teamMemberIds?.length) {
@@ -81,6 +87,8 @@ export async function getReportMetrics(teamMemberIds?: string[]): Promise<Report
     flowScore: t.flowScore,
   }));
 
+  const projectIdsList = [...projectIds];
+
   return {
     productivityByAnalyst,
     qaPassRate: computeQaPassRate(qaReviews),
@@ -110,5 +118,7 @@ export async function getReportMetrics(teamMemberIds?: string[]): Promise<Report
       teamMemberIds
     ),
     helpFlags: buildHelpFlagReportMetrics(store.users, teamMemberIds),
+    outcomeMetrics: buildProjectOutcomeSummary(),
+    projectMetricRows: buildProjectMetricExportRows(projectIdsList),
   };
 }

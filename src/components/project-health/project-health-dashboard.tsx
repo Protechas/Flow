@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ProjectMetricDisplay } from "@/components/projects/project-metric-display";
 import { FLOW_MATERIAL } from "@/components/platform";
 import type { ProjectHealth } from "@/types/flow";
 import { AlertTriangle, Calendar, Users } from "lucide-react";
@@ -62,6 +63,17 @@ export function ProjectHealthDashboard({
               <Stat label="Blocked/Stuck" value={ph.blockedCount} warn={ph.blockedCount > 0} />
               <Stat label="Overdue" value={ph.overdueCount} warn={ph.overdueCount > 0} critical={ph.overdueCount > 0} />
             </div>
+
+            {ph.customMetrics.length > 0 && (
+              <div>
+                <p className="flow-section-title mb-3">Performance metrics</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {ph.customMetrics.map((metric) => (
+                    <ProjectMetricDisplay key={metric.id} metric={metric} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <p className="enterprise-label mb-2 flex items-center gap-1.5">

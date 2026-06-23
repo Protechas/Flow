@@ -1,4 +1,5 @@
 import { ProjectHealthDashboard } from "@/components/project-health/project-health-dashboard";
+import { ProjectHealthExportActions } from "@/components/project-health/project-health-export-actions";
 import {
   FlowPageShell,
   KpiStrip,
@@ -8,6 +9,7 @@ import {
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getProjectHealthList } from "@/lib/data/project-health";
+import { buildProjectMetricExportRows } from "@/lib/metrics/project-metrics-reporting";
 import { operationsHref, projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
 
 export default async function ProjectHealthPage({
@@ -38,6 +40,7 @@ export default async function ProjectHealthPage({
       ? Math.round(projects.reduce((s, p) => s + p.overallProgress, 0) / projects.length)
       : 0;
   const totalQaIssues = projects.reduce((s, p) => s + p.qaIssues, 0);
+  const exportRows = buildProjectMetricExportRows(projects.map((p) => p.project.id));
 
   return (
     <FlowPageShell
@@ -45,6 +48,7 @@ export default async function ProjectHealthPage({
       eyebrow={PLATFORM_EYEBROWS.projectHealth}
       breadcrumbs={[{ label: "Project Health" }]}
       description="Progress, hours, QA issues, and projections by project"
+      headerActions={<ProjectHealthExportActions rows={exportRows} />}
       pulse={
         <OperationalPostureStrip
           signals={[

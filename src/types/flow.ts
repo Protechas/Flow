@@ -330,6 +330,8 @@ export interface Team {
   updated_at: string;
 }
 
+export type EmploymentStatus = "active" | "on_leave" | "terminated";
+
 export type AuditAction =
   | "user_created"
   | "user_invited"
@@ -342,6 +344,8 @@ export type AuditAction =
   | "qa_decision"
   | "password_reset"
   | "status_changed"
+  | "email_changed"
+  | "user_profile_updated"
   | "workflow_alert";
 
 export interface AuditLogEntry {
@@ -370,6 +374,9 @@ export interface User {
   manager_id?: string | null;
   assigned_position_id?: string | null;
   branch_view_access?: boolean | null;
+  phone?: string | null;
+  job_title?: string | null;
+  employment_status?: EmploymentStatus | null;
   avatar_url?: string | null;
   hire_date?: string | null;
   last_login_at?: string | null;
@@ -1206,6 +1213,116 @@ export interface YearRollup extends RollupMetrics {
   packages: WorkPackage[];
 }
 
+export type ProjectMetricType =
+  | "number"
+  | "percentage"
+  | "currency"
+  | "hours"
+  | "boolean"
+  | "status"
+  | "calculated";
+
+export type ProjectMetricDisplayStyle =
+  | "metric_card"
+  | "progress_bar"
+  | "percentage_ring"
+  | "status_badge"
+  | "target_vs_actual"
+  | "trend_line"
+  | "kpi_tile";
+
+export type ProjectMetricStatusValue =
+  | "not_started"
+  | "in_progress"
+  | "blocked"
+  | "complete";
+
+export interface ProjectMetricFormulaDefinition {
+  kind:
+    | "qa_pass_rate"
+    | "completion_pct"
+    | "forecast_confidence"
+    | "correction_count"
+    | "hours_variance"
+    | "documents_processed"
+    | "files_uploaded"
+    | "ready_for_qa";
+  numeratorKey?: string;
+  denominatorKey?: string;
+  multiply?: number;
+}
+
+export interface ProjectMetricDefinition {
+  id: string;
+  project_id: string;
+  metric_name: string;
+  metric_description?: string | null;
+  metric_type: ProjectMetricType;
+  target_value?: number | null;
+  current_value?: string | null;
+  display_style: ProjectMetricDisplayStyle;
+  sort_order: number;
+  is_required: boolean;
+  is_formula: boolean;
+  formula_definition?: ProjectMetricFormulaDefinition | null;
+  is_archived: boolean;
+  created_at: string;
+}
+
+export interface ProjectMetricValue {
+  id: string;
+  metric_definition_id: string;
+  current_value: string;
+  previous_value?: string | null;
+  updated_by?: string | null;
+  updated_at: string;
+}
+
+export interface ProjectMetricView extends ProjectMetricDefinition {
+  resolved_value: string;
+  numeric_value: number | null;
+  trend_7d?: number | null;
+  trend_30d?: number | null;
+  previous_value?: string | null;
+}
+
+export interface ExecutiveOutcomeMetric {
+  id: string;
+  metric_name: string;
+  metric_type: ProjectMetricType;
+  display_style: ProjectMetricDisplayStyle;
+  aggregate_value: string;
+  numeric_value: number | null;
+  project_count: number;
+  unit_label?: string;
+}
+
+export interface ProjectMetricExportRow {
+  projectId: string;
+  projectName: string;
+  metricName: string;
+  metricType: ProjectMetricType;
+  value: string;
+  target: string;
+  previous: string | null;
+  trend7d: string;
+  trend30d: string;
+  isFormula: boolean;
+}
+
+export interface ProjectMetricDefinitionInput {
+  metric_name: string;
+  metric_description?: string | null;
+  metric_type: ProjectMetricType;
+  target_value?: number | null;
+  current_value?: string | null;
+  display_style?: ProjectMetricDisplayStyle;
+  sort_order?: number;
+  is_required?: boolean;
+  is_formula?: boolean;
+  formula_definition?: ProjectMetricFormulaDefinition | null;
+}
+
 export interface OperationsTree {
   projects: ProjectTreeNode[];
 }
@@ -1371,6 +1488,8 @@ export interface CommandCenterMetrics {
     critical: number;
     escalated: number;
   };
+  /** Aggregated custom project outcome metrics across active projects */
+  outcomeMetrics: ExecutiveOutcomeMetric[];
 }
 
 export interface DailyWrapUp {
@@ -1611,6 +1730,7 @@ export interface ProjectHealth {
   assignedAnalysts: string[];
   projectedCompletion?: string | null;
   rollup: ProjectRollup;
+  customMetrics: ProjectMetricView[];
 }
 
 export interface ReportMetrics {
@@ -1629,6 +1749,8 @@ export interface ReportMetrics {
   forecast: ForecastReportMetrics;
   workloadAlerts: WorkloadAlertReportMetrics;
   helpFlags: HelpFlagReportMetrics;
+  outcomeMetrics: ExecutiveOutcomeMetric[];
+  projectMetricRows: ProjectMetricExportRow[];
 }
 
 export type ProjectInput = Pick<

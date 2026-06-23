@@ -548,6 +548,8 @@ export function ProjectWorkspace({
         analysts={analysts}
         qaReviews={qaReviews}
         activity={activity}
+        viewer={user}
+        canEdit={canEdit}
       />
     </div>
   );

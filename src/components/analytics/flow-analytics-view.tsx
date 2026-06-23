@@ -8,6 +8,7 @@ import {
 } from "@/components/enterprise/department-health-badge";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
+import { ProjectOutcomesReportSection } from "@/components/metrics/project-outcomes-report-section";
 import { PerformanceTrendChart } from "@/components/performance/performance-trend-chart";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -233,6 +234,12 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
           warn={!!h.strugglingDepartment}
         />
       </section>
+
+      <ProjectOutcomesReportSection
+        outcomeMetrics={data.outcomes.summary}
+        projectMetricRows={data.outcomes.exportRows}
+        exportFilename="flow-analytics-project-metrics.csv"
+      />
 
       {/* Trends */}
       <div className="grid gap-6 xl:grid-cols-2">

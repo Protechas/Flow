@@ -3,6 +3,7 @@
  * All reporting reads from this store — no hardcoded metrics.
  */
 import { PROJECT_TEMPLATES, type ProjectTemplateId } from "@/lib/templates/project-templates";
+import { seedMetricsForProject } from "@/lib/metrics/template-metric-defaults";
 import type {
   ActivityEvent,
   ActivityEventType,
@@ -554,6 +555,7 @@ export function createProject(input: ProjectInput, templateId?: ProjectTemplateI
   persistTaskStore();
 
   if (templateId && templateId !== "custom") {
+    seedMetricsForProject(project.id, templateId);
     const tpl = PROJECT_TEMPLATES.find((t) => t.id === templateId);
     if (tpl?.manufacturers && tpl.years) {
       for (const mfrName of tpl.manufacturers) {
