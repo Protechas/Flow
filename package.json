@@ -9,6 +9,7 @@
     "lint": "eslint",
     "check:supabase": "node --env-file=.env.local scripts/check-supabase.mjs",
     "setup:supabase": "node --env-file=.env.local scripts/setup-supabase.mjs",
+    "enable:signup": "node --env-file=.env.local scripts/enable-employee-signup.mjs",
     "reset:admin": "node --env-file=.env.local scripts/reset-admin-password.mjs"
   },
   "dependencies": {
