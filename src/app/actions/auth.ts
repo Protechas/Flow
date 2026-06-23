@@ -90,6 +90,58 @@ export async function requestPasswordResetAction(email: string) {
   return { ok: true as const };
 }
 
+export async function signUpAction(input: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}) {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Account creation requires Supabase authentication");
+  }
+
+  const email = input.email.trim().toLowerCase();
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  const password = input.password;
+
+  if (!email || !password) {
+    throw new Error("Email and password are required");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  const supabase = await createClient();
+  const siteUrl = getSiteUrl();
+  const fullName = formatFullName(firstName, lastName);
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${siteUrl}/auth/callback?next=/work`,
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        full_name: fullName,
+        signup_type: "self",
+        role: "employee",
+      },
+    },
+  });
+
+  if (error) throw new Error(error.message);
+
+  if (data.session && data.user) {
+    await recordLastLogin(data.user.id);
+    revalidatePath("/", "layout");
+    redirect("/work");
+  }
+
+  return { ok: true as const, needsEmailConfirmation: true as const };
+}
+
 export async function inviteUserAction(
   email: string,
   firstName: string,

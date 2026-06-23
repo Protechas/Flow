@@ -67,6 +67,8 @@ In Supabase **SQL Editor**, run each file in `supabase/migrations/` **in numeric
 - `http://localhost:3000/auth/callback`
 - Your production URL + `/auth/callback` when deployed
 
+**Authentication → Providers → Email** → enable **Sign up** if employees should create their own basic accounts at `/auth/signup`. New self-service users are always created as **employees** and must be assigned department, team, and supervisor in **Settings → Users** before they can work.
+
 ### 5. First admin user
 
 1. **Authentication → Users → Add user** (email + password), or sign up once via `/login`.

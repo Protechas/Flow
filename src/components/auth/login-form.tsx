@@ -88,6 +88,12 @@ export function LoginForm({ demoUsers, supabaseEnabled }: LoginFormProps) {
               Forgot password?
             </Link>
           </p>
+          <p className="text-center text-sm text-muted-foreground">
+            New here?{" "}
+            <Link href="/auth/signup" className="text-primary hover:underline">
+              Create account
+            </Link>
+          </p>
         </form>
       )}
 
