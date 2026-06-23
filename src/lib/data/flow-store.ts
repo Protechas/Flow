@@ -68,6 +68,8 @@ import {
 } from "@/lib/data/work-store-persistence";
 import { initHierarchyFromStore } from "@/lib/auth/team-scope";
 import { resolveDepartmentForProject, resolveDepartmentForUser } from "@/lib/departments/resolve";
+import { MOCK_ORG_POSITIONS, syncMockUsersToPositions } from "@/lib/data/mock-positions";
+import { seedDemoOrgPositions } from "@/lib/data/org-positions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function persistTaskStore() {
@@ -287,6 +289,8 @@ export function initFlowStore() {
   recalculateAllForecasts();
   persistTaskStore();
   initHierarchyFromStore(MOCK_USERS);
+  seedDemoOrgPositions(MOCK_ORG_POSITIONS);
+  syncMockUsersToPositions(MOCK_USERS);
 }
 
 export function applyForecastSettingsSnapshot(snapshot: ForecastSettings): ForecastSettings {

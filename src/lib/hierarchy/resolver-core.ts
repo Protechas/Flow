@@ -17,6 +17,7 @@ import {
 import {
   upsertPrimaryHierarchy,
 } from "@/lib/hierarchy/store";
+import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
 import type {
   OrgChartNode,
   ReportingChainEntry,
@@ -167,7 +168,11 @@ export function buildOrgChart(
       children: childIds
         .map((id) => buildNode(id))
         .filter((n): n is OrgChartNode => n !== null)
-        .sort((a, b) => a.user.full_name.localeCompare(b.user.full_name)),
+        .sort((a, b) => {
+          const nameA = a.user?.full_name ?? "";
+          const nameB = b.user?.full_name ?? "";
+          return nameA.localeCompare(nameB);
+        }),
     };
   }
 
@@ -183,7 +188,11 @@ export function buildOrgChart(
   return roots
     .map((id) => buildNode(id))
     .filter((n): n is OrgChartNode => n !== null)
-    .sort((a, b) => a.user.full_name.localeCompare(b.user.full_name));
+    .sort((a, b) => {
+      const nameA = a.user?.full_name ?? "";
+      const nameB = b.user?.full_name ?? "";
+      return nameA.localeCompare(nameB);
+    });
 }
 
 export function pruneOrgChartNodes(
@@ -194,7 +203,8 @@ export function pruneOrgChartNodes(
     const children = node.children
       .map(prune)
       .filter((n): n is OrgChartNode => n !== null);
-    if (visibleIds.has(node.user.id) || children.length > 0) {
+    const nodeUserId = getOrgChartNodeUserId(node);
+    if ((nodeUserId && visibleIds.has(nodeUserId)) || children.length > 0 || node.position) {
       return { ...node, children };
     }
     return null;

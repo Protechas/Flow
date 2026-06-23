@@ -67,6 +67,8 @@ export function OrgChartUserCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  if (!node.user) return null;
+
   const position = getOrganizationalPosition(node.user);
   const tier = hierarchyLevelForPosition(position);
   const flags = ops?.flags ?? ["active"];

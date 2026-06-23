@@ -22,6 +22,10 @@ import { useFlowToast } from "@/components/ui/flow-toast";
 import { COMPANY_DOCUMENT_CATEGORIES } from "@/lib/files/company-document-categories";
 import { fileViewHref } from "@/lib/files/download";
 import { cn } from "@/lib/utils";
+import {
+  clientCompanyDocumentMaxBytes,
+  formatUploadLimitLabel,
+} from "@/lib/files/upload-limits-client";
 import type { CompanyDocumentView } from "@/types/flow";
 import { format } from "date-fns";
 import { BookOpen, FileText, Loader2, Trash2, Upload } from "lucide-react";
@@ -165,7 +169,9 @@ export function CompanyDocumentsPanel({
             <p className="text-sm font-medium">
               {selectedFile ? selectedFile.name : "Drop PDF, Word, Excel, or image here"}
             </p>
-            <p className="flow-helper mt-1">Max 25 MB · PDF, DOCX, XLSX, TXT, PNG, JPG</p>
+            <p className="flow-helper mt-1">
+              Max {formatUploadLimitLabel(clientCompanyDocumentMaxBytes)} · PDF, DOCX, XLSX, TXT, PNG, JPG
+            </p>
             <input
               type="file"
               accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.webp,application/pdf"

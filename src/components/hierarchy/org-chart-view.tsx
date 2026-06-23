@@ -1,10 +1,24 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { OrgChartProfilePanel } from "@/components/hierarchy/org-chart-profile-panel";
+import { OrgChartPositionCard } from "@/components/hierarchy/org-chart-position-card";
 import { OrgChartUserCard } from "@/components/hierarchy/org-chart-user-card";
+import {
+  PositionAssignDialog,
+  UnassignedUsersPanel,
+} from "@/components/hierarchy/unassigned-users-panel";
+import { PositionManageDialog } from "@/components/hierarchy/position-manage-dialog";
+import { PositionSetupWizard } from "@/components/setup/position-setup-wizard";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -13,31 +27,41 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
-import { alertCenterHref, operationsHref, wrapUpsHref } from "@/lib/navigation/deep-links";
+import { alertCenterHref, wrapUpsHref } from "@/lib/navigation/deep-links";
 import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
 import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { cn } from "@/lib/utils";
 import type {
+  Department,
   OrgChartNode,
   OrgChartProfileDetail,
   OrgChartViewerPermissions,
+  OrgPosition,
+  Team,
   User,
-  UserRole,
 } from "@/types/flow";
 import {
   AlertTriangle,
+  Briefcase,
   ChevronDown,
   ChevronRight,
   HelpCircle,
   Moon,
   Network,
+  Plus,
   Search,
 } from "lucide-react";
 
-function findNode(nodes: OrgChartNode[], userId: string): OrgChartNode | null {
+function nodeKey(node: OrgChartNode): string {
+  return node.position?.id ?? node.user?.id ?? "unknown";
+}
+
+function findNodeByUserId(nodes: OrgChartNode[], userId: string): OrgChartNode | null {
   for (const node of nodes) {
-    if (node.user.id === userId) return node;
-    const found = findNode(node.children, userId);
+    const uid = getOrgChartNodeUserId(node);
+    if (uid === userId) return node;
+    const found = findNodeByUserId(node.children, userId);
     if (found) return found;
   }
   return null;
@@ -56,13 +80,20 @@ function nodeMatchesFilters(
     ? departments.find((d) => d.id === departmentId)?.name
     : null;
 
+  const position = node.position;
+  const user = node.user;
+  const level = position?.position_level ?? (user ? getOrganizationalPosition(user) : null);
+  const teamMatchId = position?.team_id ?? user?.team_id ?? null;
+
   const selfMatch =
     (!q ||
-      node.user.full_name.toLowerCase().includes(q) ||
-      node.user.email.toLowerCase().includes(q)) &&
+      (user &&
+        (user.full_name.toLowerCase().includes(q) ||
+          user.email.toLowerCase().includes(q))) ||
+      (position && position.title.toLowerCase().includes(q))) &&
     (!deptName || node.department_name === deptName) &&
-    (!teamId || node.user.team_id === teamId) &&
-    (!roleFilter || getOrganizationalPosition(node.user) === roleFilter);
+    (!teamId || teamMatchId === teamId) &&
+    (!roleFilter || level === roleFilter);
 
   return (
     selfMatch ||
@@ -95,18 +126,28 @@ function OrgBranch({
   forceOpen,
   opsMap,
   selectedId,
-  onSelect,
+  onSelectUser,
+  onAssignPosition,
+  onManagePosition,
+  canAssignPositions,
+  canManagePositions,
 }: {
   node: OrgChartNode;
   depth: number;
   forceOpen: boolean;
   opsMap: Record<string, import("@/types/flow").OrgChartUserOps>;
   selectedId: string | null;
-  onSelect: (userId: string) => void;
+  onSelectUser: (userId: string) => void;
+  onAssignPosition: (position: OrgPosition) => void;
+  onManagePosition: (position: OrgPosition) => void;
+  canAssignPositions: boolean;
+  canManagePositions: boolean;
 }) {
   const [open, setOpen] = useState(forceOpen || depth < 2);
   const hasChildren = node.children.length > 0;
-  const ops = opsMap[node.user.id];
+  const userId = getOrgChartNodeUserId(node);
+  const ops = userId ? opsMap[userId] : undefined;
+  const isPosition = !!node.position;
 
   return (
     <div className={cn(depth > 0 && "flow-org-node-rail")}>
@@ -123,13 +164,26 @@ function OrgBranch({
         ) : (
           <span className="w-5 shrink-0 mt-3" />
         )}
-        <div className="flex-1 min-w-0">
-          <OrgChartUserCard
-            node={node}
-            ops={ops}
-            selected={selectedId === node.user.id}
-            onSelect={() => onSelect(node.user.id)}
-          />
+        <div className="flex-1 min-w-0 relative">
+          {isPosition ? (
+            <OrgChartPositionCard
+              node={node}
+              ops={ops}
+              selected={!!userId && selectedId === userId}
+              onSelect={() => userId && onSelectUser(userId)}
+              onAssign={() => node.position && onAssignPosition(node.position)}
+              onManage={() => node.position && onManagePosition(node.position)}
+              canAssign={canAssignPositions && !userId}
+              canManage={canManagePositions}
+            />
+          ) : node.user ? (
+            <OrgChartUserCard
+              node={node}
+              ops={ops}
+              selected={selectedId === node.user.id}
+              onSelect={() => onSelectUser(node.user!.id)}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -137,13 +191,17 @@ function OrgBranch({
         hasChildren &&
         node.children.map((child) => (
           <OrgBranch
-            key={child.user.id}
+            key={nodeKey(child)}
             node={child}
             depth={depth + 1}
             forceOpen={forceOpen}
             opsMap={opsMap}
             selectedId={selectedId}
-            onSelect={onSelect}
+            onSelectUser={onSelectUser}
+            onAssignPosition={onAssignPosition}
+            onManagePosition={onManagePosition}
+            canAssignPositions={canAssignPositions}
+            canManagePositions={canManagePositions}
           />
         ))}
     </div>
@@ -161,6 +219,10 @@ export function OrgChartView({
   roots,
   departments = [],
   teams = [],
+  positions = [],
+  unassignedUsers = [],
+  vacantPositionCount = 0,
+  usePositionChart = false,
   opsMap,
   profiles,
   permissions,
@@ -171,8 +233,12 @@ export function OrgChartView({
   initialUserId,
 }: {
   roots: OrgChartNode[];
-  departments?: { id: string; name: string }[];
-  teams?: { id: string; name: string }[];
+  departments?: Department[];
+  teams?: Team[];
+  positions?: OrgPosition[];
+  unassignedUsers?: User[];
+  vacantPositionCount?: number;
+  usePositionChart?: boolean;
   opsMap: Record<string, import("@/types/flow").OrgChartUserOps>;
   profiles: Record<string, OrgChartProfileDetail>;
   permissions: OrgChartViewerPermissions;
@@ -182,16 +248,25 @@ export function OrgChartView({
   attention: { needsHelp: number; needsWork: number; missingWrapUp: number };
   initialUserId?: string | null;
 }) {
+  const router = useRouter();
+  const [, startRefresh] = useTransition();
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [teamId, setTeamId] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialUserId ?? null);
   const [expandAll, setExpandAll] = useState(true);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [assignPosition, setAssignPosition] = useState<OrgPosition | null>(null);
+  const [managePosition, setManagePosition] = useState<OrgPosition | null>(null);
 
   useEffect(() => {
     if (initialUserId) setSelectedId(initialUserId);
   }, [initialUserId]);
+
+  function refresh() {
+    startRefresh(() => router.refresh());
+  }
 
   const visibleSet = useMemo(() => new Set(visibleUserIds), [visibleUserIds]);
 
@@ -205,12 +280,13 @@ export function OrgChartView({
 
   const selectedUser = selectedId ? allUsers.find((u) => u.id === selectedId) ?? null : null;
   const selectedProfile = selectedId ? profiles[selectedId] ?? null : null;
-  const selectedNode = selectedId ? findNode(roots, selectedId) : null;
+  const selectedNode = selectedId ? findNodeByUserId(roots, selectedId) : null;
 
   const roleOptions = useMemo(() => {
     const roles = new Set<string>();
     function walk(n: OrgChartNode) {
-      roles.add(getOrganizationalPosition(n.user));
+      if (n.position) roles.add(n.position.position_level);
+      else if (n.user) roles.add(getOrganizationalPosition(n.user));
       n.children.forEach(walk);
     }
     roots.forEach(walk);
@@ -254,14 +330,29 @@ export function OrgChartView({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <Network className="h-4 w-4 text-primary" />
-        {HIERARCHY_LEGEND.map((item, i) => (
-          <span key={item.position} className="flex items-center gap-1">
-            {i > 0 && <span className="opacity-40">→</span>}
-            <span>{item.label}</span>
-          </span>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <Network className="h-4 w-4 text-primary" />
+          {usePositionChart && (
+            <span className="text-amber-400/90 flex items-center gap-1">
+              <Briefcase className="h-3.5 w-3.5" />
+              Position-based structure
+              {vacantPositionCount > 0 && ` · ${vacantPositionCount} open seats`}
+            </span>
+          )}
+          {HIERARCHY_LEGEND.map((item, i) => (
+            <span key={item.position} className="flex items-center gap-1">
+              {i > 0 && <span className="opacity-40">→</span>}
+              <span>{item.label}</span>
+            </span>
+          ))}
+        </div>
+        {permissions.canManagePositions && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setBuilderOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add position
+          </Button>
+        )}
       </div>
 
       <div className="flow-org-chart-toolbar p-4 space-y-3">
@@ -270,7 +361,7 @@ export function OrgChartView({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               className="flex h-9 w-full rounded-md border border-border/60 bg-background/80 pl-9 pr-3 text-sm"
-              placeholder="Search by name or email…"
+              placeholder="Search by name, email, or position…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -339,24 +430,50 @@ export function OrgChartView({
 
         <div className="min-h-[360px]">
           {filteredRoots.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">
-              No people match your filters in this reporting branch.
-            </p>
+            <div className="py-12 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {usePositionChart
+                  ? "No positions match your filters."
+                  : "No people match your filters in this reporting branch."}
+              </p>
+              {permissions.canManagePositions && !usePositionChart && (
+                <Button type="button" size="sm" variant="outline" onClick={() => setBuilderOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create first position
+                </Button>
+              )}
+            </div>
           ) : (
             filteredRoots.map((root) => (
               <OrgBranch
-                key={`${root.user.id}-${expandAll}-${search}`}
+                key={`${nodeKey(root)}-${expandAll}-${search}`}
                 node={root}
                 depth={0}
                 forceOpen={expandAll || !!search.trim()}
                 opsMap={opsMap}
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                onSelectUser={setSelectedId}
+                onAssignPosition={setAssignPosition}
+                onManagePosition={setManagePosition}
+                canAssignPositions={permissions.canAssignPositions}
+                canManagePositions={permissions.canManagePositions}
               />
             ))
           )}
         </div>
       </div>
+
+      {permissions.canManagePositions && unassignedUsers.length > 0 && (
+        <div className="px-4 pb-4">
+          <UnassignedUsersPanel
+            users={unassignedUsers}
+            positions={positions}
+            departments={departments}
+            canAssign={permissions.canAssignPositions}
+            onAssigned={refresh}
+          />
+        </div>
+      )}
 
       <OrgChartProfilePanel
         open={!!selectedId}
@@ -370,6 +487,64 @@ export function OrgChartView({
         visibleUserIds={visibleSet}
         onSelectUser={setSelectedId}
       />
+
+      <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>Create org position</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-6">
+            <PositionSetupWizard
+              departments={departments}
+              teams={teams}
+              positions={positions}
+              users={allUsers}
+              onComplete={() => {
+                setBuilderOpen(false);
+                refresh();
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!managePosition} onOpenChange={(open) => !open && setManagePosition(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage position</DialogTitle>
+          </DialogHeader>
+          {managePosition && (
+            <PositionManageDialog
+              position={managePosition}
+              positions={positions}
+              users={allUsers}
+              departments={departments}
+              teams={teams}
+              onClose={() => setManagePosition(null)}
+              onUpdated={refresh}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!assignPosition} onOpenChange={(open) => !open && setAssignPosition(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign user to position</DialogTitle>
+          </DialogHeader>
+          {assignPosition && (
+            <PositionAssignDialog
+              position={assignPosition}
+              users={allUsers}
+              onAssigned={() => {
+                setAssignPosition(null);
+                refresh();
+              }}
+              onCancel={() => setAssignPosition(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

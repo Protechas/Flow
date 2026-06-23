@@ -10,7 +10,13 @@ import { requirePageAccess, assertScopedUserIdParam } from "@/lib/auth/guard";
 import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { canAssignWork, hasPermission } from "@/lib/auth/permissions";
 import { initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
-import { listUsers } from "@/lib/data/users";
+import { hydrateAppStore, listUsers } from "@/lib/data/users";
+import { ensureOrgPositionsLoaded } from "@/lib/data/org-positions";
+import {
+  countVacantPositions,
+  listUnassignedUsers,
+} from "@/lib/positions/resolver";
+import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import {
   buildOrgChartOpsMap,
@@ -36,6 +42,8 @@ export default async function OrgChartPage({
   await hydrateHelpFlagSettings();
   initFlowStore();
   const allUsers = await listUsers();
+  await hydrateAppStore();
+  await ensureOrgPositionsLoaded();
   const departments = listDepartments().filter((d) => d.status === "active");
   const teams = listTeamsStore();
   const packages = await getWorkPackages();
@@ -88,7 +96,14 @@ export default async function OrgChartPage({
       hasPermission(permissionRole, "work:view_all") ||
       hasPermission(permissionRole, "people:view_team"),
     canEditReportingChain: hasPermission(permissionRole, "users:manage"),
+    canManagePositions: hasPermission(permissionRole, "users:manage"),
+    canAssignPositions: hasPermission(permissionRole, "users:manage"),
   };
+
+  const positions = listActiveOrgPositions();
+  const usePositionChart = hasOrgPositions();
+  const unassignedUsers = listUnassignedUsers(allUsers);
+  const vacantPositionCount = countVacantPositions(positions);
 
   return (
     <FlowPageShell
@@ -171,6 +186,10 @@ export default async function OrgChartPage({
             roots={scopedRoots}
             departments={departments}
             teams={teams}
+            positions={positions}
+            unassignedUsers={unassignedUsers}
+            vacantPositionCount={vacantPositionCount}
+            usePositionChart={usePositionChart}
             opsMap={opsMap}
             profiles={profiles}
             permissions={permissions}

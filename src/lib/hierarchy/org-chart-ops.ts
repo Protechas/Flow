@@ -23,12 +23,14 @@ import type {
   User,
   WorkPackage,
 } from "@/types/flow";
+import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
 import { format } from "date-fns";
 
 export function collectOrgChartUserIds(nodes: OrgChartNode[]): string[] {
   const ids: string[] = [];
   function walk(n: OrgChartNode) {
-    ids.push(n.user.id);
+    const uid = getOrgChartNodeUserId(n);
+    if (uid) ids.push(uid);
     n.children.forEach(walk);
   }
   nodes.forEach(walk);

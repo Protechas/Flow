@@ -26,6 +26,10 @@ import {
   FEEDBACK_CATEGORY_OPTIONS,
   FEEDBACK_PRIORITY_OPTIONS,
 } from "@/lib/innovation-hub/constants";
+import {
+  clientFeedbackAttachmentMaxBytes,
+  formatUploadLimitLabel,
+} from "@/lib/files/upload-limits-client";
 import type { FeedbackCategory, FeedbackPriority } from "@/types/flow";
 import { CheckCircle2, ImagePlus, Loader2 } from "lucide-react";
 
@@ -192,7 +196,8 @@ export function InnovationHubPanel({
               >
                 <ImagePlus className="h-4 w-4 shrink-0" />
                 <span className="truncate">
-                  {attachmentName ?? "PNG, JPG, PDF up to 10 MB"}
+                  {attachmentName ??
+                    `PNG, JPG, PDF up to ${formatUploadLimitLabel(clientFeedbackAttachmentMaxBytes)}`}
                 </span>
               </label>
               <input

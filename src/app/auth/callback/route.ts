@@ -1,16 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultRoute, normalizeRole } from "@/lib/auth/permissions";
+import { getSiteUrl } from "@/lib/supabase/site-url";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ? getSiteUrl() : origin;
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
   const errorParam = searchParams.get("error_description");
 
   if (errorParam) {
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(errorParam)}`
+      `${baseUrl}/login?error=${encodeURIComponent(errorParam)}`
     );
   }
 
@@ -29,12 +31,12 @@ export async function GET(request: Request) {
           .eq("id", user.id)
           .maybeSingle();
         const role = profile ? normalizeRole(String(profile.role)) : "employee";
-        return NextResponse.redirect(`${origin}${getDefaultRoute(role)}`);
+        return NextResponse.redirect(`${baseUrl}${getDefaultRoute(role)}`);
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_callback`);
+  return NextResponse.redirect(`${baseUrl}/login?error=auth_callback`);
 }

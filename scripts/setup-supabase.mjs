@@ -189,7 +189,7 @@ async function connectDb(ref, password) {
 }
 
 async function checkTables() {
-  const tables = ["users", "departments", "daily_wrap_ups", "forecast_settings", "help_flags"];
+  const tables = ["users", "departments", "daily_wrap_ups", "forecast_settings", "help_flags", "org_positions"];
   for (const t of tables) {
     const r = await fetch(`${url}/rest/v1/${t}?select=id&limit=1`, {
       headers: { apikey: publishable, Authorization: `Bearer ${publishable}` },

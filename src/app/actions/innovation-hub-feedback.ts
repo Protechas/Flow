@@ -9,6 +9,10 @@ import {
   listFeedbackSubmissions,
   updateFeedbackSubmission,
 } from "@/lib/innovation-hub/feedback";
+import {
+  formatUploadLimitLabel,
+  getFeedbackAttachmentMaxBytes,
+} from "@/lib/files/upload-limits";
 import type {
   FeedbackCategory,
   FeedbackPriority,
@@ -61,6 +65,13 @@ export async function submitInnovationHubFeedbackAction(formData: FormData) {
   try {
     let attachment: { file_name: string; mime_type: string; buffer: Buffer } | undefined;
     if (file?.size) {
+      const maxBytes = getFeedbackAttachmentMaxBytes();
+      if (file.size > maxBytes) {
+        return {
+          ok: false as const,
+          message: `Attachment must be ${formatUploadLimitLabel(maxBytes)} or smaller`,
+        };
+      }
       attachment = {
         file_name: file.name,
         mime_type: file.type || "application/octet-stream",

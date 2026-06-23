@@ -7,6 +7,7 @@ import {
   getPrimaryHierarchyForUser,
   listHierarchyRecords,
 } from "@/lib/hierarchy/store";
+import { listOrgPositions } from "@/lib/positions/store";
 import {
   getEffectiveScopeMode,
   getTeamScopedUserIds,
@@ -137,8 +138,24 @@ export function getAssignableUserIds(
 }
 
 export function getPrimarySupervisorId(userId: string, users: User[]): string | null {
+  const user = users.find((u) => u.id === userId);
+  if (user?.assigned_position_id) {
+    const positions = listOrgPositions();
+    const position = positions.find(
+      (p) => p.id === user.assigned_position_id && p.status !== "inactive"
+    );
+    if (position?.reports_to_position_id) {
+      const parent = positions.find((p) => p.id === position.reports_to_position_id);
+      if (parent?.assigned_user_id) {
+        const supervisor = users.find(
+          (u) => u.id === parent.assigned_user_id && u.is_active
+        );
+        if (supervisor) return supervisor.id;
+      }
+    }
+  }
+
   const edge = getPrimaryHierarchyForUser(userId);
   if (edge?.is_active) return edge.parent_user_id;
-  const user = users.find((u) => u.id === userId);
   return user?.manager_id ?? null;
 }

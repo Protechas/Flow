@@ -8,8 +8,9 @@ import type {
   CompanyDocumentView,
 } from "@/types/flow";
 
+import { getCompanyDocumentMaxBytes, formatUploadLimitLabel } from "@/lib/files/upload-limits";
+
 const BUCKET = "company-documents";
-const MAX_BYTES = 25 * 1024 * 1024;
 
 let memoryDocuments: CompanyDocument[] = [];
 
@@ -91,8 +92,10 @@ export async function uploadCompanyDocument(input: {
   buffer: Buffer;
   uploaded_by: string;
 }): Promise<CompanyDocument> {
-  if (input.file_size > MAX_BYTES) {
-    throw new Error("File must be 25 MB or smaller");
+  if (input.file_size > getCompanyDocumentMaxBytes()) {
+    throw new Error(
+      `File must be ${formatUploadLimitLabel(getCompanyDocumentMaxBytes())} or smaller`
+    );
   }
 
   const id = randomUUID();

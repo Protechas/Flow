@@ -68,6 +68,7 @@ export async function updateUserProfile(
       | "system_access_level"
       | "team_id"
       | "manager_id"
+      | "assigned_position_id"
       | "hire_date"
       | "is_active"
       | "avatar_url"

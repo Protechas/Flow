@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { FlowProviders } from "@/components/providers/flow-providers";
-import { THEME_INIT_SCRIPT } from "@/lib/theme/constants";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +31,6 @@ export default function RootLayout({
       data-theme="executive-dark"
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="flow-layer-1-app min-h-full flex flex-col">
         <FlowProviders>{children}</FlowProviders>
       </body>

@@ -8,7 +8,14 @@ function formatBuildDate(raw?: string): string {
   return y && m && d ? `${y}.${m}.${d}` : iso;
 }
 
+const vercelUploadCapBytes = 4 * 1024 * 1024;
+
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: process.env.VERCEL ? "4mb" : "25mb",
+    },
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
     NEXT_PUBLIC_APP_BUILD_DATE: formatBuildDate(process.env.NEXT_PUBLIC_APP_BUILD_DATE),
@@ -22,6 +29,15 @@ const nextConfig: NextConfig = {
       process.env.VERCEL_GIT_COMMIT_REF ??
       process.env.GITHUB_REF_NAME ??
       "local",
+    NEXT_PUBLIC_MAX_TASK_FILE_BYTES: String(
+      process.env.VERCEL ? vercelUploadCapBytes : 10 * 1024 * 1024
+    ),
+    NEXT_PUBLIC_MAX_COMPANY_DOCUMENT_BYTES: String(
+      process.env.VERCEL ? vercelUploadCapBytes : 25 * 1024 * 1024
+    ),
+    NEXT_PUBLIC_MAX_FEEDBACK_ATTACHMENT_BYTES: String(
+      process.env.VERCEL ? vercelUploadCapBytes : 10 * 1024 * 1024
+    ),
   },
 };
 

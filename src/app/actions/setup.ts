@@ -137,6 +137,7 @@ export async function completeUserSetupAction(input: {
   department_id?: string;
   team_id?: string | null;
   manager_id?: string | null;
+  position_id?: string | null;
   hire_date?: string | null;
   pay_type?: PayType;
 }) {
@@ -215,6 +216,11 @@ export async function completeUserSetupAction(input: {
       updatedUsers,
       input.team_id ?? user.team_id
     );
+  }
+
+  if (input.position_id) {
+    const { assignUserToPositionAction } = await import("@/app/actions/positions");
+    await assignUserToPositionAction(input.position_id, userId);
   }
 
   await writeAuditLog({

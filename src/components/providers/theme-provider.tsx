@@ -5,9 +5,11 @@ import {
   DEFAULT_THEME,
   isThemePreference,
   THEME_COOKIE_NAME,
+  THEME_INIT_SCRIPT,
   THEME_STORAGE_KEY,
   type ThemePreference,
 } from "@/lib/theme/constants";
+import { useServerInsertedHTML } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -39,6 +41,14 @@ function persistPreference(preference: ThemePreference) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Inject blocking theme script during SSR only — avoids React 19 client script warning.
+  useServerInsertedHTML(() => (
+    <script
+      id="flow-theme-init"
+      dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+    />
+  ));
+
   const [preference, setPreferenceState] = useState<ThemePreference>(DEFAULT_THEME);
   const [resolvedScheme, setResolvedScheme] = useState<"light" | "dark">("dark");
 

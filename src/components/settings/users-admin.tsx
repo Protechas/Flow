@@ -25,10 +25,12 @@ import {
 } from "@/lib/auth/access-level";
 import { UserSetupDialog } from "@/components/setup/user-setup-dialog";
 import { getUserSetupStatus } from "@/lib/setup/needs-setup";
+import { formatActionError } from "@/lib/errors/action-messages";
 import type {
   Department,
   DepartmentUser,
   OrganizationalPosition,
+  OrgPosition,
   ReportingChainEntry,
   SystemAccessLevel,
   Team,
@@ -43,6 +45,7 @@ export function UsersAdmin({
   departments,
   departmentUsers,
   reportingChains,
+  positions = [],
   resetPasswordEnabled = false,
 }: {
   users: User[];
@@ -51,6 +54,7 @@ export function UsersAdmin({
   departments: Department[];
   departmentUsers: DepartmentUser[];
   reportingChains: Record<string, ReportingChainEntry[]>;
+  positions?: OrgPosition[];
   resetPasswordEnabled?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -66,7 +70,7 @@ export function UsersAdmin({
         await action();
         setMessage("Saved");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Action failed");
+        setError(formatActionError(e));
       }
     });
   }
@@ -79,7 +83,8 @@ export function UsersAdmin({
             <tr className="bg-muted/30 text-xs text-muted-foreground">
               <th className="text-left py-3 px-3 font-medium">User</th>
               <th className="text-left py-3 px-3 font-medium">Email</th>
-              <th className="text-left py-3 px-3 font-medium">Org position</th>
+              <th className="text-left py-3 px-3 font-medium">Chart tier</th>
+              <th className="text-left py-3 px-3 font-medium">Assigned seat</th>
               <th className="text-left py-3 px-3 font-medium">System access</th>
               <th className="text-left py-3 px-3 font-medium">Pay type</th>
               <th className="text-left py-3 px-3 font-medium">Team</th>
@@ -99,6 +104,11 @@ export function UsersAdmin({
                 user={u}
                 teams={teams}
                 managers={managers}
+                assignedSeatTitle={
+                  u.assigned_position_id
+                    ? positions.find((p) => p.id === u.assigned_position_id)?.title ?? "—"
+                    : "—"
+                }
                 reportingChain={reportingChains[u.id] ?? []}
                 setupStatus={getUserSetupStatus(u, departmentUsers, teams)}
                 onCompleteSetup={() => setSetupUser(u)}
@@ -130,6 +140,7 @@ export function UsersAdmin({
           users={users}
           departments={departments}
           teams={teams}
+          positions={positions}
         />
       )}
     </div>
@@ -141,6 +152,7 @@ function UserRow({
   teams,
   managers,
   reportingChain,
+  assignedSeatTitle,
   setupStatus,
   onCompleteSetup,
   onSave,
@@ -153,6 +165,7 @@ function UserRow({
   teams: Team[];
   managers: User[];
   reportingChain: ReportingChainEntry[];
+  assignedSeatTitle: string;
   setupStatus: "complete" | "needs_setup";
   onCompleteSetup: () => void;
   onSave: (data: Parameters<typeof updateUserDetailsAction>[1]) => void;
@@ -229,9 +242,12 @@ function UserRow({
             </SelectContent>
           </Select>
           <p className="text-[10px] text-muted-foreground leading-snug max-w-[180px]">
-            Position controls where this person appears in the org chart.
+            Chart tier controls where this person appears in the org chart.
           </p>
         </div>
+      </td>
+      <td className="py-3 px-3 text-xs text-muted-foreground">
+        {assignedSeatTitle}
       </td>
       <td className="py-3 px-3">
         <div className="space-y-2">

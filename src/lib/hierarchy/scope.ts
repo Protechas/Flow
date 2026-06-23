@@ -14,6 +14,12 @@ import {
   isHierarchyOrgWide,
   pruneOrgChartNodes,
 } from "@/lib/hierarchy/resolver";
+import {
+  buildHybridOrgChart,
+  getVisiblePositionIds,
+  prunePositionOrgChartNodes,
+} from "@/lib/positions/resolver";
+import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
 import type { OrgChartNode, Team, User } from "@/types/flow";
 
 export {
@@ -69,11 +75,22 @@ export function getHierarchyTree(
   departments: { id: string; name: string }[],
   teams: Team[]
 ): OrgChartNode[] {
+  const usePositions = hasOrgPositions();
+
   const roots = isHierarchyOrgWide(viewer)
-    ? buildOrgChart(users, departments, teams)
-    : buildOrgChart(users, departments, teams, viewer.id);
+    ? buildHybridOrgChart(users, departments, teams, buildOrgChart)
+    : buildHybridOrgChart(users, departments, teams, buildOrgChart, viewer.id);
 
   if (isHierarchyOrgWide(viewer)) return roots;
+
+  if (usePositions) {
+    const visiblePositions = getVisiblePositionIds(
+      viewer,
+      listActiveOrgPositions(),
+      users
+    );
+    return prunePositionOrgChartNodes(roots, visiblePositions);
+  }
 
   const visibleIds = new Set(getVisibleUserIds(viewer, users, teams));
   return pruneOrgChartNodes(roots, visibleIds);

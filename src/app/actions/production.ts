@@ -7,6 +7,10 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { assertWorkEligible, checkWorkEligible } from "@/lib/work-eligibility";
 import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import {
+  getTaskFileMaxBytes,
+  formatUploadLimitLabel,
+} from "@/lib/files/upload-limits";
+import {
   getActiveTaskTimeEntry,
   getLatestSubmission,
   getTaskFiles,
@@ -106,8 +110,12 @@ export async function uploadTaskFileAction(formData: FormData) {
       return { ok: false as const, code: gate.code, message: gate.message };
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    if (buffer.length > 10 * 1024 * 1024) {
-      return { ok: false as const, message: "File must be 10 MB or smaller" };
+    const maxBytes = getTaskFileMaxBytes();
+    if (buffer.length > maxBytes) {
+      return {
+        ok: false as const,
+        message: `File must be ${formatUploadLimitLabel(maxBytes)} or smaller`,
+      };
     }
     uploadTaskFile({
       task_id: taskId,

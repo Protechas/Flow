@@ -10,8 +10,9 @@ import type {
   FeedbackSubmissionView,
 } from "@/types/flow";
 
+import { getFeedbackAttachmentMaxBytes, formatUploadLimitLabel } from "@/lib/files/upload-limits";
+
 const BUCKET = "feedback-attachments";
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 let memorySubmissions: FeedbackSubmission[] = [];
 
@@ -126,8 +127,11 @@ export async function createFeedbackSubmission(input: {
   let screenshot_data_base64: string | undefined;
 
   if (input.attachment) {
-    if (input.attachment.buffer.length > MAX_ATTACHMENT_BYTES) {
-      throw new Error("Attachment must be 10 MB or smaller");
+    const maxBytes = getFeedbackAttachmentMaxBytes();
+    if (input.attachment.buffer.length > maxBytes) {
+      throw new Error(
+        `Attachment must be ${formatUploadLimitLabel(maxBytes)} or smaller`
+      );
     }
     const safeName = sanitizeFileName(input.attachment.file_name);
     screenshot_storage_path = `${input.user_id}/${id}-${safeName}`;

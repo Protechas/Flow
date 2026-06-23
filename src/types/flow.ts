@@ -39,8 +39,39 @@ export interface UserHierarchyRecord {
   updated_at: string;
 }
 
+/** Org chart seat — independent of assigned user */
+export type OrgPositionStatus = "filled" | "vacant" | "planned" | "inactive";
+
+export interface OrgPosition {
+  id: string;
+  title: string;
+  department_id?: string | null;
+  team_id?: string | null;
+  reports_to_position_id?: string | null;
+  position_level: OrganizationalPosition;
+  position_type?: string | null;
+  status: OrgPositionStatus;
+  assigned_user_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgPositionInput {
+  title: string;
+  department_id?: string | null;
+  team_id?: string | null;
+  reports_to_position_id?: string | null;
+  position_level: OrganizationalPosition;
+  position_type?: string | null;
+  status?: OrgPositionStatus;
+  assigned_user_id?: string | null;
+}
+
 export interface OrgChartNode {
-  user: User;
+  /** Assigned user when filled; null for vacant/planned seats */
+  user: User | null;
+  /** Present when org chart is position-based */
+  position?: OrgPosition | null;
   children: OrgChartNode[];
   department_name?: string | null;
   team_name?: string | null;
@@ -104,6 +135,15 @@ export interface OrgChartViewerPermissions {
   canViewHelpFlags: boolean;
   canViewTimeclock: boolean;
   canEditReportingChain: boolean;
+  canManagePositions: boolean;
+  canAssignPositions: boolean;
+}
+
+export interface UnassignedUserRow {
+  user: User;
+  departmentName: string | null;
+  suggestedPositionId: string | null;
+  suggestedPositionTitle: string | null;
 }
 
 export interface ReportingChainEntry {
@@ -327,6 +367,7 @@ export interface User {
   pay_type?: PayType | null;
   team_id?: string | null;
   manager_id?: string | null;
+  assigned_position_id?: string | null;
   branch_view_access?: boolean | null;
   avatar_url?: string | null;
   hire_date?: string | null;

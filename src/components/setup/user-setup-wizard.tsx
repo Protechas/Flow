@@ -24,15 +24,16 @@ import {
   teamsForDepartment,
   teamLabel,
 } from "@/lib/setup/role-fields";
-import type { Department, PayType, Team, User, UserRole } from "@/types/flow";
-import { UserPlus } from "lucide-react";
+import type { Department, OrgPosition, PayType, Team, User, UserRole } from "@/types/flow";
+import { UserPlus, Briefcase } from "lucide-react";
 
-const STEPS = [
+const BASE_STEPS = [
   "Basic info",
   "Department",
   "Team",
   "Supervisor",
   "Role",
+  "Org position",
   "Review & activate",
 ];
 
@@ -40,6 +41,7 @@ export function UserSetupWizard({
   users,
   departments,
   teams,
+  positions = [],
   mode = "create",
   initialUser,
   onComplete,
@@ -47,10 +49,16 @@ export function UserSetupWizard({
   users: User[];
   departments: Department[];
   teams: Team[];
+  positions?: OrgPosition[];
   mode?: "create" | "update";
   initialUser?: User;
   onComplete?: () => void;
 }) {
+  const hasPositionStep = positions.some((p) => p.status !== "inactive");
+  const STEPS = hasPositionStep
+    ? BASE_STEPS
+    : BASE_STEPS.filter((s) => s !== "Org position");
+  const reviewStep = STEPS.length - 1;
   const [step, setStep] = useState(0);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +74,7 @@ export function UserSetupWizard({
   const [managerId, setManagerId] = useState(initialUser?.manager_id ?? "");
   const [payType, setPayType] = useState<PayType>(initialUser?.pay_type ?? "hourly");
   const [hireDate, setHireDate] = useState(initialUser?.hire_date ?? "");
+  const [positionId, setPositionId] = useState(initialUser?.assigned_position_id ?? "");
 
   const roleConfig = getRoleFieldConfig(role);
   const deptTeams = useMemo(
@@ -91,25 +100,42 @@ export function UserSetupWizard({
     [firstName, lastName, role, departmentId, teamId, managerId, departments, teams, users]
   );
 
+  const vacantPositions = useMemo(
+    () =>
+      positions.filter(
+        (p) =>
+          p.status !== "inactive" &&
+          !p.assigned_user_id &&
+          (p.status === "vacant" || p.status === "planned")
+      ),
+    [positions]
+  );
+
+  function stepId(step: number): string {
+    return STEPS[step] ?? "";
+  }
+
   function canAdvance(): boolean {
-    if (step === 0) {
+    const current = stepId(step);
+    if (current === "Basic info") {
       if (!firstName.trim()) return false;
       if (mode === "create" && (!email.trim() || password.length < 8)) return false;
       return true;
     }
-    if (step === 1) {
+    if (current === "Department") {
       if (roleConfig.requiresDepartment && !departmentId) return false;
       return true;
     }
-    if (step === 2) {
+    if (current === "Team") {
       if (roleConfig.requiresTeam && !teamId) return false;
       return true;
     }
-    if (step === 3) {
+    if (current === "Supervisor") {
       if (roleConfig.requiresReportsTo && !managerId) return false;
       return true;
     }
-    if (step === 4) return Boolean(role);
+    if (current === "Role") return Boolean(role);
+    if (current === "Org position") return true;
     return true;
   }
 
@@ -129,6 +155,7 @@ export function UserSetupWizard({
           department_id: departmentId || undefined,
           team_id: teamId || null,
           manager_id: managerId || null,
+          position_id: positionId || null,
           hire_date: hireDate || null,
           pay_type: role === "employee" ? payType : "salary",
         });
@@ -164,7 +191,7 @@ export function UserSetupWizard({
 
           <WizardStepper steps={STEPS} current={step} />
 
-      {step === 0 && (
+      {stepId(step) === "Basic info" && (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>First name</Label>
@@ -199,7 +226,7 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 1 && (
+      {stepId(step) === "Department" && (
         <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
           {roleConfig.requiresDepartment ? (
             <div className="space-y-2">
@@ -221,7 +248,7 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 2 && (
+      {stepId(step) === "Team" && (
         <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
           {roleConfig.requiresTeam ? (
             <div className="space-y-2">
@@ -244,7 +271,7 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 3 && (
+      {stepId(step) === "Supervisor" && (
         <div className="space-y-3 max-w-md">
           {roleConfig.requiresReportsTo ? (
             <div className="space-y-2">
@@ -270,7 +297,7 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 4 && (
+      {stepId(step) === "Role" && (
         <div className="space-y-3 max-w-md">
           <div className="space-y-2">
             <Label>Role</Label>
@@ -305,7 +332,38 @@ export function UserSetupWizard({
         </div>
       )}
 
-      {step === 5 && <HierarchyPreviewCard preview={preview} />}
+      {stepId(step) === "Org position" && (
+        <div className="space-y-4 max-w-md">
+          <p className="text-sm text-muted-foreground flex items-start gap-2">
+            <Briefcase className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+            Assign this user to an existing org seat. Department, team, and reporting chain
+            will be derived from the position. Skip to keep them unassigned for now.
+          </p>
+          <div className="space-y-2">
+            <Label>Position (optional)</Label>
+            <Select
+              value={positionId || "__none__"}
+              onValueChange={(v) => setPositionId(!v || v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger><SelectValue placeholder="No position — unassigned" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Unassigned for now</SelectItem>
+                {vacantPositions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {vacantPositions.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No vacant positions available. Create positions in the Org Chart first, or finish
+              setup and assign later from Unassigned Users.
+            </p>
+          )}
+        </div>
+      )}
+
+      {step === reviewStep && <HierarchyPreviewCard preview={preview} />}
 
         </div>
       </WizardDialogScroll>

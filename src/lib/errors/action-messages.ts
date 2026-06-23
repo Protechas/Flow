@@ -1,6 +1,21 @@
 /** Maps server/action error codes to user-facing copy. */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error !== null) {
+    const record = error as { message?: string; hint?: string; code?: string };
+    if (record.message) {
+      if (record.code === "PGRST205" && record.message.includes("org_positions")) {
+        return "Org positions are not set up in the database yet. Run migration 023_org_positions.sql on Supabase, or retry — positions will work in-memory for this session.";
+      }
+      return record.hint ? `${record.message} (${record.hint})` : record.message;
+    }
+  }
+  return "Something went wrong. Please try again.";
+}
+
 export function formatActionError(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg = extractErrorMessage(error);
 
   const map: Record<string, string> = {
     FORBIDDEN: "You don't have permission to perform this action.",
