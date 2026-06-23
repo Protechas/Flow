@@ -40,7 +40,8 @@ export async function hydrateOrgPositions(): Promise<OrgPosition[]> {
   const { data, error } = await supabase
     .from("org_positions")
     .select("*")
-    .order("title");
+    .order("title", { ascending: true })
+    .order("id", { ascending: true });
 
   if (error) {
     if (isOrgPositionsUnavailable(error)) return [];

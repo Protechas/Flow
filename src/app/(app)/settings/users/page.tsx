@@ -34,7 +34,7 @@ export default async function UsersAdminPage() {
     ["super_admin", "admin", "senior_manager", "manager", "teamlead"].includes(u.role)
   );
   initFlowStore();
-  const unassignedUsers = listUnassignedUsers(users);
+  const unassignedUsers = listUnassignedUsers(users, positions);
   const reportingChains = Object.fromEntries(
     users.map((u) => [u.id, getReportingChain(u.id, users)])
   );

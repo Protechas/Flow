@@ -1,6 +1,6 @@
 import { hasAdminAccess } from "@/lib/auth/access-level";
 import { getPrimarySupervisorId } from "@/lib/hierarchy/visibility-core";
-import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
+import { comparePositions } from "@/lib/positions/sort";
 import type { OrgChartNode, OrgPosition, Team, User } from "@/types/flow";
 
 export function getOrgChartNodeUserId(node: OrgChartNode): string | null {
@@ -32,6 +32,7 @@ function getChildPositionIds(
 ): string[] {
   return positions
     .filter((p) => p.reports_to_position_id === parentId)
+    .sort(comparePositions)
     .map((p) => p.id);
 }
 
@@ -151,24 +152,31 @@ export function buildPositionOrgChart(
   users: User[],
   departments: { id: string; name: string }[],
   teams: { id: string; name: string }[],
+  positions: OrgPosition[],
   rootPositionId?: string | null
 ): OrgChartNode[] {
-  const positions = listActiveOrgPositions();
-  if (!positions.length) return [];
+  const active = positions.filter((p) => p.status !== "inactive");
+  if (!active.length) return [];
 
   let roots: string[];
   if (rootPositionId) {
     roots = [rootPositionId];
   } else {
-    roots = positions
-      .filter((p) => !p.reports_to_position_id)
+    const positionIds = new Set(active.map((p) => p.id));
+    roots = active
+      .filter(
+        (p) =>
+          !p.reports_to_position_id || !positionIds.has(p.reports_to_position_id)
+      )
+      .sort(comparePositions)
       .map((p) => p.id);
   }
 
   return roots
-    .map((id) => buildPositionNode(id, positions, users, departments, teams))
+    .map((id) => buildPositionNode(id, active, users, departments, teams))
     .filter((n): n is OrgChartNode => n !== null)
     .sort((a, b) => {
+      if (a.position && b.position) return comparePositions(a.position, b.position);
       const titleA = a.position?.title ?? a.user?.full_name ?? "";
       const titleB = b.position?.title ?? b.user?.full_name ?? "";
       return titleA.localeCompare(titleB);
@@ -200,6 +208,7 @@ export function buildHybridOrgChart(
   users: User[],
   departments: { id: string; name: string }[],
   teams: Team[],
+  positions: OrgPosition[],
   buildUserChart: (
     users: User[],
     departments: { id: string; name: string }[],
@@ -208,7 +217,8 @@ export function buildHybridOrgChart(
   ) => OrgChartNode[],
   rootUserId?: string | null
 ): OrgChartNode[] {
-  if (!hasOrgPositions()) {
+  const active = positions.filter((p) => p.status !== "inactive");
+  if (!active.length) {
     return buildUserChart(users, departments, teams, rootUserId);
   }
 
@@ -218,14 +228,20 @@ export function buildHybridOrgChart(
     const rootUser = users.find((u) => u.id === rootUserId);
     const rootPositionId =
       rootUser?.assigned_position_id ??
-      listActiveOrgPositions().find((p) => p.assigned_user_id === rootUserId)?.id;
+      active.find((p) => p.assigned_user_id === rootUserId)?.id;
     if (rootPositionId) {
-      return buildPositionOrgChart(users, departments, teamList, rootPositionId);
+      return buildPositionOrgChart(
+        users,
+        departments,
+        teamList,
+        active,
+        rootPositionId
+      );
     }
     return buildUserChart(users, departments, teamList, rootUserId);
   }
 
-  return buildPositionOrgChart(users, departments, teamList);
+  return buildPositionOrgChart(users, departments, teamList, active);
 }
 
 export function prunePositionOrgChartNodes(
@@ -249,8 +265,29 @@ export function prunePositionOrgChartNodes(
   return nodes.map(prune).filter((n): n is OrgChartNode => n !== null);
 }
 
-export function listUnassignedUsers(users: User[]): User[] {
-  return users.filter((u) => u.is_active && !u.assigned_position_id);
+export function listUnassignedUsers(
+  users: User[],
+  positions: OrgPosition[] = []
+): User[] {
+  const seatAssigned = new Set(
+    positions
+      .filter((p) => p.status !== "inactive" && p.assigned_user_id)
+      .map((p) => p.assigned_user_id as string)
+  );
+
+  return users
+    .filter(
+      (u) =>
+        u.is_active &&
+        !u.assigned_position_id &&
+        !seatAssigned.has(u.id)
+    )
+    .sort(
+      (a, b) =>
+        a.full_name.localeCompare(b.full_name) ||
+        a.email.localeCompare(b.email) ||
+        a.id.localeCompare(b.id)
+    );
 }
 
 export function suggestPositionForUser(
@@ -276,9 +313,11 @@ export function suggestPositionForUser(
   return vacant[0] ?? null;
 }
 
-export function countVacantPositions(positions?: OrgPosition[]): number {
-  const list = positions ?? listActiveOrgPositions();
-  return list.filter(
-    (p) => !p.assigned_user_id && (p.status === "vacant" || p.status === "planned")
+export function countVacantPositions(positions: OrgPosition[]): number {
+  return positions.filter(
+    (p) =>
+      p.status !== "inactive" &&
+      !p.assigned_user_id &&
+      (p.status === "vacant" || p.status === "planned")
   ).length;
 }

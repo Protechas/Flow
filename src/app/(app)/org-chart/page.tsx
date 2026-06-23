@@ -9,20 +9,18 @@ import {
 import { requirePageAccess, assertScopedUserIdParam } from "@/lib/auth/guard";
 import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { canAssignWork, hasPermission } from "@/lib/auth/permissions";
-import { initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
-import { hydrateAppStore, listUsers } from "@/lib/data/users";
-import { ensureOrgPositionsLoaded } from "@/lib/data/org-positions";
 import {
   countVacantPositions,
   listUnassignedUsers,
 } from "@/lib/positions/resolver";
 import { OrgStructureBuilder } from "@/components/hierarchy/org-structure-builder";
-import { ensureDepartmentsLoaded } from "@/lib/data/departments-db";
 import {
   buildDepartmentGroupedSections,
+  buildOrgChartWithDiagnostics,
+  buildOrgTree,
   hasGroupedDepartmentStructure,
-} from "@/lib/positions/grouped-chart";
-import { hasOrgPositions, listActiveOrgPositions } from "@/lib/positions/store";
+  loadOrgChartBundle,
+} from "@/lib/positions/org-tree";
 import { isAdminConfigured } from "@/lib/supabase/admin";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import {
@@ -43,23 +41,28 @@ export default async function OrgChartPage({
 }: {
   searchParams: Promise<{ userId?: string }>;
 }) {
-  const user = await requirePageAccess("/org-chart");
+  const sessionUser = await requirePageAccess("/org-chart");
   const { userId: initialUserId } = await searchParams;
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
-  initFlowStore();
-  const allUsers = await listUsers();
-  await hydrateAppStore();
-  await ensureDepartmentsLoaded();
-  await ensureOrgPositionsLoaded();
-  const departments = listDepartments().filter((d) => d.status === "active");
-  const teams = listTeamsStore();
+
+  const bundle = await loadOrgChartBundle();
+  const { integrity } = buildOrgChartWithDiagnostics(bundle);
+  const { users: allUsers, departments, teams, positions } = bundle;
+
+  const viewer = allUsers.find((u) => u.id === sessionUser.id) ?? sessionUser;
   const packages = await getWorkPackages();
 
-  const scopedRoots = getHierarchyTree(user, allUsers, departments, teams);
+  const scopedRoots = getHierarchyTree(
+    viewer,
+    allUsers,
+    departments,
+    teams,
+    positions
+  );
 
   const visibleUserIds = collectOrgChartUserIds(scopedRoots);
-  assertScopedUserIdParam(user, initialUserId, visibleUserIds);
+  assertScopedUserIdParam(viewer, initialUserId, visibleUserIds);
   const safeInitialUserId =
     initialUserId?.trim() && visibleUserIds.includes(initialUserId.trim())
       ? initialUserId.trim()
@@ -84,7 +87,7 @@ export default async function OrgChartPage({
 
   const attention = countOrgChartAttention(opsMap);
 
-  const permissionRole = getEffectivePermissionRole(user);
+  const permissionRole = getEffectivePermissionRole(viewer);
 
   const permissions: OrgChartViewerPermissions = {
     canViewProfile:
@@ -111,14 +114,18 @@ export default async function OrgChartPage({
   const canManageAccounts =
     permissions.canManagePositions && isAdminConfigured();
 
-  const positions = listActiveOrgPositions();
-  const usePositionChart = hasOrgPositions();
+  const usePositionChart = positions.length > 0;
+  const tree = buildOrgTree(bundle);
   const useGroupedDisplay = hasGroupedDepartmentStructure(departments, positions);
   const groupedSections = useGroupedDisplay
-    ? buildDepartmentGroupedSections(scopedRoots, departments, teams, positions)
+    ? buildDepartmentGroupedSections(tree, departments, teams, scopedRoots)
     : [];
-  const unassignedUsers = listUnassignedUsers(allUsers);
+  const unassignedUsers = listUnassignedUsers(allUsers, positions);
   const vacantPositionCount = countVacantPositions(positions);
+
+  if (integrity.issues.length > 0 && process.env.NODE_ENV !== "production") {
+    console.warn("[org-chart] loaded with integrity warnings", integrity.issues.length);
+  }
 
   return (
     <FlowPageShell
@@ -220,7 +227,7 @@ export default async function OrgChartPage({
             profiles={profiles}
             permissions={permissions}
             allUsers={allUsers}
-            viewerId={user.id}
+            viewerId={viewer.id}
             visibleUserIds={visibleUserIds}
             attention={attention}
             initialUserId={safeInitialUserId}

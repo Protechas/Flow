@@ -33,7 +33,7 @@ export async function listUsers(): Promise<User[]> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("users").select("*").order("first_name");
+  const { data, error } = await supabase.from("users").select("*").order("first_name").order("last_name").order("id");
   if (error) throw error;
   return (data ?? []).map((row) => mapDbUser(row as Record<string, unknown>));
 }

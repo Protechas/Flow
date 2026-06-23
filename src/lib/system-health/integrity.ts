@@ -3,6 +3,8 @@ import { initProductionTracking } from "@/lib/data/production-tracking";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { listHelpFlagRecords } from "@/lib/help-flags/store";
 import { operationsHref, projectsHref } from "@/lib/navigation/deep-links";
+import { diagnoseOrgChartIntegrity } from "@/lib/positions/org-tree";
+import { listActiveOrgPositions } from "@/lib/positions/store";
 import { listWorkloadAlertRecords } from "@/lib/workload-alerts/store";
 
 export type SystemHealthSeverity = "critical" | "warning" | "info";
@@ -15,7 +17,8 @@ export interface SystemHealthIssue {
     | "forecast"
     | "alerts"
     | "notifications"
-    | "records";
+    | "records"
+    | "org_chart";
   severity: SystemHealthSeverity;
   title: string;
   detail: string;
@@ -286,6 +289,95 @@ export function buildSystemHealthReport(): SystemHealthReport {
     href: "/wrap-ups",
     sampleIds: wrapUpsOrphan.slice(0, 5).map((w) => w.id),
   });
+
+  const orgPositions = listActiveOrgPositions();
+  if (orgPositions.length > 0) {
+    const orgIntegrity = diagnoseOrgChartIntegrity(orgPositions, users);
+
+    const orphans = orgIntegrity.issues.filter((i) => i.code === "orphan_position");
+    pushIssue(issues, {
+      id: "org-orphan-positions",
+      category: "org_chart",
+      severity: "warning",
+      title: "Orphan org positions",
+      detail: "Positions reference missing parents or departments.",
+      count: orphans.length,
+      href: "/org-chart",
+      sampleIds: orphans.slice(0, 5).map((i) => i.positionId).filter(Boolean) as string[],
+    });
+
+    const dupUsers = orgIntegrity.issues.filter(
+      (i) => i.code === "duplicate_seat_user" || i.code === "user_multiple_seats"
+    );
+    pushIssue(issues, {
+      id: "org-duplicate-seat-users",
+      category: "org_chart",
+      severity: "critical",
+      title: "Duplicate seat assignments",
+      detail: "One or more users are assigned to multiple org seats.",
+      count: dupUsers.length,
+      href: "/org-chart",
+      sampleIds: dupUsers.slice(0, 5).map((i) => i.userId).filter(Boolean) as string[],
+    });
+
+    const missingParents = orgIntegrity.issues.filter((i) => i.code === "missing_parent");
+    pushIssue(issues, {
+      id: "org-missing-parent",
+      category: "org_chart",
+      severity: "critical",
+      title: "Positions with missing parent",
+      detail: "Reporting chain is broken — parent position records are missing.",
+      count: missingParents.length,
+      href: "/org-chart",
+      sampleIds: missingParents.slice(0, 5).map((i) => i.positionId).filter(Boolean) as string[],
+    });
+
+    const seatAssigned = new Set(
+      orgPositions.filter((p) => p.assigned_user_id).map((p) => p.assigned_user_id as string)
+    );
+    const usersWithoutSeats = users.filter(
+      (u) => u.is_active && !u.assigned_position_id && !seatAssigned.has(u.id)
+    );
+    pushIssue(issues, {
+      id: "org-users-without-seats",
+      category: "org_chart",
+      severity: "info",
+      title: "Active users without org seats",
+      detail: "Users exist but are not linked to a position seat.",
+      count: usersWithoutSeats.length,
+      href: "/org-chart",
+      sampleIds: usersWithoutSeats.slice(0, 5).map((u) => u.id),
+    });
+
+    const vacantManagers = orgPositions.filter(
+      (p) =>
+        p.status !== "inactive" &&
+        !p.assigned_user_id &&
+        (p.position_level === "manager" || p.position_level === "team_lead")
+    );
+    pushIssue(issues, {
+      id: "org-vacant-leadership-seats",
+      category: "org_chart",
+      severity: "info",
+      title: "Vacant manager or team lead seats",
+      detail: "Leadership seats exist but have no assigned user.",
+      count: vacantManagers.length,
+      href: "/org-chart",
+      sampleIds: vacantManagers.slice(0, 5).map((p) => p.id),
+    });
+
+    const circular = orgIntegrity.issues.filter((i) => i.code === "circular_hierarchy");
+    pushIssue(issues, {
+      id: "org-circular-hierarchy",
+      category: "org_chart",
+      severity: "critical",
+      title: "Circular org hierarchy",
+      detail: "Position reporting chain loops back on itself.",
+      count: circular.length,
+      href: "/org-chart",
+      sampleIds: circular.slice(0, 5).map((i) => i.positionId).filter(Boolean) as string[],
+    });
+  }
 
   const severityRank: Record<SystemHealthSeverity, number> = {
     critical: 0,

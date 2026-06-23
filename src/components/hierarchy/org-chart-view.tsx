@@ -260,7 +260,7 @@ function OrgBranch({
   canAssignPositions: boolean;
   canManagePositions: boolean;
 }) {
-  const [open, setOpen] = useState(forceOpen || depth < 2);
+  const [open, setOpen] = useState(() => forceOpen || depth < 2);
   const hasChildren = node.children.length > 0;
   const userId = getOrgChartNodeUserId(node);
   const ops = userId ? opsMap[userId] : undefined;
@@ -608,7 +608,7 @@ export function OrgChartView({
           ) : (
             filteredRoots.map((root) => (
               <OrgBranch
-                key={`${nodeKey(root)}-${expandAll}-${search}`}
+                key={nodeKey(root)}
                 node={root}
                 depth={0}
                 forceOpen={expandAll || !!search.trim()}
