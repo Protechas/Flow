@@ -22,7 +22,7 @@ export function EmptyState({
       )}
     >
       {Icon && (
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground border border-[var(--border-subtle)] border-t-[var(--border-raised)] shadow-[var(--shadow-depth-1)]">
+        <div className="flow-empty-icon mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--flow-radius-card)] text-muted-foreground">
           <Icon className="h-5 w-5 opacity-80" />
         </div>
       )}
@@ -30,7 +30,7 @@ export function EmptyState({
       {description && (
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
       )}
-      {action && <div className="mt-5">{action}</div>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }

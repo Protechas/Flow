@@ -34,7 +34,7 @@ function SignalPill({
     warn: "text-amber-400 border-amber-500/35 bg-amber-500/10",
     danger: "text-red-400 border-red-500/35 bg-red-500/10",
     muted: "text-muted-foreground border-border/50 bg-muted/20",
-    info: "text-sky-400 border-sky-500/35 bg-sky-500/10",
+    info: "text-emerald-400/90 border-emerald-500/30 bg-emerald-500/8",
   };
   return (
     <span
@@ -116,8 +116,8 @@ export function OrgChartPositionCard({
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold",
             isVacant && "bg-muted/40 text-muted-foreground",
             !isVacant && tier >= 4 && "bg-amber-500/15 text-amber-300",
-            !isVacant && tier === 3 && "bg-blue-500/15 text-blue-300",
-            !isVacant && tier === 2 && "bg-violet-500/15 text-violet-300",
+            !isVacant && tier === 3 && "bg-emerald-500/15 text-emerald-300",
+            !isVacant && tier === 2 && "bg-green-600/15 text-green-400",
             !isVacant && tier <= 1 && "bg-primary/15 text-primary"
           )}
         >

@@ -75,14 +75,14 @@ export const WORK_STATUSES: {
   {
     value: "assigned",
     label: "Assigned",
-    color: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-    dot: "bg-blue-400",
+    color: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/22",
+    dot: "bg-emerald-400",
   },
   {
     value: "working_on_it",
     label: "In Progress",
-    color: "bg-sky-500/10 text-sky-400 border border-sky-500/20",
-    dot: "bg-sky-400",
+    color: "bg-emerald-500/14 text-emerald-300 border border-emerald-500/28",
+    dot: "bg-emerald-400",
   },
   {
     value: "waiting",

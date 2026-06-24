@@ -13,6 +13,7 @@ export { OperationalSignalCard } from "./operational-signal-card";
 export { OperationalInsightList } from "./operational-insight-list";
 export { OperationalPulsePanel, type PulseMetric } from "./operational-pulse-panel";
 export { KpiPriorityZone } from "./kpi-priority-zone";
+export { PageLoadingSkeleton } from "./page-loading";
 export { FLOW_MATERIAL, FLOW_RADIUS, materialAccentProps, type MaterialAccent } from "./material-system";
 export { PLATFORM_EYEBROWS } from "./constants";
 

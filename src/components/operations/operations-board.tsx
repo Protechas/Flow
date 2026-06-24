@@ -568,7 +568,7 @@ function ProjectRows({
     <>
       <tr
         className={cn(
-          "border-b border-border hover:bg-blue-500/15 enterprise-row-hover flow-ops-project-row",
+          "border-b border-border hover:bg-emerald-500/10 enterprise-row-hover flow-ops-project-row",
           rowSelected && "flow-ops-row-selected"
         )}
       >

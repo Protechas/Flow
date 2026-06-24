@@ -47,7 +47,7 @@ export function CoachingReportView({ report }: { report: CoachingReport }) {
                 <p className="text-xs font-medium uppercase text-muted-foreground mb-2">Opportunities</p>
                 <ul className="text-sm space-y-1">
                   {e.opportunities.map((o) => (
-                    <li key={o} className="text-blue-400/90">• {o}</li>
+                    <li key={o} className="text-emerald-400/90">• {o}</li>
                   ))}
                 </ul>
               </div>

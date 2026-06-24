@@ -44,7 +44,7 @@ function SignalPill({
     warn: "text-amber-400 border-amber-500/35 bg-amber-500/10",
     danger: "text-red-400 border-red-500/35 bg-red-500/10",
     muted: "text-muted-foreground border-border/50 bg-muted/20",
-    info: "text-sky-400 border-sky-500/35 bg-sky-500/10",
+    info: "text-emerald-400/90 border-emerald-500/30 bg-emerald-500/8",
   };
   return (
     <span

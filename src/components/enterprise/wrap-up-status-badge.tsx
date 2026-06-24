@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<
   },
   overridden: {
     label: "Overridden",
-    className: "border-sky-500/25 bg-sky-500/10 text-sky-400",
+    className: "border-border bg-muted/40 text-muted-foreground",
   },
 };
 

@@ -12,7 +12,7 @@ export const THEME_OPTIONS: {
   {
     id: "executive-dark",
     label: "Executive Dark",
-    description: "Authority-inspired command center — deep charcoal with teal accent",
+    description: "Executive command center — deep charcoal with executive green accent",
   },
   {
     id: "light",

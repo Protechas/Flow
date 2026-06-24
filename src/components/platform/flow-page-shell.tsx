@@ -42,7 +42,7 @@ export function FlowPageShell({
   className,
 }: FlowPageShellProps) {
   return (
-    <div className={cn("flow-platform-page space-y-6", className)}>
+    <div className={cn("flow-platform-page space-y-7", className)}>
       <PageHeader
         title={title}
         description={description}

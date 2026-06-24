@@ -49,8 +49,8 @@ export const LIVE_FORECAST_STATUS_LABELS: Record<LiveForecastStatus, string> = {
 export const LIVE_FORECAST_STATUS_CLASS: Record<LiveForecastStatus, string> = {
   assigned: "border-border text-muted-foreground",
   forecast_pending: "border-border text-muted-foreground",
-  planning_forecast: "border-sky-500/30 text-sky-400 bg-sky-500/5",
-  active_forecast: "border-indigo-500/30 text-indigo-400 bg-indigo-500/5",
+  planning_forecast: "border-emerald-500/28 text-emerald-400 bg-emerald-500/5",
+  active_forecast: "border-emerald-500/35 text-emerald-300 bg-emerald-500/8",
   on_track: "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
   at_risk: "border-amber-500/30 text-amber-400 bg-amber-500/5",
   behind_forecast: "border-red-500/30 text-red-400 bg-red-500/5",

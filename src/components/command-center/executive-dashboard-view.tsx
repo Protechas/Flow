@@ -92,7 +92,7 @@ export function ExecutiveDashboardView({
       : undefined;
 
   return (
-    <div className="flow-executive-dashboard flow-ambient-command space-y-8">
+    <div className="flow-executive-dashboard flow-ambient-command space-y-10">
       <OperationalPulsePanel
         pulseStatus={pulseStatus(needsAttention, hasCritical)}
         subtitle={OPS_TOOLTIPS.operationsOverview}

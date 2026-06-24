@@ -12,7 +12,8 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-[var(--flow-radius-card)] bg-card py-4 text-sm text-card-foreground border border-border shadow-[var(--shadow-material-card)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-[var(--flow-radius-card)] *:[img:last-child]:rounded-b-[var(--flow-radius-card)]",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-[var(--flow-radius-card)] bg-card py-4 text-sm text-card-foreground border border-[var(--border-subtle)] border-t-[var(--border-raised)] shadow-[var(--shadow-material-card)] transition-[box-shadow,border-color,transform] duration-[var(--motion-fast,150ms)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-[var(--flow-radius-card)] *:[img:last-child]:rounded-b-[var(--flow-radius-card)]",
+        "bg-gradient-to-b from-[var(--surface-card-top)] to-[var(--surface-card-bottom)]",
         className
       )}
       {...props}

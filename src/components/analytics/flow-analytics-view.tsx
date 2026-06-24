@@ -343,7 +343,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
                     className={cn(
                       "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm",
                       w.flag === "overloaded" && "border-red-500/25 bg-red-500/5",
-                      w.flag === "underutilized" && "border-blue-500/25 bg-blue-500/5",
+                      w.flag === "underutilized" && "border-emerald-500/22 bg-emerald-500/5",
                       w.flag === "needs_work" && "border-amber-500/25 bg-amber-500/5"
                     )}
                   >
@@ -419,7 +419,7 @@ export function FlowAnalyticsView({ data }: { data: FlowAnalyticsSnapshot }) {
               className={cn(
                 "enterprise-panel p-3 space-y-1",
                 insight.category === "coaching" && "border-amber-500/25",
-                insight.category === "support" && "border-blue-500/25",
+                insight.category === "support" && "border-emerald-500/22",
                 insight.category === "recognition" && "border-emerald-500/25"
               )}
             >

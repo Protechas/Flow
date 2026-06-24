@@ -34,7 +34,7 @@ export function DetailDrawer({
       <SheetContent
         side={side}
         className={cn(
-          "flow-platform-detail-drawer flow-glass-drawer w-full sm:max-w-md overflow-y-auto",
+          "flow-platform-detail-drawer flow-glass-drawer w-full sm:max-w-md overflow-y-auto transition-transform duration-[var(--motion-base,200ms)] ease-[var(--motion-ease,cubic-bezier(0.22,1,0.36,1))]",
           side === "right" && "rounded-l-[var(--flow-radius-drawer)]",
           side === "left" && "rounded-r-[var(--flow-radius-drawer)]",
           className
