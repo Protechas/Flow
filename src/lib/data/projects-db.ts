@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -176,12 +177,11 @@ export async function hydrateProjectsStructure(): Promise<{
   return { projects, manufacturers };
 }
 
-export async function ensureProjectsHydrated(): Promise<void> {
+export const ensureProjectsHydrated = cache(async (): Promise<void> => {
   initFlowStore();
   if (!isSupabaseConfigured()) return;
-  if (listProjectsStore().length > 0) return;
   await hydrateProjectsStructure();
-}
+});
 
 export async function insertProjectDb(project: Project): Promise<Project> {
   if (!isSupabaseConfigured()) return project;

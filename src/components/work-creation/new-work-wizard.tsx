@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   createBoardAction,
   createProjectWizardAction,
@@ -128,6 +129,7 @@ export function NewWorkWizard({
 }) {
   const allowedModes = getAllowedCreationModes(user.role);
   const { toast } = useFlowToast();
+  const router = useRouter();
   const defaults = buildCreationDefaults(user, departments, teams);
   const ownerCandidates = useMemo(
     () => projectOwnerCandidates(managers, user),
@@ -321,14 +323,16 @@ export function NewWorkWizard({
   function submit() {
     startTransition(async () => {
       try {
+      let createdLabel = "Work";
       if (mode === "board") {
-        await createBoardAction({
+        const created = await createBoardAction({
           name: board.name,
           description: board.description,
           departmentId: board.departmentId,
           teamId: teamIdForDepartment(board.departmentId, teams),
           templateId: board.templateId,
         });
+        createdLabel = `Board "${created.name}"`;
       } else if (mode === "project") {
         if (project.projectCreationMode === "from_template") {
           const boardRef =
@@ -385,6 +389,15 @@ export function NewWorkWizard({
           priority: task.priority,
         });
       }
+      toast({
+        variant: "success",
+        title: "Created",
+        description:
+          mode === "board"
+            ? `${createdLabel} is on Projects and Operations.`
+            : "Your work was created successfully.",
+      });
+      router.refresh();
       setOpen(false);
       resetWizard();
       } catch (e) {

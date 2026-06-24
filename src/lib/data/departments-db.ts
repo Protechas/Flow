@@ -1,9 +1,11 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   createDepartment,
   createTeam,
+  initFlowStore,
   listDepartmentUsers,
   listDepartments,
   listTeamsStore,
@@ -94,12 +96,13 @@ export async function hydrateDepartmentStructure(): Promise<{
   return { departments, teams, departmentUsers };
 }
 
-export async function ensureDepartmentsLoaded(): Promise<{
+export const ensureDepartmentsLoaded = cache(async (): Promise<{
   departments: Department[];
   teams: Team[];
   departmentUsers: DepartmentUser[];
-}> {
-  if (listDepartments().length > 0) {
+}> => {
+  initFlowStore();
+  if (!isSupabaseConfigured()) {
     return {
       departments: listDepartments(),
       teams: listTeamsStore(),
@@ -107,7 +110,7 @@ export async function ensureDepartmentsLoaded(): Promise<{
     };
   }
   return hydrateDepartmentStructure();
-}
+});
 
 export async function insertDepartmentDb(input: {
   name: string;

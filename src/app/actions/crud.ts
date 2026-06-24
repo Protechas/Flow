@@ -11,6 +11,7 @@ import {
 import { hasPermission } from "@/lib/auth/permissions";
 import { normalizeRole, isEmployeeRole } from "@/lib/auth/permissions";
 import { assertWorkEligible } from "@/lib/work-eligibility";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import {
   bulkCreateYears,
   createComment,
@@ -29,6 +30,7 @@ import {
   deleteYearWorkItem,
   getFlowStore,
   initFlowStore,
+  listTeamsStore,
   resolveCorrection,
   updateManufacturer,
   updateProject,
@@ -132,36 +134,54 @@ export async function createBoardAction(input: {
   templateId?: string;
 }) {
   const user = await requirePermission("projects:create");
+  const name = input.name.trim();
+  if (!name) throw new Error("Board name is required");
+
+  const departmentId = input.departmentId?.trim();
+  if (!departmentId) {
+    throw new Error("Select a department for this board.");
+  }
+
+  await ensureAppDataLoaded();
+  const teams = listTeamsStore();
+  const teamId =
+    teams.find((t) => t.department_id === departmentId)?.id ??
+    teams.find((t) => t.id === input.teamId)?.id;
+  if (!teamId) {
+    throw new Error(
+      "No team is configured for that department. Add a team under Settings → Departments, then try again."
+    );
+  }
+
   const tplPurpose = input.description?.trim();
   const project = createProject(
     {
-      name: input.name.trim(),
+      name,
       description: tplPurpose || null,
       project_type: "board",
       status: "active",
       priority: "medium",
       start_date: new Date().toISOString().split("T")[0],
       due_date: null,
-      department_id: input.departmentId,
-      team_id: input.teamId,
-      project_owner_id:
-        normalizeRole(user.role) === "teamlead" ? user.id : user.id,
+      department_id: departmentId,
+      team_id: teamId,
+      project_owner_id: user.id,
       created_by: user.id,
       estimated_total_documents: null,
       planning_complexity_level: "standard",
     },
     "custom"
   );
-  await persistNewProject(project);
+  const saved = await persistNewProject(project);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
-    entityId: project.id,
-    summary: `Created board ${project.name}`,
+    entityId: saved.id,
+    summary: `Created board ${saved.name}`,
     metadata: { project_type: "board", template: input.templateId },
   });
   revalidateAll();
-  return project;
+  return saved;
 }
 
 export async function createProjectWizardAction(input: {

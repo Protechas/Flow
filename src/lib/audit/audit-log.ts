@@ -49,12 +49,14 @@ export async function writeAuditLog(params: {
 
   if (isAdminConfigured()) {
     const admin = createAdminClient();
-    await admin.from("audit_log").insert(row);
+    const { error } = await admin.from("audit_log").insert(row);
+    if (error) console.warn("[audit_log] insert failed:", error.message);
     return;
   }
 
   const supabase = await createClient();
-  await supabase.from("audit_log").insert(row);
+  const { error } = await supabase.from("audit_log").insert(row);
+  if (error) console.warn("[audit_log] insert failed:", error.message);
 }
 
 export async function listAuditLog(limit = 100): Promise<AuditLogEntry[]> {
