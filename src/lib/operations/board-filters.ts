@@ -53,6 +53,23 @@ export const DEFAULT_OPS_FILTERS: OpsBoardFilters = {
   viewId: "all",
 };
 
+/** Operations boards are project shells — show even before manufacturers/tasks exist. */
+export function isBoardShellProject(project: Project): boolean {
+  return project.project_type === "board" || project.project_type === "research";
+}
+
+function projectRowVisible(
+  project: Project,
+  manufacturers: unknown[],
+  filters: OpsBoardFilters
+): boolean {
+  if (filters.projectId && project.id !== filters.projectId) return false;
+  if (manufacturers.length > 0) return true;
+  if (matchesSearch(filters.search, { project: project.name })) return true;
+  if (isBoardShellProject(project)) return true;
+  return filters.viewId === "all";
+}
+
 function isYearOverdue(y: YearWorkItem): boolean {
   if (!y.due_date || y.status === "done") return false;
   return isBefore(parseISO(y.due_date), startOfDay(new Date()));
@@ -230,11 +247,7 @@ export function filterOperationsTree(
           })
           .filter((m): m is NonNullable<typeof m> => m !== null);
 
-        const projVisible =
-          manufacturers.length > 0 ||
-          matchesSearch(filters.search, { project: projectName });
-        if (!projVisible) return null;
-        if (filters.projectId && projNode.project.id !== filters.projectId) return null;
+        if (!projectRowVisible(projNode.project, manufacturers, filters)) return null;
         return { ...projNode, manufacturers };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null),
