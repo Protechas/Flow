@@ -238,8 +238,10 @@ export function WrapUpReviewCenter({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center text-muted-foreground py-8 text-sm">
-                  No wrap-ups match your filters.
+                <td colSpan={10} className="text-center text-muted-foreground py-10 text-sm">
+                  {rows.length === 0
+                    ? "No daily reports have been submitted yet. Records appear after employees clock in and submit their end-of-day report."
+                    : "No daily reports match your filters."}
                 </td>
               </tr>
             ) : (

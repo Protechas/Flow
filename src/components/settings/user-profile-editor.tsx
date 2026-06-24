@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/label-with-help";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import {
   Sheet,
   SheetContent,
@@ -311,7 +315,7 @@ export function UserProfileEditor({
 
           <Section title="Organization" id={initialSection === "organization" ? "profile-org-section" : undefined}>
             <div className="space-y-1.5">
-              <Label>Department</Label>
+              <LabelWithHelp helpKey="departmentField">Department</LabelWithHelp>
               <Select
                 value={form.department_id ?? "__none__"}
                 onValueChange={(v) =>
@@ -319,7 +323,13 @@ export function UserProfileEditor({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
+                  <EntitySelectValue
+                    value={form.department_id ?? "__none__"}
+                    items={departments}
+                    getLabel={(d) => d.name}
+                    placeholder="Select department"
+                    sentinels={[{ value: "__none__", label: "No department" }]}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No department</SelectItem>
@@ -332,13 +342,19 @@ export function UserProfileEditor({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Team</Label>
+              <LabelWithHelp helpKey="teamField">Team</LabelWithHelp>
               <Select
                 value={form.team_id ?? "__none__"}
                 onValueChange={(v) => patch("team_id", !v || v === "__none__" ? null : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select team" />
+                  <EntitySelectValue
+                    value={form.team_id ?? "__none__"}
+                    items={filteredTeams}
+                    getLabel={(t) => t.name}
+                    placeholder="Select team"
+                    sentinels={[{ value: "__none__", label: "No team" }]}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No team</SelectItem>
@@ -351,7 +367,7 @@ export function UserProfileEditor({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Supervisor</Label>
+              <LabelWithHelp helpKey="supervisorField">Supervisor</LabelWithHelp>
               <Select
                 value={form.manager_id ?? "__none__"}
                 onValueChange={(v) =>
@@ -359,7 +375,13 @@ export function UserProfileEditor({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select supervisor" />
+                  <EntitySelectValue
+                    value={form.manager_id ?? "__none__"}
+                    items={managers.filter((m) => m.id !== user.id)}
+                    getLabel={userDisplayName}
+                    placeholder="Select supervisor"
+                    sentinels={[{ value: "__none__", label: "No supervisor" }]}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No supervisor</SelectItem>
@@ -374,7 +396,7 @@ export function UserProfileEditor({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Assigned org seat</Label>
+              <LabelWithHelp helpKey="orgSeatField">Assigned org seat</LabelWithHelp>
               <Select
                 value={form.assigned_position_id ?? "__none__"}
                 onValueChange={(v) =>
@@ -382,7 +404,13 @@ export function UserProfileEditor({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="No seat assigned" />
+                  <EntitySelectValue
+                    value={form.assigned_position_id ?? "__none__"}
+                    items={vacantPositions}
+                    getLabel={(p) => p.title}
+                    placeholder="No seat assigned"
+                    sentinels={[{ value: "__none__", label: "Unassigned" }]}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
@@ -402,7 +430,7 @@ export function UserProfileEditor({
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Org chart position</Label>
+                <LabelWithHelp helpKey="orgChartPosition">Org chart position</LabelWithHelp>
                 <Select
                   value={form.organizational_position}
                   onValueChange={(v) =>
@@ -422,7 +450,7 @@ export function UserProfileEditor({
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>System access</Label>
+                <LabelWithHelp helpKey="systemAccessLevel">System access</LabelWithHelp>
                 <Select
                   value={form.system_access_level}
                   onValueChange={(v) =>
@@ -449,7 +477,10 @@ export function UserProfileEditor({
                   checked={!!form.branch_view_access}
                   onChange={(e) => patch("branch_view_access", e.target.checked)}
                 />
-                <span>Full branch view access</span>
+                <span className="inline-flex items-center gap-1">
+                  Full branch view access
+                  <InfoTooltip helpKey="branchViewAccess" />
+                </span>
               </label>
             )}
           </Section>
@@ -488,7 +519,7 @@ export function UserProfileEditor({
             </div>
             {showPayType && (
               <div className="space-y-1.5">
-                <Label>Pay type</Label>
+                <LabelWithHelp helpKey="payType">Pay type</LabelWithHelp>
                 <Select
                   value={form.pay_type ?? "hourly"}
                   onValueChange={(v) => v && patch("pay_type", v as PayType)}

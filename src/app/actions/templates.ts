@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission, requireUser } from "@/lib/auth/session";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { writeAuditLog } from "@/lib/audit/audit-log";
+import { persistNewProject } from "@/lib/data/projects-db";
 import { createProjectFromEnterpriseTemplate } from "@/lib/templates/generate-from-template";
 import type { CreateProjectFromTemplateInput, SaveCustomTemplateInput } from "@/lib/templates/enterprise-types";
 import {
@@ -36,6 +37,7 @@ export async function createProjectFromTemplateAction(input: CreateProjectFromTe
       },
       ownerId
     );
+    await persistNewProject({ ...project, created_by: user.id });
     await writeAuditLog({
       action: "project_changed",
       entityType: "project",

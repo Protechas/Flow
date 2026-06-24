@@ -29,8 +29,13 @@ import { buildEnterpriseTemplatePreview } from "@/lib/templates/preview";
 import { listTemplatesForDepartment } from "@/lib/templates/template-registry";
 import {
   buildCreationDefaults,
+  defaultProjectOwnerId,
   filterBoardProjects,
+  projectOwnerCandidates,
+  resolveDepartmentLabel,
+  resolveOwnerLabel,
   teamIdForDepartment,
+  userDisplayName,
 } from "@/lib/work-creation/client-defaults";
 import type { EnterpriseProjectTemplate } from "@/lib/templates/enterprise-types";
 import type { Department, Project, Team, User } from "@/types/flow";
@@ -64,7 +69,11 @@ export function CreateProjectFromTemplateDialog({
 
   const [name, setName] = useState("");
   const [departmentId, setDepartmentId] = useState(defaultDept);
-  const [ownerId, setOwnerId] = useState(managers[0]?.id ?? "__none__");
+  const ownerCandidates = useMemo(
+    () => projectOwnerCandidates(managers, user),
+    [managers, user]
+  );
+  const [ownerId, setOwnerId] = useState(() => defaultProjectOwnerId(user, managers));
   const [boardProjectId, setBoardProjectId] = useState("__none__");
   const [description, setDescription] = useState("");
   const [pending, startTransition] = useTransition();
@@ -123,9 +132,11 @@ export function CreateProjectFromTemplateDialog({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs">Department *</Label>
-              <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
+              <Select value={departmentId || undefined} onValueChange={(v) => v && setDepartmentId(v)}>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Select department">
+                    {resolveDepartmentLabel(departmentId, compatibleDepts)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {compatibleDepts.map((d) => (
@@ -160,14 +171,16 @@ export function CreateProjectFromTemplateDialog({
           <div className="space-y-2">
             <Label className="text-xs">Project owner</Label>
             <Select value={ownerId} onValueChange={(v) => v && setOwnerId(v)}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Select owner">
+                  {resolveOwnerLabel(ownerId, managers, user)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Unassigned</SelectItem>
-                {managers.map((m) => (
+                {ownerCandidates.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    {m.full_name}
+                    {userDisplayName(m)}
                   </SelectItem>
                 ))}
               </SelectContent>

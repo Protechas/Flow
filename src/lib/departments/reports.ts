@@ -1,9 +1,4 @@
 import { initFlowStore, getFlowStore } from "@/lib/data/flow-store";
-import {
-  MOCK_DEPARTMENTS,
-  MOCK_DEPARTMENT_USERS,
-  MOCK_TEAMS,
-} from "@/lib/data/mock-data";
 import type {
   DailyWrapUpComplianceRow,
   Department,
@@ -16,8 +11,7 @@ import type {
 import { format } from "date-fns";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import { getProductionReport } from "@/lib/data/production-tracking";
-import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
-import { requiresShiftClock } from "@/lib/users/pay-type";
+import { isWrapUpMissingForReporting } from "@/lib/wrap-up/eligibility";
 
 export interface DepartmentReportMetrics {
   departmentId: string;
@@ -75,9 +69,8 @@ export function buildDepartmentReportMetrics(
   ).length;
   const wrapUpMissing = [...deptUserIds].filter((uid) => {
     const user = store.users.find((u) => u.id === uid);
-    if (!user?.is_active || !requiresShiftClock(user)) return false;
-    const status = getWrapUpComplianceStatus(uid, today);
-    return status === "missing";
+    if (!user) return false;
+    return isWrapUpMissingForReporting(user, today);
   }).length;
 
   const deptProd = production.byDepartment.find((d) => d.departmentId === departmentId);

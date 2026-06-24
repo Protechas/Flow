@@ -13,6 +13,7 @@ import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { initProductionTracking } from "@/lib/data/production-tracking";
 import { getTeamAvailability } from "@/lib/time-clock/get-team-availability";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { isWrapUpRequiredForDate } from "@/lib/wrap-up/eligibility";
 import { buildEmployeeScorecard, type PerformanceStoreSlice } from "@/lib/scoring/performance-engine";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type {
@@ -122,7 +123,11 @@ export function buildOrgChartOpsMap(
             flags.push("clocked_out");
             clockStatus = "out";
           }
-          if (wrapUpStatus === "missing" && requiresShiftClock(user)) {
+          if (
+            wrapUpStatus === "missing" &&
+            requiresShiftClock(user) &&
+            isWrapUpRequiredForDate(user, today)
+          ) {
             flags.push("missing_wrap_up");
           }
         }

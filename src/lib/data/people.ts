@@ -1,14 +1,16 @@
-import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import {
   buildEmployeeScorecard,
   rankScorecards,
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
 import { buildTeamScorecardSummary } from "@/lib/scoring/scorecard-periods";
+import { isProductionEmployee } from "@/lib/users/production-roster";
 import type { EmployeeScorecard, TeamScorecardSummary, User } from "@/types/flow";
 
-function getPerformanceStore(): PerformanceStoreSlice {
-  initFlowStore();
+async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
+  await ensureAppDataLoaded();
   const store = getFlowStore();
   return {
     users: store.users,
@@ -22,8 +24,8 @@ function getPerformanceStore(): PerformanceStoreSlice {
 }
 
 export async function getPeopleProfiles(teamMemberIds?: string[]): Promise<EmployeeScorecard[]> {
-  const store = getPerformanceStore();
-  let employees = store.users.filter((u) => u.role === "employee" && u.is_active);
+  const store = await getPerformanceStore();
+  let employees = store.users.filter(isProductionEmployee);
   if (teamMemberIds?.length) {
     const ids = new Set(teamMemberIds);
     employees = employees.filter((u) => ids.has(u.id));
@@ -32,7 +34,7 @@ export async function getPeopleProfiles(teamMemberIds?: string[]): Promise<Emplo
 }
 
 export async function getPeopleProfile(userId: string): Promise<EmployeeScorecard | null> {
-  const store = getPerformanceStore();
+  const store = await getPerformanceStore();
   const user = store.users.find((u) => u.id === userId && u.is_active);
   if (!user) return null;
 
@@ -49,7 +51,7 @@ export async function getTeamScorecardSummary(teamMemberIds?: string[]): Promise
 }
 
 export function getAnalystsForScope(allUsers: User[], teamMemberIds?: string[]): User[] {
-  let analysts = allUsers.filter((u) => u.role === "employee" && u.is_active);
+  let analysts = allUsers.filter(isProductionEmployee);
   if (teamMemberIds?.length) {
     const ids = new Set(teamMemberIds);
     analysts = analysts.filter((u) => ids.has(u.id));

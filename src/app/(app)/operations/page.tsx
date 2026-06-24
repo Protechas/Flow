@@ -27,7 +27,7 @@ import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listHelpFlagsForViewer } from "@/lib/help-flags/engine";
-import { getFlowStore, initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
+import { getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { getAnalysts, getManagers } from "@/lib/data/projects";
 import { getAllTaskFileUploads, initProductionTracking } from "@/lib/data/production-tracking";
 import { getOperationsTree, getWorkPackages } from "@/lib/data/work-packages";
@@ -74,7 +74,6 @@ export default async function OperationsPage({
   await hydrateHelpFlagSettings();
   await hydrateWorkVisibilitySettings();
   await runWorkflowChecksAction();
-  initFlowStore();
   initProductionTracking();
   const store = getFlowStore();
   const teams = listTeamsStore();

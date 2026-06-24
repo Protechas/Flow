@@ -15,9 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
 import { PlanningCalendarView } from "@/components/planning/planning-calendar-view";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { FORECAST_KPI_HELP } from "@/lib/help/help-text";
 import { simulateWhatIf } from "@/lib/planning/impact-preview";
 import type { PlanningCenterSnapshot } from "@/lib/planning/types";
 import {
@@ -57,11 +59,11 @@ export function PlanningCenterView({
         </p>
       </header>
 
-      <EnterpriseSection title="Current Operations Status" id="status">
+      <EnterpriseSection title="Current Operations Status" id="status" helpKey="operationsOverview">
         <KpiStrip columns={4} items={snapshot.operationsStatus} />
       </EnterpriseSection>
 
-      <EnterpriseSection title="Work Visibility" id="visibility">
+      <EnterpriseSection title="Work Visibility" id="visibility" helpKey="workVisibilityScore">
         <KpiStrip
           columns={4}
           items={[
@@ -70,29 +72,33 @@ export function PlanningCenterView({
               value: `${snapshot.workVisibility.score}%`,
               href: "/reports/work-visibility",
               warn: snapshot.workVisibility.score < 85,
+              helpKey: "workVisibilityScore",
             },
             {
               label: OPS_COPY.taskTrackingCompliance,
               value: `${snapshot.workVisibility.taskTrackingCompliancePct}%`,
               href: "/reports/work-visibility",
+              helpKey: "taskTrackingCompliance",
             },
             {
               label: OPS_COPY.activityGap,
               value: snapshot.workVisibility.openActivityGaps,
               href: "/reports/work-visibility#gaps",
               warn: snapshot.workVisibility.openActivityGaps > 0,
+              helpKey: "activityGaps",
             },
             {
               label: "Employees With Gaps",
               value: snapshot.workVisibility.employeesWithGaps,
               href: "/reports/work-visibility#gaps",
               warn: snapshot.workVisibility.employeesWithGaps > 0,
+              helpKey: "employeesWithGaps",
             },
           ]}
         />
       </EnterpriseSection>
 
-      <EnterpriseSection title="Company Forecast" id="forecast">
+      <EnterpriseSection title="Company Forecast" id="forecast" helpKey="forecastCompletion">
         <KpiStrip
           columns={4}
           items={[
@@ -100,39 +106,47 @@ export function PlanningCenterView({
               label: "On-Time Projects",
               value: snapshot.executiveForecast.projectsForecastedOnTime,
               href: "/project-health",
+              helpKey: FORECAST_KPI_HELP["On-Time Projects"],
             },
             {
               label: "Late Projects",
               value: snapshot.executiveForecast.projectsForecastedLate,
               warn: snapshot.executiveForecast.projectsForecastedLate > 0,
               href: "/project-health?risk=at_risk",
+              helpKey: FORECAST_KPI_HELP["Late Projects"],
             },
             {
               label: "Forecast Completion Rate",
               value: `${snapshot.executiveForecast.forecastCompletionRate}%`,
+              helpKey: FORECAST_KPI_HELP["Forecast Completion Rate"],
             },
             {
               label: "Capacity Utilization",
               value: `${snapshot.executiveForecast.capacityUtilizationPct}%`,
               warn: snapshot.executiveForecast.capacityUtilizationPct >= 75,
+              helpKey: FORECAST_KPI_HELP["Capacity Utilization"],
             },
             {
               label: "Expected Backlog (hrs)",
               value: snapshot.executiveForecast.expectedBacklogHours,
+              helpKey: FORECAST_KPI_HELP["Expected Backlog (hrs)"],
             },
             {
               label: "Deliveries This Week",
               value: snapshot.executiveForecast.expectedDeliveriesThisWeek,
               href: operationsHref(),
+              helpKey: FORECAST_KPI_HELP["Deliveries This Week"],
             },
             {
               label: "Expected QA Volume",
               value: snapshot.executiveForecast.expectedQaVolume,
               href: "/qa-center",
+              helpKey: FORECAST_KPI_HELP["Expected QA Volume"],
             },
             {
               label: "Forecast Confidence",
               value: `${snapshot.executiveForecast.forecastConfidence}%`,
+              helpKey: FORECAST_KPI_HELP["Forecast Confidence"],
             },
           ]}
         />
@@ -382,6 +396,7 @@ function WhatIfPanel({
       title="What-If Simulator"
       id="what-if"
       description="Simulate adding work without saving. Adjust inputs to see forecast, capacity, and risk impact instantly."
+      helpKey="whatIfSimulator"
     >
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3 rounded-lg border border-border/50 p-4">
@@ -405,7 +420,14 @@ function WhatIfPanel({
           <div className="space-y-1.5">
             <Label className="text-xs">Department</Label>
             <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <EntitySelectValue
+                  value={departmentId}
+                  items={departments}
+                  getLabel={(d) => d.name}
+                  placeholder="Select department"
+                />
+              </SelectTrigger>
               <SelectContent>
                 {departments.map((d) => (
                   <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -416,7 +438,15 @@ function WhatIfPanel({
           <div className="space-y-1.5">
             <Label className="text-xs">Project (optional)</Label>
             <Select value={projectId} onValueChange={(v) => v && setProjectId(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <EntitySelectValue
+                  value={projectId}
+                  items={projects}
+                  getLabel={(p) => p.name}
+                  placeholder="None"
+                  sentinels={[{ value: "__none__", label: "None" }]}
+                />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">None</SelectItem>
                 {projects.map((p) => (

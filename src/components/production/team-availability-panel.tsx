@@ -40,16 +40,18 @@ export function TeamAvailabilityPanel({
     <EnterpriseSection
       title="Team availability"
       description="Hourly staff use shift clock; salary staff track time via active tasks"
+      helpKey="teamAvailability"
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
-        <EnterpriseKpi label="Clocked in" value={summary.onShift} />
-        <EnterpriseKpi label="On lunch" value={summary.onLunch} warn={summary.onLunch > 0} />
-        <EnterpriseKpi label="On task (salary)" value={summary.onTask} />
-        <EnterpriseKpi label="Off shift" value={summary.offShift} />
+        <EnterpriseKpi label="Clocked in" value={summary.onShift} helpKey="clockedIn" />
+        <EnterpriseKpi label="On lunch" value={summary.onLunch} warn={summary.onLunch > 0} helpKey="onLunch" />
+        <EnterpriseKpi label="On task (salary)" value={summary.onTask} helpKey="onTaskSalary" />
+        <EnterpriseKpi label="Off shift" value={summary.offShift} helpKey="offShift" />
         <EnterpriseKpi
           label="Team time today"
           value={summary.totalHoursLabel}
           sublabel={`${summary.hourlyCount} hourly · ${summary.salaryCount} salary`}
+          helpKey="teamTimeToday"
         />
       </div>
 

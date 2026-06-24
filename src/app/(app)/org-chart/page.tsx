@@ -33,7 +33,7 @@ import { getHierarchyTree } from "@/lib/hierarchy/scope";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { alertCenterHref, wrapUpsHref } from "@/lib/navigation/deep-links";
-import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import type { OrgChartViewerPermissions } from "@/types/flow";
 
 export default async function OrgChartPage({
@@ -62,7 +62,7 @@ export default async function OrgChartPage({
   );
 
   const visibleUserIds = collectOrgChartUserIds(scopedRoots);
-  assertScopedUserIdParam(viewer, initialUserId, visibleUserIds);
+  await assertScopedUserIdParam(viewer, initialUserId, visibleUserIds);
   const safeInitialUserId =
     initialUserId?.trim() && visibleUserIds.includes(initialUserId.trim())
       ? initialUserId.trim()
@@ -148,6 +148,7 @@ export default async function OrgChartPage({
               value: attention.needsHelp,
               status: attention.needsHelp > 0 ? "critical" : "healthy",
               href: alertCenterHref({ type: "help" }),
+              helpKey: "openEscalations",
             },
             {
               id: "work",
@@ -155,6 +156,7 @@ export default async function OrgChartPage({
               value: attention.needsWork,
               status: attention.needsWork > 0 ? "attention" : "healthy",
               href: alertCenterHref({ type: "workload" }),
+              helpKey: "availableCapacity",
             },
             {
               id: "wrapup",
@@ -162,6 +164,7 @@ export default async function OrgChartPage({
               value: attention.missingWrapUp,
               status: attention.missingWrapUp > 0 ? "attention" : "healthy",
               href: wrapUpsHref({ status: "missing" }),
+              helpKey: "outstandingDailyReports",
             },
           ]}
         />
@@ -181,7 +184,7 @@ export default async function OrgChartPage({
               value: attention.needsHelp,
               warn: attention.needsHelp > 0,
               href: alertCenterHref({ type: "help" }),
-              title: OPS_TOOLTIPS.openEscalations,
+              helpKey: "openEscalations",
             },
             {
               id: "work",
@@ -189,7 +192,7 @@ export default async function OrgChartPage({
               value: attention.needsWork,
               warn: attention.needsWork > 0,
               href: alertCenterHref({ type: "workload" }),
-              title: OPS_TOOLTIPS.availableCapacity,
+              helpKey: "availableCapacity",
             },
             {
               id: "wrapup",
@@ -197,7 +200,7 @@ export default async function OrgChartPage({
               value: attention.missingWrapUp,
               warn: attention.missingWrapUp > 0,
               href: wrapUpsHref({ status: "missing" }),
-              title: OPS_TOOLTIPS.outstandingDailyReports,
+              helpKey: "outstandingDailyReports",
             },
           ]}
         />

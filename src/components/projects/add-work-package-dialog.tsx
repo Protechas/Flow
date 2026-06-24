@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { calculateTaskForecast, formatForecastDays } from "@/lib/forecast/engine";
 import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
@@ -133,7 +135,15 @@ export function AddWorkPackageDialog({
           <div className="space-y-2">
             <Label className="text-xs">Assign to</Label>
             <Select value={assignee} onValueChange={(v) => setAssignee(v ?? "__none__")}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9">
+                <EntitySelectValue
+                  value={assignee}
+                  items={analysts}
+                  getLabel={userDisplayName}
+                  placeholder="Unassigned"
+                  sentinels={[{ value: "__none__", label: "Unassigned" }]}
+                />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Unassigned</SelectItem>
                 {analysts.map((a) => (
@@ -160,7 +170,11 @@ export function AddWorkPackageDialog({
                 value={complexity}
                 onValueChange={(v) => v && setComplexity(v as ForecastComplexityLevel)}
               >
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9">
+                  <SelectValue>
+                    {COMPLEXITY_OPTIONS.find((o) => o.value === complexity)?.label}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {COMPLEXITY_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>

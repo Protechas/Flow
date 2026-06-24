@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore } from "@/lib/data/flow-store";
 import {
   ensureProjectMetricsHydrated,
   persistMetricDefinition,
@@ -25,8 +26,8 @@ import {
 import { requireUser } from "@/lib/auth/session";
 import type { ProjectMetricDefinitionInput } from "@/types/flow";
 
-function getProjectOrThrow(projectId: string) {
-  initFlowStore();
+async function getProjectOrThrow(projectId: string) {
+  await ensureAppDataLoaded();
   const project = getFlowStore().projects.find((p) => p.id === projectId);
   if (!project) throw new Error("Project not found");
   return project;
@@ -35,7 +36,7 @@ function getProjectOrThrow(projectId: string) {
 export async function listProjectMetricsAction(projectId: string) {
   await requireUser();
   await ensureProjectMetricsHydrated();
-  const project = getProjectOrThrow(projectId);
+  const project = await getProjectOrThrow(projectId);
   return resolveProjectMetrics(project);
 }
 
@@ -44,7 +45,7 @@ export async function createProjectMetricAction(
   input: ProjectMetricDefinitionInput
 ) {
   const user = await requireUser();
-  const project = getProjectOrThrow(projectId);
+  const project = await getProjectOrThrow(projectId);
   if (!canManageProjectMetrics(user)) throw new Error("FORBIDDEN");
 
   await ensureProjectMetricsHydrated();
@@ -62,7 +63,7 @@ export async function updateProjectMetricAction(
   const user = await requireUser();
   const existing = getProjectMetricDefinition(metricId);
   if (!existing) throw new Error("Metric not found");
-  getProjectOrThrow(existing.project_id);
+  await getProjectOrThrow(existing.project_id);
   if (!canManageProjectMetrics(user)) throw new Error("FORBIDDEN");
 
   const updated = updateProjectMetricDefinitionRecord(metricId, input);
@@ -86,7 +87,7 @@ export async function archiveProjectMetricAction(metricId: string) {
 
 export async function reorderProjectMetricsAction(projectId: string, orderedIds: string[]) {
   const user = await requireUser();
-  getProjectOrThrow(projectId);
+  await getProjectOrThrow(projectId);
   if (!canManageProjectMetrics(user)) throw new Error("FORBIDDEN");
 
   const reordered = reorderProjectMetricDefinitions(projectId, orderedIds);
@@ -99,7 +100,7 @@ export async function updateProjectMetricValueAction(metricId: string, value: st
   const user = await requireUser();
   const existing = getProjectMetricDefinition(metricId);
   if (!existing) throw new Error("Metric not found");
-  const project = getProjectOrThrow(existing.project_id);
+  const project = await getProjectOrThrow(existing.project_id);
   if (!canUpdateProjectMetricValues(user, project)) throw new Error("FORBIDDEN");
   if (existing.is_formula) throw new Error("Calculated metrics cannot be edited manually.");
 

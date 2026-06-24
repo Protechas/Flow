@@ -1,6 +1,8 @@
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { OperationalPulse, type OperationalPulseStatus } from "@/components/platform/operational-pulse";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -12,6 +14,7 @@ export type PulseMetric = {
   /** Visual emphasis — drives border accent color */
   tone?: "healthy" | "neutral" | "warning" | "critical" | "qa";
   sublabel?: string;
+  helpKey?: HelpTextKey;
 };
 
 export function OperationalPulsePanel({
@@ -21,6 +24,7 @@ export function OperationalPulsePanel({
   metrics,
   actions,
   className,
+  helpKey = "operationsOverview",
 }: {
   title?: string;
   subtitle?: string;
@@ -28,6 +32,7 @@ export function OperationalPulsePanel({
   metrics: PulseMetric[];
   actions?: ReactNode;
   className?: string;
+  helpKey?: HelpTextKey;
 }) {
   return (
     <section
@@ -38,10 +43,13 @@ export function OperationalPulsePanel({
       <div className="flow-operational-pulse-panel-header">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="flow-command-title">{title}</h2>
+            <h2 className="flow-command-title flex items-center gap-1.5">
+              {title}
+              <InfoTooltip helpKey={helpKey} />
+            </h2>
             <OperationalPulse status={pulseStatus} />
           </div>
-          {subtitle && (
+          {subtitle && !helpKey && (
             <p className="flow-command-subtitle mt-1">{subtitle}</p>
           )}
         </div>
@@ -54,7 +62,10 @@ export function OperationalPulsePanel({
               className="flow-pulse-metric"
               data-tone={metric.tone ?? "neutral"}
             >
-              <p className="flow-pulse-metric-label">{metric.label}</p>
+              <p className="flow-pulse-metric-label flex items-center gap-0.5">
+                {metric.label}
+                <InfoTooltip helpKey={metric.helpKey} />
+              </p>
               <p className="flow-pulse-metric-value">{metric.value}</p>
               {metric.sublabel && (
                 <p className="flow-pulse-metric-sublabel">{metric.sublabel}</p>

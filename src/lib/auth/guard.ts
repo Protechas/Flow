@@ -3,7 +3,8 @@ import { canAccessRoute, getDefaultRoute, type Permission } from "@/lib/auth/per
 import { getEffectivePermissionRole, hasAdminAccess } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canViewerSeeUser } from "@/lib/auth/team-scope";
-import { getDailyWrapUpById, getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getDailyWrapUpById, getFlowStore } from "@/lib/data/flow-store";
 import { canViewWrapUp } from "@/lib/wrap-up/review";
 import { notFound, redirect } from "next/navigation";
 import type { Team, User, WorkPackage } from "@/types/flow";
@@ -13,6 +14,7 @@ export async function requirePageAccess(pathname: string): Promise<User> {
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
   if (!canAccessRoute(getEffectivePermissionRole(user), pathname)) redirect("/unauthorized");
+  await ensureAppDataLoaded();
   return user;
 }
 
@@ -21,6 +23,7 @@ export async function requirePagePermission(permission: Permission): Promise<Use
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
   if (!hasPermission(getEffectivePermissionRole(user), permission)) redirect("/unauthorized");
+  await ensureAppDataLoaded();
   return user;
 }
 
@@ -30,7 +33,6 @@ export async function requireOwnProfileOrTeam(profileUserId: string): Promise<Us
   if (hasPermission(permissionRole, "people:view_all")) return user;
   if (hasPermission(permissionRole, "people:view_own") && user.id === profileUserId) return user;
   if (hasPermission(permissionRole, "people:view_team")) {
-    initFlowStore();
     const store = getFlowStore();
     if (canViewerSeeUser(user, profileUserId, store.users, store.teams)) return user;
   }
@@ -42,34 +44,33 @@ export async function requireHierarchyUserAccess(targetUserId: string): Promise<
   const user = await requirePageAccess("/people");
   if (user.id === targetUserId) return user;
   if (hasAdminAccess(user)) return user;
-  initFlowStore();
   const store = getFlowStore();
   if (canViewerSeeUser(user, targetUserId, store.users, store.teams)) return user;
   redirect("/unauthorized");
 }
 
 /** Hierarchy scope check without route-specific page access. */
-export function assertUserInHierarchyScope(viewer: User, targetUserId: string): void {
+export async function assertUserInHierarchyScope(viewer: User, targetUserId: string): Promise<void> {
   if (viewer.id === targetUserId) return;
   if (hasAdminAccess(viewer)) return;
-  initFlowStore();
+  await ensureAppDataLoaded();
   const store = getFlowStore();
   if (canViewerSeeUser(viewer, targetUserId, store.users, store.teams)) return;
   redirect("/unauthorized");
 }
 
 /** Validate optional userId deep-link query param against hierarchy scope. */
-export function assertScopedUserIdParam(
+export async function assertScopedUserIdParam(
   viewer: User,
   targetUserId: string | undefined | null,
   visibleUserIds?: string[]
-): void {
+): Promise<void> {
   const trimmed = targetUserId?.trim();
   if (!trimmed) return;
   if (visibleUserIds && !visibleUserIds.includes(trimmed)) {
     redirect("/unauthorized");
   }
-  assertUserInHierarchyScope(viewer, trimmed);
+  await assertUserInHierarchyScope(viewer, trimmed);
 }
 
 export function canAccessWorkPackage(
@@ -104,7 +105,6 @@ export async function requireWorkPackageAccess(
   routePath: "/work" | "/operations" | "/qa-center" = "/work"
 ): Promise<{ user: User; pkg: WorkPackage }> {
   const user = await requirePageAccess(routePath);
-  initFlowStore();
   const store = getFlowStore();
   const pkg = store.workPackages.find((p) => p.id === taskId);
   if (!pkg) notFound();
@@ -117,7 +117,6 @@ export async function requireWorkPackageAccess(
 /** Block deep links to wrap-up records outside hierarchy scope. */
 export async function requireWrapUpAccess(wrapUpId: string): Promise<User> {
   const user = await requirePageAccess("/wrap-ups");
-  initFlowStore();
   const wrapUp = getDailyWrapUpById(wrapUpId);
   if (!wrapUp) notFound();
   if (!canViewWrapUp(user, wrapUp)) redirect("/unauthorized");

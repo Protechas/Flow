@@ -1,4 +1,5 @@
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore } from "@/lib/data/flow-store";
 import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
@@ -22,7 +23,7 @@ import {
 import type { ReportMetrics } from "@/types/flow";
 
 export async function getReportMetrics(teamMemberIds?: string[]): Promise<ReportMetrics> {
-  initFlowStore();
+  await ensureAppDataLoaded();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
   await ensureProjectMetricsHydrated();

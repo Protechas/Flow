@@ -5,7 +5,12 @@ import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import type { Department, User } from "@/types/flow";
 
 export function canViewAllDepartments(user: User): boolean {
-  return hasPermission(user.role, "work:view_all") || user.role === "admin";
+  return (
+    hasPermission(user.role, "work:view_all") ||
+    hasPermission(user.role, "departments:manage") ||
+    user.role === "admin" ||
+    user.role === "super_admin"
+  );
 }
 
 export function getViewerDepartmentIds(viewer: User): string[] | null {

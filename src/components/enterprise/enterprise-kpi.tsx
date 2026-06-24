@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { TrendBadge } from "@/components/ui/trend-badge";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import { cn } from "@/lib/utils";
 
 export function EnterpriseKpi({
@@ -15,6 +17,8 @@ export function EnterpriseKpi({
   priority,
   className,
   title,
+  helpKey,
+  helpText,
 }: {
   label: string;
   value: string | number;
@@ -29,7 +33,10 @@ export function EnterpriseKpi({
   critical?: boolean;
   spotlight?: boolean;
   className?: string;
+  /** @deprecated Use helpKey — native browser tooltip fallback for links */
   title?: string;
+  helpKey?: HelpTextKey;
+  helpText?: string;
 }) {
   const interactive = Boolean(href || onClick);
   const inner = (
@@ -47,7 +54,10 @@ export function EnterpriseKpi({
     >
       <div className="relative z-[1]">
         <div className="flex items-start justify-between gap-2">
-          <p className="enterprise-label truncate">{label}</p>
+          <div className="flex items-center gap-1 min-w-0">
+            <p className="enterprise-label truncate">{label}</p>
+            <InfoTooltip helpKey={helpKey} content={helpText ?? (title && title !== label ? title : undefined)} />
+          </div>
           {!warn && !critical && spotlight === true && (
             <span className="flow-kpi-accent-corner" aria-hidden />
           )}

@@ -36,8 +36,8 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export async function requireUser(): Promise<User> {
   if (isSupabaseConfigured()) {
-    const { hydrateAppStore } = await import("@/lib/data/users");
-    await hydrateAppStore();
+    const { ensureAppDataLoaded } = await import("@/lib/data/app-hydrate");
+    await ensureAppDataLoaded();
   }
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
@@ -51,8 +51,10 @@ export async function requirePermission(permission: Permission): Promise<User> {
 }
 
 async function storeUsersForSession(): Promise<User[]> {
-  const { hydrateAppStore } = await import("@/lib/data/users");
-  return hydrateAppStore();
+  const { ensureAppDataLoaded } = await import("@/lib/data/app-hydrate");
+  await ensureAppDataLoaded();
+  const { getFlowStore } = await import("@/lib/data/flow-store");
+  return getFlowStore().users;
 }
 
 export async function assertCanEditWorkPackage(

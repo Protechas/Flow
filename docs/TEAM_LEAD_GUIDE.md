@@ -88,6 +88,8 @@ Click **New Work**:
 - **New Project** — when starting a new program (7-step wizard)
 - **New Board** — lightweight queue (rare)
 
+**Full step-by-step guide:** [Creating Projects & Tasks](/docs/creating-work)
+
 ---
 
 ## QA for Team Leads

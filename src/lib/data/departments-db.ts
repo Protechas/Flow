@@ -99,7 +99,7 @@ export async function ensureDepartmentsLoaded(): Promise<{
   teams: Team[];
   departmentUsers: DepartmentUser[];
 }> {
-  if (listDepartments().length > 0 || listTeamsStore().length > 0) {
+  if (listDepartments().length > 0) {
     return {
       departments: listDepartments(),
       teams: listTeamsStore(),

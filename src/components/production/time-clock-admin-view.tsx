@@ -7,6 +7,8 @@ import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import { formatMinutes } from "@/lib/production/metrics";
 import { clockOutTypeLabel } from "@/lib/time-clock/labels";
 import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
@@ -42,7 +44,13 @@ export function TimeClockAdminView({
 
       <Select value={userFilter} onValueChange={(v) => setUserFilter(v ?? "all")}>
         <SelectTrigger className="w-[220px]">
-          <SelectValue placeholder="Filter employee" />
+          <EntitySelectValue
+            value={userFilter}
+            items={users}
+            getLabel={userDisplayName}
+            placeholder="Filter employee"
+            sentinels={[{ value: "all", label: "All employees" }]}
+          />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All employees</SelectItem>

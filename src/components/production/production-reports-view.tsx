@@ -6,6 +6,8 @@ import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { ProductionReportSummary, User } from "@/types/flow";
 import {
@@ -60,7 +62,13 @@ export function ProductionReportsView({
       <div className="flex flex-wrap gap-3">
         <Select value={employeeFilter} onValueChange={(v) => setEmployeeFilter(v ?? "all")}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Employee" />
+            <EntitySelectValue
+              value={employeeFilter}
+              items={users.filter((u) => u.role === "employee")}
+              getLabel={userDisplayName}
+              placeholder="Employee"
+              sentinels={[{ value: "all", label: "All employees" }]}
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All employees</SelectItem>
@@ -71,7 +79,13 @@ export function ProductionReportsView({
         </Select>
         <Select value={projectFilter} onValueChange={(v) => setProjectFilter(v ?? "all")}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Project" />
+            <EntitySelectValue
+              value={projectFilter}
+              items={projects}
+              getLabel={(p) => p.name}
+              placeholder="Project"
+              sentinels={[{ value: "all", label: "All projects" }]}
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All projects</SelectItem>

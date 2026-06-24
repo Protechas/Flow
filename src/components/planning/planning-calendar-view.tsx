@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   buildPlanningCalendarEvents,
@@ -183,7 +185,13 @@ export function PlanningCalendarView({
           </div>
           <Select value={departmentId} onValueChange={(v) => v && setDepartmentId(v)}>
             <SelectTrigger className="w-[180px] h-8 text-xs">
-              <SelectValue placeholder="All departments" />
+              <EntitySelectValue
+                value={departmentId}
+                items={departments}
+                getLabel={(d) => d.name}
+                placeholder="All departments"
+                sentinels={[{ value: "__all__", label: "All departments" }]}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All departments</SelectItem>

@@ -5,6 +5,10 @@ import {
 } from "@/lib/data/production-tracking";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { getUserPrimaryDepartmentId, getDepartmentName } from "@/lib/departments/resolve";
+import {
+  hadShiftActivityOnDate,
+  isWrapUpRequiredForDate,
+} from "@/lib/wrap-up/eligibility";
 import type {
   DailyWrapUpComplianceRow,
   User,
@@ -45,7 +49,7 @@ export function getWrapUpCompletionPctForUsers(
   const store = getFlowStore();
   const requiredIds = userIds.filter((id) => {
     const user = store.users.find((u) => u.id === id);
-    return user?.is_active && requiresShiftClock(user);
+    return user && isWrapUpRequiredForDate(user, wrapDate);
   });
   if (requiredIds.length === 0) return 100;
 
@@ -66,6 +70,11 @@ export function buildDailyWrapUpComplianceReport(
 
   return users
     .filter((u) => u.is_active && requiresShiftClock(u))
+    .filter((u) => {
+      const status = getWrapUpComplianceStatus(u.id, wrapDate);
+      if (status === "submitted" || status === "overridden") return true;
+      return hadShiftActivityOnDate(u.id, wrapDate);
+    })
     .map((user) => {
       const wrapUpStatus = getWrapUpComplianceStatus(user.id, wrapDate);
       const override = store.dailyWrapUpOverrides.find(

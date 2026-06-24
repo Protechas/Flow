@@ -8,6 +8,7 @@ import {
   getShiftMinutesToday,
 } from "@/lib/data/production-tracking";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { isWrapUpMissingForReporting } from "@/lib/wrap-up/eligibility";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type {
   DailyWrapUp,
@@ -173,8 +174,8 @@ export function buildWrapUpReviewRows(
     for (let d = start; d <= end; d = new Date(d.getTime() + 86400000)) {
       const dateStr = format(d, "yyyy-MM-dd");
       for (const emp of employees) {
-        const status = getWrapUpComplianceStatus(emp.id, dateStr);
-        if (status === "missing" && (!filters.status || filters.status === "all" || filters.status === "missing")) {
+        if (!isWrapUpMissingForReporting(emp, dateStr)) continue;
+        if (!filters.status || filters.status === "all" || filters.status === "missing") {
           if (!rows.some((r) => r.userId === emp.id && r.wrapDate === dateStr)) {
             rows.push(buildMissingRow(emp, dateStr));
           }

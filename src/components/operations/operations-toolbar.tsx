@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import {
   DEFAULT_OPS_FILTERS,
   OPS_SAVED_VIEWS,
@@ -171,7 +173,13 @@ export function OperationsToolbar({
             }
           >
             <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Project" />
+              <EntitySelectValue
+                value={filters.projectId ?? "__all__"}
+                items={projects}
+                getLabel={(p) => p.name}
+                placeholder="Project"
+                sentinels={[{ value: "__all__", label: "All projects" }]}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All projects</SelectItem>
@@ -190,7 +198,13 @@ export function OperationsToolbar({
             }
           >
             <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Manufacturer" />
+              <EntitySelectValue
+                value={filters.manufacturerId ?? "__all__"}
+                items={manufacturers}
+                getLabel={(m) => m.name}
+                placeholder="Manufacturer"
+                sentinels={[{ value: "__all__", label: "All manufacturers" }]}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All manufacturers</SelectItem>
@@ -209,7 +223,13 @@ export function OperationsToolbar({
             }
           >
             <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder="Assigned" />
+              <EntitySelectValue
+                value={filters.assignedTo ?? "__all__"}
+                items={analysts}
+                getLabel={userDisplayName}
+                placeholder="Assigned"
+                sentinels={[{ value: "__all__", label: "Anyone" }]}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Anyone</SelectItem>

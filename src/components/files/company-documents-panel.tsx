@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LabelWithHelp } from "@/components/ui/label-with-help";
+import { FILE_CATEGORY_HELP } from "@/lib/help/help-text";
 import {
   Select,
   SelectContent,
@@ -119,7 +121,9 @@ export function CompanyDocumentsPanel({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="doc-category">Category</Label>
+              <LabelWithHelp htmlFor="doc-category" helpKey={FILE_CATEGORY_HELP[category] ?? "fileCategory"}>
+                Category
+              </LabelWithHelp>
               <Select value={category} onValueChange={(v) => v && setCategory(v)}>
                 <SelectTrigger id="doc-category" className="w-full bg-card text-foreground">
                   <SelectValue />

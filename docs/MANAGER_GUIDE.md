@@ -74,6 +74,8 @@ You have broader project permissions than team leads (including **project delete
 
 ## Assigning Work
 
+**Step-by-step manual:** [Creating Projects & Tasks](/docs/creating-work) — covers New Work wizard, project creation (7 steps), quick tasks, and adding tasks from Operations or Projects.
+
 ### From Operations
 1. Open package card or detail panel.
 2. Set **Assigned To** to team member.

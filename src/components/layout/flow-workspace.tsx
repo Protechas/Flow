@@ -8,6 +8,7 @@ export function FlowWorkspace({
   children,
   className,
   bodyClassName,
+  titleAdornment,
 }: {
   title?: string;
   description?: string;
@@ -16,6 +17,7 @@ export function FlowWorkspace({
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  titleAdornment?: React.ReactNode;
 }) {
   const hasHeader = title || description || actions;
 
@@ -24,7 +26,12 @@ export function FlowWorkspace({
       {hasHeader && (
         <div className="flow-workspace-header">
           <div className="min-w-0">
-            {title && <h2 className="flow-workspace-title">{title}</h2>}
+            {title && (
+              <h2 className="flow-workspace-title flex items-center gap-1.5">
+                {title}
+                {titleAdornment}
+              </h2>
+            )}
             {description && (
               <p className="flow-workspace-description">{description}</p>
             )}

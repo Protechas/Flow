@@ -1769,7 +1769,9 @@ export type ProjectInput = Pick<
   | "manual_project_due_date"
   | "estimated_total_documents"
   | "planning_complexity_level"
->;
+> & {
+  created_by?: string | null;
+};
 
 export type ManufacturerInput = Pick<
   Manufacturer,

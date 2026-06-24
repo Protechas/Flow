@@ -1,4 +1,5 @@
 import { filterActiveWorkPackages } from "@/lib/data/entity-filters";
+import { ensureProjectsHydrated } from "@/lib/data/projects-db";
 import { buildOperationsTree } from "@/lib/hierarchy/build-tree";
 import {
   enrichPackages,
@@ -38,6 +39,7 @@ export async function getWorkPackages(filters?: WorkPackageFilters): Promise<Wor
 export async function getOperationsTree(filters?: {
   assignedTo?: string;
 }): Promise<OperationsTree> {
+  await ensureProjectsHydrated();
   initFlowStore();
   const store = getFlowStore();
   let packages = filterActiveWorkPackages(

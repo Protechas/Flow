@@ -1,9 +1,8 @@
 import { EmployeeHeader } from "@/components/employee/employee-header";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isEmployeeRole } from "@/lib/auth/permissions";
-import { getDefaultRoute } from "@/lib/auth/permissions";
+import { getDefaultRoute, isEmployeeRole } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { hydrateAppStore } from "@/lib/data/users";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
@@ -20,7 +19,7 @@ export default async function EmployeeLayout({
   if (!isEmployeeRole(user.role)) redirect(getDefaultRoute(user.role));
 
   if (isSupabaseConfigured()) {
-    await hydrateAppStore();
+    await ensureAppDataLoaded();
   } else {
     await hydrateForecastSettings();
   }

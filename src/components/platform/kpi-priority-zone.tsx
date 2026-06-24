@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
+import type { HelpTextKey } from "@/lib/help/help-text";
 
 export function KpiPriorityZone({
   title,
@@ -7,12 +9,14 @@ export function KpiPriorityZone({
   variant = "overview",
   children,
   className,
+  helpKey,
 }: {
   title?: string;
   description?: string;
   variant?: "attention" | "overview";
   children: ReactNode;
   className?: string;
+  helpKey?: HelpTextKey;
 }) {
   return (
     <section
@@ -25,7 +29,12 @@ export function KpiPriorityZone({
     >
       {(title || description) && (
         <div className="flow-kpi-zone-header mb-3">
-          {title && <h3 className="flow-kpi-zone-title">{title}</h3>}
+          {title && (
+            <h3 className="flow-kpi-zone-title flex items-center gap-1.5">
+              {title}
+              {helpKey && <InfoTooltip helpKey={helpKey} />}
+            </h3>
+          )}
           {description && <p className="flow-kpi-zone-description">{description}</p>}
         </div>
       )}

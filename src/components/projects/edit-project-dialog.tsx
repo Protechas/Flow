@@ -26,6 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PROJECT_STATUSES, PROJECT_TYPES, WORK_PRIORITIES } from "@/lib/constants";
+import {
+  projectOwnerCandidates,
+  resolveOwnerLabel,
+} from "@/lib/work-creation/client-defaults";
+import { userDisplayName } from "@/lib/users/display-name";
 import type {
   ForecastComplexityLevel,
   ForecastSettings,
@@ -39,11 +44,15 @@ export function EditProjectDialog({
   project,
   managers,
   forecastSettings,
+  viewer,
 }: {
   project: Project;
   managers: User[];
   forecastSettings: ForecastSettings;
+  viewer: User;
 }) {
+  const ownerCandidates = projectOwnerCandidates(managers, viewer);
+  const ownerId = project.project_owner_id ?? "__none__";
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [docCount, setDocCount] = useState(
@@ -105,7 +114,11 @@ export function EditProjectDialog({
             <div className="space-y-2">
               <Label>Type</Label>
               <Select name="project_type" defaultValue={project.project_type}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {PROJECT_TYPES.find((t) => t.value === project.project_type)?.label}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {PROJECT_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -116,7 +129,11 @@ export function EditProjectDialog({
             <div className="space-y-2">
               <Label>Status</Label>
               <Select name="status" defaultValue={project.status}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {PROJECT_STATUSES.find((s) => s.value === project.status)?.label}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {PROJECT_STATUSES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -129,7 +146,11 @@ export function EditProjectDialog({
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select name="priority" defaultValue={project.priority}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {WORK_PRIORITIES.find((p) => p.value === project.priority)?.label}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {WORK_PRIORITIES.map((p) => (
                     <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
@@ -139,12 +160,18 @@ export function EditProjectDialog({
             </div>
             <div className="space-y-2">
               <Label>Owner</Label>
-              <Select name="project_owner_id" defaultValue={project.project_owner_id ?? "__none__"}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select name="project_owner_id" defaultValue={ownerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select owner">
+                    {resolveOwnerLabel(ownerId, managers, viewer)}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
-                  {managers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                  {ownerCandidates.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {userDisplayName(m)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -1,4 +1,5 @@
-import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import {
   buildAccountabilityReport,
   buildCoachingReport,
@@ -7,6 +8,7 @@ import {
   rankScorecards,
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
+import { isProductionEmployee } from "@/lib/users/production-roster";
 import type {
   AccountabilityReport,
   CoachingReport,
@@ -14,8 +16,8 @@ import type {
   TeamPerformanceDashboard,
 } from "@/types/flow";
 
-function getPerformanceStore(): PerformanceStoreSlice {
-  initFlowStore();
+async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
+  await ensureAppDataLoaded();
   const store = getFlowStore();
   return {
     users: store.users,
@@ -29,25 +31,23 @@ function getPerformanceStore(): PerformanceStoreSlice {
 }
 
 export async function getTeamPerformanceDashboard(): Promise<TeamPerformanceDashboard> {
-  return buildTeamPerformanceDashboard(getPerformanceStore());
+  return buildTeamPerformanceDashboard(await getPerformanceStore());
 }
 
 export async function getEmployeeScorecards(): Promise<EmployeeScorecard[]> {
-  const store = getPerformanceStore();
-  const employees = store.users.filter((u) => u.role === "employee" && u.is_active);
+  const store = await getPerformanceStore();
+  const employees = store.users.filter(isProductionEmployee);
   return rankScorecards(employees.map((u) => buildEmployeeScorecard(u, store)));
 }
 
 export async function getEmployeeScorecard(
   userId: string
 ): Promise<EmployeeScorecard | null> {
-  const store = getPerformanceStore();
+  const store = await getPerformanceStore();
   const user = store.users.find((u) => u.id === userId);
   if (!user) return null;
   const cards = rankScorecards(
-    store.users
-      .filter((u) => u.role === "employee" && u.is_active)
-      .map((u) => buildEmployeeScorecard(u, store))
+    store.users.filter(isProductionEmployee).map((u) => buildEmployeeScorecard(u, store))
   );
   return cards.find((c) => c.user.id === userId) ?? buildEmployeeScorecard(user, store);
 }

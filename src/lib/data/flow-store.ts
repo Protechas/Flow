@@ -2,6 +2,7 @@
  * Mutable in-memory store for demo mode.
  * All reporting reads from this store — no hardcoded metrics.
  */
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { PROJECT_TEMPLATES, type ProjectTemplateId } from "@/lib/templates/project-templates";
 import { seedMetricsForProject } from "@/lib/metrics/template-metric-defaults";
 import type {
@@ -71,7 +72,6 @@ import { initHierarchyFromStore } from "@/lib/auth/team-scope";
 import { resolveDepartmentForProject, resolveDepartmentForUser } from "@/lib/departments/resolve";
 import { MOCK_ORG_POSITIONS, syncMockUsersToPositions } from "@/lib/data/mock-positions";
 import { seedDemoOrgPositions } from "@/lib/data/org-positions";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function persistTaskStore() {
   if (isSupabaseConfigured()) return;
@@ -137,6 +137,9 @@ function initEmptyProductionStore(): void {
 }
 
 function uid(prefix: string) {
+  if (isSupabaseConfigured()) {
+    return crypto.randomUUID();
+  }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
@@ -545,7 +548,7 @@ export function createProject(input: ProjectInput, templateId?: ProjectTemplateI
     due_date: planningFields.due_date ?? input.due_date ?? null,
     end_date: null,
     project_owner_id: input.project_owner_id ?? null,
-    created_by: input.project_owner_id ?? null,
+    created_by: input.created_by ?? input.project_owner_id ?? null,
     ...planningFields,
     created_at: ts(),
     updated_at: ts(),
@@ -1395,6 +1398,24 @@ export function replaceDepartmentStructureStore(
   departments = depts;
   teams = teamsList;
   departmentUsers = deptUsers;
+}
+
+export function replaceProjectsStructureStore(
+  projectList: Project[],
+  manufacturerList: Manufacturer[]
+): void {
+  projects = projectList;
+  manufacturers = manufacturerList;
+}
+
+export function listProjectsStore(): Project[] {
+  initFlowStore();
+  return [...projects];
+}
+
+export function listManufacturersStore(): Manufacturer[] {
+  initFlowStore();
+  return [...manufacturers];
 }
 
 export function listDepartments(): Department[] {

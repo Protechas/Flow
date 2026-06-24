@@ -65,15 +65,16 @@ export default async function QaCenterPage({
       pulse={
         <OperationalPostureStrip
           signals={[
-            { id: "queue", label: "In queue", value: queue.length, status: queue.length > 0 ? "attention" : "healthy", href: qaCenterHref() },
-            { id: "ready", label: "Ready", value: ready, status: ready > 0 ? "active" : "idle", href: qaCenterHref() },
-            { id: "inqa", label: "In QA", value: inQa, status: inQa > 0 ? "active" : "idle", href: qaCenterHref() },
+            { id: "queue", label: "In queue", value: queue.length, status: queue.length > 0 ? "attention" : "healthy", href: qaCenterHref(), helpKey: "qaQueue" },
+            { id: "ready", label: "Ready", value: ready, status: ready > 0 ? "active" : "idle", href: qaCenterHref(), helpKey: "qaQueue" },
+            { id: "inqa", label: "In QA", value: inQa, status: inQa > 0 ? "active" : "idle", href: qaCenterHref(), helpKey: "qaQueue" },
             {
               id: "corr",
               label: "Corrections",
               value: corrections,
               status: corrections > 0 ? "critical" : "healthy",
               href: operationsHref({ view: "correction_needed" }),
+              helpKey: "qaIssues",
             },
           ]}
         />
@@ -87,10 +88,10 @@ export default async function QaCenterPage({
         <KpiStrip
           columns={4}
           items={[
-            { id: "queue", label: "In review queue", value: queue.length },
-            { id: "ready", label: "Ready for QA", value: ready, warn: ready > 0 },
-            { id: "inqa", label: "In QA", value: inQa },
-            { id: "corr", label: "Corrections", value: corrections, warn: corrections > 0, critical: corrections > 3 },
+            { id: "queue", label: "In review queue", value: queue.length, helpKey: "qaQueue" },
+            { id: "ready", label: "Ready for QA", value: ready, warn: ready > 0, helpKey: "qaQueue" },
+            { id: "inqa", label: "In QA", value: inQa, helpKey: "qaQueue" },
+            { id: "corr", label: "Corrections", value: corrections, warn: corrections > 0, critical: corrections > 3, helpKey: "qaIssues" },
           ]}
         />
       }

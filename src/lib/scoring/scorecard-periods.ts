@@ -3,6 +3,7 @@ import {
   computeAvgCompletionHours,
   computeQaPassRate,
 } from "@/lib/scoring/flow-score";
+import { isProductionEmployee } from "@/lib/users/production-roster";
 import type {
   Correction,
   QaReview,
@@ -343,5 +344,5 @@ export function buildTeamScorecardSummary(
 }
 
 export function employeeUsers(users: User[]) {
-  return users.filter((u) => u.role === "employee" && u.is_active);
+  return users.filter(isProductionEmployee);
 }

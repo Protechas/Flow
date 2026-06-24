@@ -52,9 +52,14 @@ import {
 } from "@/lib/work-creation/templates";
 import {
   buildCreationDefaults,
+  defaultProjectOwnerId,
   filterBoardProjects,
   filterProgramProjects,
+  projectOwnerCandidates,
+  resolveDepartmentLabel,
+  resolveOwnerLabel,
   teamIdForDepartment,
+  userDisplayName,
 } from "@/lib/work-creation/client-defaults";
 import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 import type {
@@ -124,6 +129,14 @@ export function NewWorkWizard({
   const allowedModes = getAllowedCreationModes(user.role);
   const { toast } = useFlowToast();
   const defaults = buildCreationDefaults(user, departments, teams);
+  const ownerCandidates = useMemo(
+    () => projectOwnerCandidates(managers, user),
+    [managers, user]
+  );
+  const defaultOwnerId = useMemo(
+    () => defaultProjectOwnerId(user, managers),
+    [managers, user]
+  );
   const boardProjects = filterBoardProjects(projects);
   const programProjects = filterProgramProjects(projects);
 
@@ -151,7 +164,7 @@ export function NewWorkWizard({
     boardProjectId: "__none__",
     estimatedDocuments: "",
     manualDueDate: "",
-    ownerId: managers[0]?.id ?? "__none__",
+    ownerId: defaultOwnerId,
     complexity: defaults.complexity,
     priority: defaults.priority,
     description: "",
@@ -233,7 +246,7 @@ export function NewWorkWizard({
         boardName,
         templateId: project.templateId,
         ownerName:
-          managers.find((m) => m.id === project.ownerId)?.full_name ?? "Unassigned",
+          resolveOwnerLabel(project.ownerId, managers, user),
         docs: Number(project.estimatedDocuments) || 0,
         manualDue: project.manualDueDate || null,
         forecastSettings,
@@ -275,7 +288,7 @@ export function NewWorkWizard({
       boardProjectId: "__none__",
       estimatedDocuments: "",
       manualDueDate: "",
-      ownerId: managers[0]?.id ?? "__none__",
+      ownerId: defaultOwnerId,
       complexity: defaults.complexity,
       priority: defaults.priority,
       description: "",
@@ -489,10 +502,14 @@ export function NewWorkWizard({
             <div className="space-y-2">
               <Label>Department</Label>
               <Select
-                value={board.departmentId}
+                value={board.departmentId || undefined}
                 onValueChange={(v) => v && setBoard((b) => ({ ...b, departmentId: v }))}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select department">
+                    {resolveDepartmentLabel(board.departmentId, departments)}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -557,16 +574,25 @@ export function NewWorkWizard({
               <div className="space-y-2">
                 <Label className="text-xs">Department</Label>
                 <Select
-                  value={project.departmentId}
+                  value={project.departmentId || undefined}
                   onValueChange={(v) => v && setProject((p) => ({ ...p, departmentId: v }))}
                 >
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Select department">
+                      {resolveDepartmentLabel(project.departmentId, departments)}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {departments.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    No departments found. Add a department in Settings first.
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Linked board (optional)</Label>
@@ -590,11 +616,17 @@ export function NewWorkWizard({
                 value={project.ownerId}
                 onValueChange={(v) => v && setProject((p) => ({ ...p, ownerId: v }))}
               >
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Select owner">
+                    {resolveOwnerLabel(project.ownerId, managers, user)}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
-                  {managers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                  {ownerCandidates.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {userDisplayName(m)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

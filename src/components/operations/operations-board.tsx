@@ -60,6 +60,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
+import { userDisplayName } from "@/lib/users/display-name";
 import { Textarea } from "@/components/ui/textarea";
 import { useOperationsExpanded } from "@/hooks/use-operations-expanded";
 import { QA_STATUSES, WORK_PRIORITIES, WORK_STATUSES, qaStatusLabel } from "@/lib/constants";
@@ -1355,7 +1357,15 @@ function InlineAnalyst({ value, analysts, canEdit, onChange }: { value?: string 
   return (
     <td onClick={(e) => e.stopPropagation()}>
       <Select value={value ?? "__none__"} onValueChange={(v) => onChange(v && v !== "__none__" ? v : null)}>
-        <SelectTrigger className="h-7 text-xs border-0 bg-transparent max-w-[110px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-7 text-xs border-0 bg-transparent max-w-[110px]">
+          <EntitySelectValue
+            value={value ?? "__none__"}
+            items={analysts}
+            getLabel={userDisplayName}
+            placeholder="—"
+            sentinels={[{ value: "__none__", label: "—" }]}
+          />
+        </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">—</SelectItem>
           {analysts.map((a) => <SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>)}

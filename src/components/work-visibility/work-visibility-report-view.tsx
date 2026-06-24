@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { EnterpriseSection } from "@/components/enterprise/enterprise-section";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,8 @@ import type {
   WorkVisibilityTrendPoint,
 } from "@/types/flow";
 import { cn } from "@/lib/utils";
+import { WORK_VISIBILITY_CHIP_HELP } from "@/lib/help/help-text";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 const ACTIVITY_CATEGORIES = [
@@ -67,23 +70,24 @@ export function WorkVisibilityReportView({
         </p>
       </header>
 
-      <EnterpriseSection title="Work Visibility Score" id="score">
+      <EnterpriseSection title="Work Visibility Score" id="score" helpKey="workVisibilityScore">
         <div className="flex flex-wrap items-end gap-6">
           <div>
             <p className="text-4xl font-semibold tabular-nums">{summary.score}%</p>
             <p className="text-xs text-muted-foreground mt-1">Composite operational visibility</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs flex-1 min-w-[240px]">
-            <ScoreChip label="Task tracking" value={`${summary.taskTrackingCompliancePct}%`} />
-            <ScoreChip label="Daily reports" value={`${summary.dailyReportCompliancePct}%`} />
-            <ScoreChip label="Workload coverage" value={`${summary.workloadCoveragePct}%`} />
-            <ScoreChip label="Capacity visibility" value={`${summary.capacityVisibilityPct}%`} />
-            <ScoreChip label="Work documentation" value={`${summary.workDocumentationPct}%`} />
+            <ScoreChip label="Task tracking" value={`${summary.taskTrackingCompliancePct}%`} helpKey="taskTrackingCompliance" />
+            <ScoreChip label="Daily reports" value={`${summary.dailyReportCompliancePct}%`} helpKey="dailyReportCompliance" />
+            <ScoreChip label="Workload coverage" value={`${summary.workloadCoveragePct}%`} helpKey="workloadCoverage" />
+            <ScoreChip label="Capacity visibility" value={`${summary.capacityVisibilityPct}%`} helpKey="capacityVisibility" />
+            <ScoreChip label="Work documentation" value={`${summary.workDocumentationPct}%`} helpKey="workDocumentation" />
             {summary.openActivityGaps > 0 && (
               <ScoreChip
                 label="Activity gaps"
                 value={String(summary.openActivityGaps)}
                 warn
+                helpKey="activityGaps"
               />
             )}
           </div>
@@ -270,14 +274,19 @@ function ScoreChip({
   label,
   value,
   warn,
+  helpKey,
 }: {
   label: string;
   value: string;
   warn?: boolean;
+  helpKey?: HelpTextKey;
 }) {
   return (
     <div className={cn("rounded-md border border-border/40 px-2 py-1.5", warn && "border-warning/40")}>
-      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+        {label}
+        <InfoTooltip helpKey={helpKey ?? WORK_VISIBILITY_CHIP_HELP[label]} />
+      </p>
       <p className="font-medium tabular-nums">{value}</p>
     </div>
   );

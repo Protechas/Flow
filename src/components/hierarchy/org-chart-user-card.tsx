@@ -3,6 +3,7 @@
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { hierarchyLevelForPosition, POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { cn } from "@/lib/utils";
 import type { OrgChartNode, OrgChartStatusFlag, OrgChartUserOps, UserRole } from "@/types/flow";
 import {
@@ -133,18 +134,35 @@ export function OrgChartUserCard({
               <SignalPill label={clockLabel} tone={clockTone(ops)} />
             )}
             {ops?.workloadStatus && (
-              <SignalPill
-                label={ops.workloadStatus}
-                tone={workloadTone(flags)}
-              />
+              <span className="inline-flex items-center gap-0.5">
+                <SignalPill
+                  label={ops.workloadStatus}
+                  tone={workloadTone(flags)}
+                />
+                <InfoTooltip
+                  helpKey={
+                    flags.includes("needs_work")
+                      ? "workloadNeedsWork"
+                      : ops.workloadStatus.includes("Healthy")
+                        ? "workloadHealthy"
+                        : undefined
+                  }
+                />
+              </span>
             )}
             {ops?.helpFlagStatus ? (
-              <SignalPill label={ops.helpFlagStatus} tone={helpTone(flags)} />
+              <span className="inline-flex items-center gap-0.5">
+                <SignalPill label={ops.helpFlagStatus} tone={helpTone(flags)} />
+                {flags.includes("needs_help") && <InfoTooltip helpKey="helpFlagActive" />}
+              </span>
             ) : (
               <SignalPill label="No help flags" tone="ok" />
             )}
             {flags.includes("missing_wrap_up") && (
-              <SignalPill label={OPS_COPY.outstandingDailyReports} tone="warn" />
+              <span className="inline-flex items-center gap-0.5">
+                <SignalPill label={OPS_COPY.outstandingDailyReports} tone="warn" />
+                <InfoTooltip helpKey="missingWrapUpFlag" />
+              </span>
             )}
           </div>
 

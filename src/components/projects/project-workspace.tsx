@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveUserLabel, userDisplayName } from "@/lib/users/display-name";
 import { WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
 import { DUE_DATE_STATUS_HINTS } from "@/lib/forecast/constants";
 import { formatForecastDays, formatForecastHours } from "@/lib/forecast/engine";
@@ -401,12 +402,13 @@ export function ProjectWorkspace({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
-                    {canEdit && (
+                    {canEdit && user && (
                       <>
                         <EditProjectDialog
                           project={project}
                           managers={managers}
                           forecastSettings={forecastSettings}
+                          viewer={user}
                         />
                         {archived ? (
                           <Button
@@ -815,13 +817,15 @@ function YearRow({
                 }}
               >
                 <SelectTrigger className="h-7 w-[140px] text-xs" title="Assigned user">
-                  <SelectValue placeholder="Assign user" />
+                  <SelectValue placeholder="Assign user">
+                    {resolveUserLabel(yearItem.assigned_to, analysts)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>
                   {analysts.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
-                      {a.full_name}
+                      {userDisplayName(a)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -12,7 +12,6 @@ import { filterDepartmentsForViewer } from "@/lib/departments/scope";
 import { getActiveDepartments } from "@/lib/departments/filters";
 import {
   getFlowStore,
-  initFlowStore,
   listDepartments,
   listTeamsStore,
 } from "@/lib/data/flow-store";
@@ -22,8 +21,9 @@ import {
   getWrapUpReviewDetail,
   getWrapUpVisibleUserIds,
 } from "@/lib/wrap-up/review";
-import { format, subDays } from "date-fns";
+import { isProductionEmployee } from "@/lib/users/production-roster";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { format, subDays } from "date-fns";
 
 export default async function WrapUpsPage({
   searchParams,
@@ -38,11 +38,10 @@ export default async function WrapUpsPage({
 }) {
   const user = await requirePageAccess("/wrap-ups");
   const { id, status, reviewed, followUp, userId } = await searchParams;
-  initFlowStore();
   const store = getFlowStore();
 
   const visibleIds = getWrapUpVisibleUserIds(user);
-  assertScopedUserIdParam(
+  await assertScopedUserIdParam(
     user,
     userId,
     visibleIds ?? store.users.filter((u) => u.is_active).map((u) => u.id)
@@ -54,10 +53,7 @@ export default async function WrapUpsPage({
   const departments = getActiveDepartments(filterDepartmentsForViewer(listDepartments(), user));
   const teams = listTeamsStore();
   const employees = store.users.filter(
-    (u) =>
-      u.is_active &&
-      u.role === "employee" &&
-      (visibleIds === null || visibleIds.includes(u.id))
+    (u) => isProductionEmployee(u) && (visibleIds === null || visibleIds.includes(u.id))
   );
 
   const rows = buildWrapUpReviewRows(user, {
@@ -83,18 +79,21 @@ export default async function WrapUpsPage({
               label: OPS_COPY.outstandingDailyReports,
               value: stats.missingToday,
               status: stats.missingToday > 0 ? "attention" : "healthy",
+              helpKey: "outstandingDailyReports",
             },
             {
               id: "unreviewed",
               label: "Unreviewed",
               value: stats.unreviewed,
               status: stats.unreviewed > 0 ? "attention" : "healthy",
+              helpKey: "wrapUpUnreviewed",
             },
             {
               id: "followup",
               label: "Needs follow-up",
               value: stats.followUpsNeeded,
               status: stats.followUpsNeeded > 0 ? "critical" : "healthy",
+              helpKey: "wrapUpFollowUp",
             },
           ]}
         />
@@ -103,10 +102,10 @@ export default async function WrapUpsPage({
         <KpiStrip
           columns={4}
           items={[
-            { id: "missing", label: "Missing today", value: stats.missingToday, warn: stats.missingToday > 0 },
-            { id: "submitted", label: "Submitted today", value: stats.submittedToday },
-            { id: "unreviewed", label: "Unreviewed", value: stats.unreviewed, warn: stats.unreviewed > 0 },
-            { id: "followup", label: "Needs follow-up", value: stats.followUpsNeeded, warn: stats.followUpsNeeded > 0 },
+            { id: "missing", label: "Missing today", value: stats.missingToday, warn: stats.missingToday > 0, helpKey: "wrapUpMissing" },
+            { id: "submitted", label: "Submitted today", value: stats.submittedToday, helpKey: "wrapUpSubmitted" },
+            { id: "unreviewed", label: "Unreviewed", value: stats.unreviewed, warn: stats.unreviewed > 0, helpKey: "wrapUpUnreviewed" },
+            { id: "followup", label: "Needs follow-up", value: stats.followUpsNeeded, warn: stats.followUpsNeeded > 0, helpKey: "wrapUpFollowUp" },
           ]}
         />
       }

@@ -26,9 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { alertCenterHref, wrapUpsHref } from "@/lib/navigation/deep-links";
-import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
 import type { DepartmentOrgSection } from "@/lib/positions/grouped-chart";
 import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
@@ -447,31 +449,31 @@ export function OrgChartView({
           {attention.needsHelp > 0 && (
             <Link
               href={alertCenterHref({ type: "help" })}
-              className="text-red-400 hover:underline cursor-pointer"
-              title={OPS_TOOLTIPS.openEscalations}
+              className="text-red-400 hover:underline cursor-pointer inline-flex items-center gap-1"
             >
-              <HelpCircle className="inline h-4 w-4 mr-1" />
+              <HelpCircle className="inline h-4 w-4" />
               {attention.needsHelp} open escalations
+              <InfoTooltip helpKey="openEscalations" />
             </Link>
           )}
           {attention.needsWork > 0 && (
             <Link
               href={alertCenterHref({ type: "workload" })}
-              className="text-amber-400 hover:underline cursor-pointer"
-              title={OPS_TOOLTIPS.availableCapacity}
+              className="text-amber-400 hover:underline cursor-pointer inline-flex items-center gap-1"
             >
-              <AlertTriangle className="inline h-4 w-4 mr-1" />
+              <AlertTriangle className="inline h-4 w-4" />
               {attention.needsWork} available capacity
+              <InfoTooltip helpKey="availableCapacity" />
             </Link>
           )}
           {attention.missingWrapUp > 0 && (
             <Link
               href={wrapUpsHref({ status: "missing" })}
-              className="text-violet-400 hover:underline cursor-pointer"
-              title={OPS_TOOLTIPS.outstandingDailyReports}
+              className="text-violet-400 hover:underline cursor-pointer inline-flex items-center gap-1"
             >
-              <Moon className="inline h-4 w-4 mr-1" />
+              <Moon className="inline h-4 w-4" />
               {attention.missingWrapUp} outstanding daily reports
+              <InfoTooltip helpKey="outstandingDailyReports" />
             </Link>
           )}
         </div>
@@ -519,7 +521,13 @@ export function OrgChartView({
               onValueChange={(v) => setDepartmentId(!v || v === "__all__" ? "" : v)}
             >
               <SelectTrigger className="h-9 min-w-[160px] bg-card text-foreground text-sm">
-                <SelectValue />
+                <EntitySelectValue
+                  value={departmentId || "__all__"}
+                  items={departments}
+                  getLabel={(d) => d.name}
+                  placeholder="All departments"
+                  sentinels={[{ value: "__all__", label: "All departments" }]}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All departments</SelectItem>
@@ -537,7 +545,13 @@ export function OrgChartView({
               onValueChange={(v) => setTeamId(!v || v === "__all__" ? "" : v)}
             >
               <SelectTrigger className="h-9 min-w-[140px] bg-card text-foreground text-sm">
-                <SelectValue />
+                <EntitySelectValue
+                  value={teamId || "__all__"}
+                  items={teams}
+                  getLabel={(t) => t.name}
+                  placeholder="All teams"
+                  sentinels={[{ value: "__all__", label: "All teams" }]}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All teams</SelectItem>
@@ -554,7 +568,11 @@ export function OrgChartView({
             onValueChange={(v) => setRoleFilter(!v || v === "__all__" ? "" : v)}
           >
             <SelectTrigger className="h-9 min-w-[130px] bg-card text-foreground text-sm">
-              <SelectValue />
+              <SelectValue placeholder="All roles">
+                {roleFilter
+                  ? POSITION_DISPLAY_LABELS[roleFilter as keyof typeof POSITION_DISPLAY_LABELS] ?? roleFilter
+                  : "All roles"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All roles</SelectItem>

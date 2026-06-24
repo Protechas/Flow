@@ -9,6 +9,7 @@ import {
 } from "@/lib/notifications/notifications";
 import { isOverdue } from "@/lib/scoring/flow-score";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { isWrapUpRequiredForDate } from "@/lib/wrap-up/eligibility";
 import { getManagersForPackage, getProjectOwner } from "@/lib/workflow/recipients";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type { NotificationType, User, WorkPackage } from "@/types/flow";
@@ -55,6 +56,7 @@ export function syncWrapUpNotifications(users: User[]) {
   const today = format(new Date(), "yyyy-MM-dd");
 
   for (const emp of users.filter((u) => u.is_active && requiresShiftClock(u))) {
+    if (!isWrapUpRequiredForDate(emp, today)) continue;
     if (getWrapUpComplianceStatus(emp.id, today) !== "missing") continue;
 
     notify(

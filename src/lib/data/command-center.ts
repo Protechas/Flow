@@ -2,7 +2,8 @@ import {
   computeQaTurnaroundHours,
   generateCommandCenterInsights,
 } from "@/lib/insights/command-center-insights";
-import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
 import { getProjectHealthList } from "@/lib/data/project-health";
 import { getWorkPackages } from "@/lib/data/work-packages";
@@ -186,7 +187,7 @@ function buildDepartmentHealth(
 }
 
 export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCenterMetrics> {
-  initFlowStore();
+  await ensureAppDataLoaded();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
   const store = getFlowStore();

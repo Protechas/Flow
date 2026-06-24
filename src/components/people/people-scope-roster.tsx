@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntitySelectValue } from "@/components/ui/entity-select-value";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { POSITION_DISPLAY_LABELS } from "@/lib/hierarchy/role-utils";
 import { peopleHref } from "@/lib/navigation/deep-links";
@@ -192,7 +193,13 @@ export function PeopleScopeRoster({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Department" />
+              <EntitySelectValue
+                value={departmentId}
+                items={departments}
+                getLabel={(d) => d.name}
+                placeholder="Department"
+                sentinels={[{ value: "all", label: "All departments" }]}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All departments</SelectItem>
@@ -206,7 +213,13 @@ export function PeopleScopeRoster({
         )}
         <Select value={teamId} onValueChange={(v) => v && setTeamId(v)}>
           <SelectTrigger>
-            <SelectValue placeholder="Team" />
+            <EntitySelectValue
+              value={teamId}
+              items={scopedTeams}
+              getLabel={(t) => t.name}
+              placeholder="Team"
+              sentinels={[{ value: "all", label: "All teams" }]}
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All teams</SelectItem>

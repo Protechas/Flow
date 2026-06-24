@@ -9,6 +9,8 @@
     "lint": "eslint",
     "check:supabase": "node --env-file=.env.local scripts/check-supabase.mjs",
     "verify:supabase": "node --env-file=.env.local scripts/verify-supabase.mjs",
+    "verify:production": "node scripts/verify-production-link.mjs",
+    "audit:production-data": "node --env-file=.env.local scripts/audit-production-data.mjs",
     "setup:supabase": "node --env-file=.env.local scripts/setup-supabase.mjs",
     "migrate:pending": "node --env-file=.env.local scripts/run-migration-files.mjs 026_user_profile_fields.sql 027_project_custom_metrics.sql",
     "enable:signup": "node --env-file=.env.local scripts/enable-employee-signup.mjs",

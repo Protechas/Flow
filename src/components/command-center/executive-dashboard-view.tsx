@@ -24,7 +24,7 @@ import {
   reportsHref,
   wrapUpsHref,
 } from "@/lib/navigation/deep-links";
-import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import type { CommandCenterMetrics, UserRole } from "@/types/flow";
 import {
   Activity,
@@ -95,7 +95,6 @@ export function ExecutiveDashboardView({
     <div className="flow-executive-dashboard flow-ambient-command space-y-10">
       <OperationalPulsePanel
         pulseStatus={pulseStatus(needsAttention, hasCritical)}
-        subtitle={OPS_TOOLTIPS.operationsOverview}
         actions={
           <>
             {linkHref(role, "/alert-center") && (
@@ -132,6 +131,7 @@ export function ExecutiveDashboardView({
             sublabel: OPS_COPY.operationsScore,
             href: linkHref(role, "/performance"),
             tone: data.teamHealth.flowScore >= 75 ? "healthy" : "warning",
+            helpKey: "operationsScore",
           },
           {
             id: "online",
@@ -140,6 +140,7 @@ export function ExecutiveDashboardView({
             sublabel: `${data.workforce.activeTaskTimers} active timers`,
             href: linkHref(role, "/time-clock"),
             tone: data.workforce.clockedIn > 0 ? "healthy" : "neutral",
+            helpKey: "employeesClockedIn",
           },
           {
             id: "help",
@@ -151,6 +152,7 @@ export function ExecutiveDashboardView({
                 : "Open requests",
             href: linkHref(role, alertCenterHref({ type: "help" })),
             tone: data.helpFlagSummary.open > 0 ? "critical" : "healthy",
+            helpKey: "openEscalations",
           },
           {
             id: "visibility",
@@ -159,6 +161,7 @@ export function ExecutiveDashboardView({
             sublabel: `${data.workVisibility.taskTrackingCompliancePct}% task tracking`,
             href: linkHref(role, "/reports/work-visibility"),
             tone: data.workVisibility.score >= 85 ? "healthy" : "warning",
+            helpKey: "workVisibilityScore",
           },
           {
             id: "activity_gaps",
@@ -170,6 +173,7 @@ export function ExecutiveDashboardView({
                 : "No open gaps",
             href: linkHref(role, alertCenterHref({ type: "activity_gaps" })),
             tone: data.activityGaps.length > 0 ? "warning" : "healthy",
+            helpKey: "activityGaps",
           },
           {
             id: "work",
@@ -178,6 +182,7 @@ export function ExecutiveDashboardView({
             sublabel: "Low workload alerts",
             href: linkHref(role, alertCenterHref({ type: "workload" })),
             tone: data.workloadAlertSummary.open > 0 ? "warning" : "healthy",
+            helpKey: "availableCapacity",
           },
           {
             id: "wrapup",
@@ -186,6 +191,7 @@ export function ExecutiveDashboardView({
             sublabel: `${data.wrapUpReview.submittedToday} submitted today`,
             href: linkHref(role, wrapUpsHref({ status: "missing" })),
             tone: data.wrapUpReview.missingToday > 0 ? "qa" : "healthy",
+            helpKey: "outstandingDailyReports",
           },
           {
             id: "forecast",
@@ -194,6 +200,7 @@ export function ExecutiveDashboardView({
             sublabel: `${data.forecast.tasksAtRisk} tasks at risk`,
             href: linkHref(role, "/planning") ?? linkHref(role, "/project-health"),
             tone: forecastRisk > 0 ? "warning" : "healthy",
+            helpKey: "projectsAtRisk",
           },
           {
             id: "qa",
@@ -203,6 +210,7 @@ export function ExecutiveDashboardView({
             href: linkHref(role, "/qa-center"),
             tone:
               data.qaHealth.passRate < 85 || data.qaHealth.queueSize > 5 ? "qa" : "healthy",
+            helpKey: "qaPerformance",
           },
         ]}
       />
@@ -221,7 +229,7 @@ export function ExecutiveDashboardView({
                 value={metric.aggregate_value}
                 sublabel={`${metric.project_count} project${metric.project_count === 1 ? "" : "s"} · ${metric.unit_label}`}
                 href={linkHref(role, "/projects")}
-                title={metric.metric_name}
+                helpKey="customProjectMetrics"
               />
             ))}
           </section>
@@ -232,6 +240,7 @@ export function ExecutiveDashboardView({
         title={OPS_COPY.requiresAttention}
         description="Signals that may need manager action today"
         variant="attention"
+        helpKey="requiresAttention"
       >
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 relative z-[1]">
           <EnterpriseKpi
@@ -246,7 +255,7 @@ export function ExecutiveDashboardView({
             warn={data.helpFlagSummary.open > 0}
             critical={data.helpFlagSummary.critical > 0}
             priority="high"
-            title={OPS_TOOLTIPS.openEscalations}
+            helpKey="openEscalations"
           />
           <EnterpriseKpi
             label={OPS_COPY.projectsAtRisk}
@@ -255,7 +264,7 @@ export function ExecutiveDashboardView({
             href={linkHref(role, "/project-health")}
             warn={forecastRisk > 0}
             priority="high"
-            title={OPS_TOOLTIPS.projectsAtRisk}
+            helpKey="projectsAtRisk"
           />
           <EnterpriseKpi
             label={OPS_COPY.outstandingDailyReports}
@@ -264,7 +273,7 @@ export function ExecutiveDashboardView({
             href={linkHref(role, wrapUpsHref({ status: "missing" }))}
             warn={data.wrapUpReview.missingToday > 0}
             priority="high"
-            title={OPS_TOOLTIPS.outstandingDailyReports}
+            helpKey="outstandingDailyReports"
           />
           <EnterpriseKpi
             label={OPS_COPY.overdueTasks}
@@ -274,7 +283,7 @@ export function ExecutiveDashboardView({
             warn={data.workload.overdue > 0}
             critical={data.workload.overdue > 5}
             priority="high"
-            title={OPS_TOOLTIPS.overdueTasks}
+            helpKey="overdueTasks"
           />
         </section>
       </KpiPriorityZone>
@@ -283,6 +292,7 @@ export function ExecutiveDashboardView({
         title={OPS_COPY.operationsOverview}
         description="Workforce, delivery, and department performance"
         variant="overview"
+        helpKey="operationsOverview"
       >
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <EnterpriseKpi
@@ -295,7 +305,7 @@ export function ExecutiveDashboardView({
           }
           href={linkHref(role, "/reports")}
           warn={deptsAtRisk > 0}
-          title={OPS_TOOLTIPS.departmentHealth}
+          helpKey="departmentHealth"
         />
         <EnterpriseKpi
           label={OPS_COPY.employeesClockedIn}
@@ -303,7 +313,7 @@ export function ExecutiveDashboardView({
           sublabel={`${data.workforce.activeTaskTimers} active task timers`}
           href={linkHref(role, "/time-clock")}
           priority="low"
-          title={OPS_TOOLTIPS.employeesClockedIn}
+          helpKey="employeesClockedIn"
         />
         <EnterpriseKpi
           label={OPS_COPY.activeProjects}
@@ -311,7 +321,7 @@ export function ExecutiveDashboardView({
           sublabel={`${data.projectHealth.onTrack} on track`}
           href={linkHref(role, "/project-health")}
           priority="low"
-          title={OPS_TOOLTIPS.activeProjects}
+          helpKey="activeProjects"
         />
         <EnterpriseKpi
           label={OPS_COPY.activeTasks}
@@ -319,7 +329,7 @@ export function ExecutiveDashboardView({
           sublabel={`${data.workload.inProgress} in progress`}
           href={linkHref(role, "/operations")}
           priority="low"
-          title={OPS_TOOLTIPS.activeTasks}
+          helpKey="activeTasks"
         />
         <EnterpriseKpi
           label={OPS_COPY.qaPerformance}
@@ -327,7 +337,7 @@ export function ExecutiveDashboardView({
           sublabel={`${data.qaHealth.queueSize} in queue · ${data.qaHealth.correctionsToday} corrections today`}
           href={linkHref(role, "/qa-center")}
           warn={data.qaHealth.passRate < 85 || data.qaHealth.queueSize > 5}
-          title={OPS_TOOLTIPS.qaPerformance}
+          helpKey="qaPerformance"
         />
         <EnterpriseKpi
           label={OPS_COPY.workloadRisk}
@@ -339,7 +349,7 @@ export function ExecutiveDashboardView({
           }
           href={linkHref(role, alertCenterHref({ type: "workload" }))}
           warn={data.workloadAlertSummary.open > 0}
-          title={OPS_TOOLTIPS.availableCapacity}
+          helpKey="workloadRisk"
         />
         <EnterpriseKpi
           label={OPS_COPY.operationsScore}
@@ -353,7 +363,7 @@ export function ExecutiveDashboardView({
           }
           spotlight
           priority="high"
-          title={OPS_TOOLTIPS.operationsScore}
+          helpKey="operationsScore"
         />
         <EnterpriseKpi
           label={OPS_COPY.capacityUtilization}
@@ -362,7 +372,7 @@ export function ExecutiveDashboardView({
           href={linkHref(role, "/reports")}
           warn={data.workforce.capacityUtilizationPct > 90}
           priority="low"
-          title={OPS_TOOLTIPS.capacityUtilization}
+          helpKey="capacityUtilization"
         />
         </section>
       </KpiPriorityZone>

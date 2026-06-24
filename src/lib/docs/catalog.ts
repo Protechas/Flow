@@ -36,6 +36,14 @@ export const DOC_CATALOG: DocEntry[] = [
     recommendedRoles: ["employee", "teamlead", "manager", "senior_manager", "admin", "super_admin", "viewer"],
   },
   {
+    slug: "creating-work",
+    file: "CREATING_WORK.md",
+    title: "Creating Projects & Tasks",
+    description: "Step-by-step guide to New Work — projects, tasks, and assignments.",
+    category: "getting-started",
+    recommendedRoles: ["teamlead", "manager", "senior_manager", "admin", "super_admin"],
+  },
+  {
     slug: "employee-guide",
     file: "EMPLOYEE_GUIDE.md",
     title: "Employee Guide",

@@ -11,6 +11,7 @@ import { getAllUsers, updateUser, initFlowStore, getFlowStore, setStoreUsers } f
 import { syncHierarchyOnManagerChange } from "@/lib/hierarchy/resolver";
 import { MOCK_TEAMS } from "@/lib/data/mock-data";
 import { listTeamsStore } from "@/lib/data/flow-store";
+import { ensureDepartmentsLoaded } from "@/lib/data/departments-db";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -46,7 +47,6 @@ export async function hydrateAppStore(): Promise<User[]> {
   }
   const users = await listUsers();
   setStoreUsers(users);
-  const { ensureDepartmentsLoaded } = await import("@/lib/data/departments-db");
   await ensureDepartmentsLoaded();
   const { initHierarchyFromStore } = await import("@/lib/auth/team-scope");
   initHierarchyFromStore(users);

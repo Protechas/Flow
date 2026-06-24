@@ -1,4 +1,5 @@
 import { EnterpriseKpi } from "@/components/enterprise/enterprise-kpi";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import { cn } from "@/lib/utils";
 
 export type KpiItem = {
@@ -14,6 +15,8 @@ export type KpiItem = {
   spotlight?: boolean;
   priority?: "high" | "normal" | "low";
   title?: string;
+  helpKey?: HelpTextKey;
+  helpText?: string;
   className?: string;
 };
 
@@ -54,6 +57,8 @@ export function KpiStrip({
             spotlight={item.spotlight}
             priority={item.priority}
             title={item.title}
+            helpKey={item.helpKey}
+            helpText={item.helpText}
             className={item.className}
           />
         ))}

@@ -7,34 +7,33 @@ import {
   WorkspaceContainer,
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
-import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { hasPermission } from "@/lib/auth/permissions";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore } from "@/lib/data/flow-store";
 import { getAllClockEntries } from "@/lib/data/production-tracking";
+import {
+  filterUsersToHierarchyScope,
+  isHierarchyOrgWide,
+} from "@/lib/hierarchy/resolver";
 import { getTeamAvailability } from "@/lib/time-clock/get-team-availability";
+import { isTimeClockMember } from "@/lib/time-clock/members";
 import { buildDailyWrapUpComplianceReport } from "@/lib/wrap-up/compliance";
-import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 
 export default async function TimeClockPage() {
   const user = await requirePageAccess("/time-clock");
-  initFlowStore();
   const store = getFlowStore();
 
-  const branchIds = getScopeMemberIds(user, store.users, store.teams);
+  const scopedUsers = filterUsersToHierarchyScope(user, store.users, store.teams);
+  const employeeUsers = scopedUsers.filter(isTimeClockMember);
+  const teamMemberIds = employeeUsers.map((u) => u.id);
+  const branchScoped = !isHierarchyOrgWide(user);
 
   const entries = getAllClockEntries(
-    branchIds?.length ? { userIds: branchIds, days: 14 } : { days: 14 }
+    teamMemberIds.length ? { userIds: teamMemberIds, days: 14 } : { days: 14 }
   );
 
-  const visibleUsers = branchIds?.length
-    ? store.users.filter((u) => branchIds.includes(u.id))
-    : store.users;
-
-  const employeeUsers = visibleUsers.filter((u) => u.role === "employee" && u.is_active);
   const availability = getTeamAvailability(employeeUsers);
-  const wrapUpCompliance = buildDailyWrapUpComplianceReport(
-    employeeUsers.length ? employeeUsers : visibleUsers.filter((u) => u.role === "employee" && u.is_active)
-  );
+  const wrapUpCompliance = buildDailyWrapUpComplianceReport(employeeUsers);
   const canOverrideWrapUp =
     hasPermission(user.role, "work:view_all") || hasPermission(user.role, "people:view_team");
 
@@ -44,11 +43,11 @@ export default async function TimeClockPage() {
 
   return (
     <FlowPageShell
-      title={branchIds ? "Team Time Clock" : "Time Clock"}
+      title={branchScoped ? "Team Time Clock" : "Time Clock"}
       eyebrow={PLATFORM_EYEBROWS.timeClock}
       breadcrumbs={[{ label: "Time Clock" }]}
       description={
-        branchIds
+        branchScoped
           ? "Team availability, daily report compliance, and shift punches"
           : "Team availability, daily report compliance, and daily shift records"
       }
@@ -60,18 +59,21 @@ export default async function TimeClockPage() {
               label: "On shift",
               value: onShift,
               status: onShift > 0 ? "active" : "idle",
+              helpKey: "clockedIn",
             },
             {
               id: "off",
               label: "Off shift",
               value: offShift,
               status: "idle",
+              helpKey: "offShift",
             },
             {
               id: "wrap",
               label: OPS_COPY.outstandingDailyReports,
               value: missingWrapUp,
               status: missingWrapUp > 0 ? "attention" : "healthy",
+              helpKey: "outstandingDailyReports",
             },
           ]}
         />
@@ -80,10 +82,10 @@ export default async function TimeClockPage() {
         <KpiStrip
           columns={4}
           items={[
-            { id: "team", label: "Team members", value: employeeUsers.length },
-            { id: "in", label: OPS_COPY.employeesClockedIn, value: onShift, spotlight: onShift > 0 },
-            { id: "out", label: "Off shift", value: offShift },
-            { id: "wrap", label: OPS_COPY.outstandingDailyReports, value: missingWrapUp, warn: missingWrapUp > 0, title: OPS_TOOLTIPS.outstandingDailyReports },
+            { id: "team", label: "Team members", value: employeeUsers.length, helpKey: "teamMembers" },
+            { id: "in", label: OPS_COPY.employeesClockedIn, value: onShift, spotlight: onShift > 0, helpKey: "employeesClockedIn" },
+            { id: "out", label: "Off shift", value: offShift, helpKey: "offShift" },
+            { id: "wrap", label: OPS_COPY.outstandingDailyReports, value: missingWrapUp, warn: missingWrapUp > 0, helpKey: "outstandingDailyReports" },
           ]}
         />
       }
@@ -91,7 +93,7 @@ export default async function TimeClockPage() {
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
           <TimeClockAdminView
             entries={entries}
-            users={employeeUsers.length ? employeeUsers : visibleUsers.filter((u) => u.role === "employee")}
+            users={employeeUsers}
             availability={availability}
             wrapUpCompliance={wrapUpCompliance}
             canOverrideWrapUp={canOverrideWrapUp}

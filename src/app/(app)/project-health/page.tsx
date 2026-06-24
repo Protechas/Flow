@@ -52,12 +52,13 @@ export default async function ProjectHealthPage({
       pulse={
         <OperationalPostureStrip
           signals={[
-            { id: "projects", label: "Active", value: projects.length, status: "healthy", href: projectsHref() },
+            { id: "projects", label: "Active", value: projects.length, status: "healthy", href: projectsHref(), helpKey: "activeProjects" },
             {
               id: "progress",
               label: "Avg progress",
               value: `${avgProgress}%`,
               status: avgProgress >= 70 ? "healthy" : "attention",
+              helpKey: "overallProgress",
             },
             {
               id: "risk",
@@ -65,6 +66,7 @@ export default async function ProjectHealthPage({
               value: atRisk,
               status: atRisk > 0 ? "critical" : "healthy",
               href: projectHealthHref({ risk: "at_risk" }),
+              helpKey: "projectsAtRisk",
             },
             {
               id: "qa",
@@ -72,6 +74,7 @@ export default async function ProjectHealthPage({
               value: totalQaIssues,
               status: totalQaIssues > 0 ? "attention" : "healthy",
               href: "/qa-center",
+              helpKey: "qaIssues",
             },
           ]}
         />
@@ -80,14 +83,15 @@ export default async function ProjectHealthPage({
         <KpiStrip
           columns={4}
           items={[
-            { id: "projects", label: "Active projects", value: projects.length, href: projectsHref() },
-            { id: "progress", label: "Avg progress", value: `${avgProgress}%` },
+            { id: "projects", label: "Active projects", value: projects.length, href: projectsHref(), helpKey: "activeProjects" },
+            { id: "progress", label: "Avg progress", value: `${avgProgress}%`, helpKey: "overallProgress" },
             {
               id: "risk",
               label: "At risk",
               value: atRisk,
               warn: atRisk > 0,
               href: projectHealthHref({ risk: "at_risk" }),
+              helpKey: "projectsAtRisk",
             },
             {
               id: "qa",
@@ -95,6 +99,7 @@ export default async function ProjectHealthPage({
               value: totalQaIssues,
               warn: totalQaIssues > 0,
               href: "/qa-center",
+              helpKey: "qaIssues",
             },
           ]}
         />

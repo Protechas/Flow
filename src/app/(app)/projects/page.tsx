@@ -10,10 +10,10 @@ import {
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canDeleteProjects, hasPermission } from "@/lib/auth/permissions";
-import { enrichPackages, getFlowStore, initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
+import { enrichPackages, getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { isActiveProject } from "@/lib/data/entity-filters";
 import { parseDepartmentFilter } from "@/lib/departments/filters";
-import { filterDepartmentsForViewer } from "@/lib/departments/scope";
+import { filterDepartmentsForViewer, getViewerDepartmentIds } from "@/lib/departments/scope";
 import { getActiveDepartments } from "@/lib/departments/filters";
 import {
   getAnalysts,
@@ -26,6 +26,7 @@ import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
 
 export default async function ProjectsPage({
   searchParams,
@@ -41,12 +42,12 @@ export default async function ProjectsPage({
 
   await hydrateForecastSettings();
   await ensureProjectMetricsHydrated();
-  initFlowStore();
   const store = getFlowStore();
   const departments = getActiveDepartments(
     filterDepartmentsForViewer(listDepartments(), user)
   );
   const branchIds = getScopeMemberIds(user, store.users, store.teams);
+  const viewerDeptIds = getViewerDepartmentIds(user);
 
   const [allProjects, manufacturers, yearItems, managers, allAnalysts] = await Promise.all([
     getProjectsWithStats(true),
@@ -69,7 +70,13 @@ export default async function ProjectsPage({
         .forEach((p) => branchProjectIds.add(p.id));
     }
     scopedProjects = allProjects.filter(
-      (p) => branchProjectIds.has(p.id) || p.project_owner_id === user.id
+      (p) =>
+        branchProjectIds.has(p.id) ||
+        p.project_owner_id === user.id ||
+        p.created_by === user.id ||
+        (viewerDeptIds != null &&
+          p.department_id != null &&
+          viewerDeptIds.includes(p.department_id))
     );
   }
 
@@ -94,7 +101,7 @@ export default async function ProjectsPage({
   const isBranchScoped = Boolean(branchIds?.length);
 
   const projectOwners = isBranchScoped
-    ? managers.filter(
+    ? projectOwnerCandidates(managers, user).filter(
         (m) =>
           m.id === user.id ||
           m.role === "manager" ||
@@ -102,7 +109,7 @@ export default async function ProjectsPage({
           m.role === "admin" ||
           m.role === "super_admin"
       )
-    : managers;
+    : projectOwnerCandidates(managers, user);
 
   const allowedModes = getAllowedCreationModes(user.role);
 

@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/select";
 import { formatActionError } from "@/lib/errors/action-messages";
 import { INFORMATION_SOLUTIONS_TEAMS } from "@/lib/positions/bootstrap";
+import { cn } from "@/lib/utils";
 import type { Department, User } from "@/types/flow";
-import { Building2, Network, Plus, Trash2 } from "lucide-react";
+import { Building2, ChevronDown, Network, Plus, Trash2 } from "lucide-react";
 
 interface TeamDraft {
   id: string;
@@ -34,13 +35,17 @@ export function OrgStructureBuilder({
   departments,
   users,
   canManage,
+  defaultExpanded = false,
 }: {
   departments: Department[];
   users: User[];
   canManage: boolean;
+  /** Collapsed by default on org chart to save vertical space. */
+  defaultExpanded?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -76,18 +81,35 @@ export function OrgStructureBuilder({
 
   return (
     <div className="enterprise-panel p-5 space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Network className="h-4 w-4 text-primary" />
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 text-left"
+        onClick={() => setExpanded((open) => !open)}
+        aria-expanded={expanded}
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Network className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold">Org Structure Builder</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {expanded
+                ? "Build department → team → manager → team lead → employee seats first. Assign people later."
+                : "Build department and team seats — click to expand"}
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold">Org Structure Builder</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Build department → team → manager → team lead → employee seats first. Assign people later.
-          </p>
-        </div>
-      </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform mt-1",
+            expanded && "rotate-180"
+          )}
+        />
+      </button>
 
+      {expanded && (
+        <>
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
@@ -221,6 +243,15 @@ export function OrgStructureBuilder({
 
       {success && <p className="text-sm text-emerald-400">{success}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
+        </>
+      )}
+
+      {!expanded && (success || error) && (
+        <div className="pt-1">
+          {success && <p className="text-sm text-emerald-400">{success}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }

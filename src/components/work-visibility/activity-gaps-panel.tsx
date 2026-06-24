@@ -21,6 +21,7 @@ export function ActivityGapsPanel({
     <EnterpriseSection
       title="Activity gaps"
       description="Clocked sessions without an associated active work record."
+      helpKey="activityGaps"
     >
       <div className="space-y-2">
         {(compact ? open.slice(0, 5) : open).map((g) => (

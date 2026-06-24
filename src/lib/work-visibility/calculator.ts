@@ -9,6 +9,7 @@ import {
 } from "@/lib/data/production-tracking";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
+import { isWrapUpRequiredForDate } from "@/lib/wrap-up/eligibility";
 import { evaluateEmployeeWorkload } from "@/lib/workload-alerts/calculator";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type {
@@ -104,8 +105,11 @@ export function buildEmployeeWorkVisibilityMetrics(
   );
 
   const wrapStatus = getWrapUpComplianceStatus(user.id, dateStr);
-  const dailyReportCompliancePct =
-    wrapStatus === "submitted" || wrapStatus === "overridden" ? 100 : requiresShiftClock(user) ? 0 : 100;
+  let dailyReportCompliancePct: number | null = null;
+  if (requiresShiftClock(user) && isWrapUpRequiredForDate(user, dateStr)) {
+    dailyReportCompliancePct =
+      wrapStatus === "submitted" || wrapStatus === "overridden" ? 100 : 0;
+  }
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const documentsCompleted =

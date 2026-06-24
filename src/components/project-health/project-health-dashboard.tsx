@@ -1,6 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { ProjectMetricDisplay } from "@/components/projects/project-metric-display";
+import { PROJECT_HEALTH_STAT_HELP } from "@/lib/help/help-text";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import { FLOW_MATERIAL } from "@/components/platform";
 import type { ProjectHealth } from "@/types/flow";
 import { AlertTriangle, Calendar, Users } from "lucide-react";
@@ -45,7 +48,10 @@ export function ProjectHealthDashboard({
                   <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
                     {ph.overallProgress}%
                   </p>
-                  <p className="enterprise-label mt-0.5">Overall</p>
+                  <p className="enterprise-label mt-0.5 flex items-center justify-end gap-0.5">
+                    Overall
+                    <InfoTooltip helpKey="overallProgress" />
+                  </p>
                 </div>
                 {ph.projectedCompletion && (
                   <Badge variant="outline" className="gap-1 rounded-full">
@@ -66,7 +72,10 @@ export function ProjectHealthDashboard({
 
             {ph.customMetrics.length > 0 && (
               <div>
-                <p className="flow-section-title mb-3">Performance metrics</p>
+                <p className="flow-section-title mb-3 flex items-center gap-1.5">
+                  Performance metrics
+                  <InfoTooltip helpKey="customProjectMetrics" />
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {ph.customMetrics.map((metric) => (
                     <ProjectMetricDisplay key={metric.id} metric={metric} />
@@ -116,12 +125,14 @@ function Stat({
   warn,
   critical,
   compliance,
+  helpKey,
 }: {
   label: string;
   value: string | number;
   warn?: boolean;
   critical?: boolean;
   compliance?: boolean;
+  helpKey?: HelpTextKey;
 }) {
   return (
     <div
@@ -133,7 +144,10 @@ function Stat({
         warn && !critical && !compliance && "border-amber-500/20 bg-amber-500/5"
       )}
     >
-      <p className="enterprise-label">{label}</p>
+      <p className="enterprise-label flex items-center gap-0.5">
+        {label}
+        <InfoTooltip helpKey={helpKey ?? PROJECT_HEALTH_STAT_HELP[label]} />
+      </p>
       <p
         className={cn(
           "font-semibold tabular-nums mt-1",

@@ -1,4 +1,5 @@
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore } from "@/lib/data/flow-store";
 import { getEmployeeScorecard } from "@/lib/data/performance";
 import {
   getActiveClockEntry,
@@ -160,7 +161,7 @@ function buildDailySummary(
 }
 
 export async function getEmployeeDashboard(userId: string): Promise<EmployeeDashboard> {
-  initFlowStore();
+  await ensureAppDataLoaded();
   const store = getFlowStore();
   const board = getEmployeeTasks(userId);
   const packages = board.all;

@@ -4,8 +4,8 @@ import { getSiteUrl } from "@/lib/supabase/site-url";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ? getSiteUrl() : origin;
+  const { searchParams } = new URL(request.url);
+  const baseUrl = getSiteUrl();
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
   const errorParam = searchParams.get("error_description");

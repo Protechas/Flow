@@ -27,7 +27,7 @@ import { listActivityGapsForViewer, syncActivityGaps } from "@/lib/work-visibili
 import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
 import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
-import { OPS_COPY, OPS_TOOLTIPS } from "@/lib/copy/executive-terminology";
+import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { isOverdue } from "@/lib/scoring/flow-score";
 import { Button } from "@/components/ui/button";
 
@@ -80,6 +80,7 @@ export default async function AlertCenterPage() {
               value: helpFlags.length,
               status: helpFlags.length > 0 ? "critical" : "healthy",
               href: alertCenterHref({ type: "help" }),
+              helpKey: "openEscalations",
             },
             {
               id: "workload",
@@ -87,6 +88,7 @@ export default async function AlertCenterPage() {
               value: workloadAlerts.length,
               status: workloadAlerts.length > 0 ? "attention" : "healthy",
               href: alertCenterHref({ type: "workload" }),
+              helpKey: "availableCapacity",
             },
             {
               id: "activity_gaps",
@@ -94,6 +96,7 @@ export default async function AlertCenterPage() {
               value: activityGaps.length,
               status: activityGaps.length > 0 ? "attention" : "healthy",
               href: alertCenterHref({ type: "activity_gaps" }),
+              helpKey: "activityGaps",
             },
             {
               id: "wrapup",
@@ -101,6 +104,7 @@ export default async function AlertCenterPage() {
               value: wrapUpStats.missingToday,
               status: wrapUpStats.missingToday > 0 ? "attention" : "healthy",
               href: wrapUpsHref({ status: "missing" }),
+              helpKey: "outstandingDailyReports",
             },
             {
               id: "overdue",
@@ -108,6 +112,7 @@ export default async function AlertCenterPage() {
               value: overdueCount,
               status: overdueCount > 0 ? "attention" : "healthy",
               href: operationsHref({ view: "overdue" }),
+              helpKey: "overdueTasks",
             },
           ]}
         />
@@ -128,7 +133,7 @@ export default async function AlertCenterPage() {
               warn: workloadAlerts.length > 0,
               critical: workloadAlerts.some((a) => a.severity === "critical"),
               href: alertCenterHref({ type: "workload" }),
-              title: OPS_TOOLTIPS.availableCapacity,
+              helpKey: "availableCapacity",
             },
             {
               id: "help",
@@ -137,7 +142,7 @@ export default async function AlertCenterPage() {
               warn: helpFlags.length > 0,
               critical: helpFlags.some((f) => f.severity === "critical"),
               href: alertCenterHref({ type: "help" }),
-              title: OPS_TOOLTIPS.openEscalations,
+              helpKey: "openEscalations",
             },
             {
               id: "activity_gaps",
@@ -145,6 +150,7 @@ export default async function AlertCenterPage() {
               value: activityGaps.length,
               warn: activityGaps.length > 0,
               href: alertCenterHref({ type: "activity_gaps" }),
+              helpKey: "activityGaps",
             },
             {
               id: "wrapup",
@@ -152,7 +158,7 @@ export default async function AlertCenterPage() {
               value: wrapUpStats.missingToday,
               warn: wrapUpStats.missingToday > 0,
               href: wrapUpsHref({ status: "missing" }),
-              title: OPS_TOOLTIPS.outstandingDailyReports,
+              helpKey: "outstandingDailyReports",
             },
             {
               id: "overdue",
@@ -160,7 +166,7 @@ export default async function AlertCenterPage() {
               value: overdueCount,
               warn: overdueCount > 0,
               href: operationsHref({ view: "overdue" }),
-              title: OPS_TOOLTIPS.overdueTasks,
+              helpKey: "overdueTasks",
             },
           ]}
         />

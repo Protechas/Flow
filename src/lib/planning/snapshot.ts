@@ -1,7 +1,9 @@
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { PLANNING_METRIC_HELP_KEYS } from "@/lib/help/help-text";
 import { getDepartmentName } from "@/lib/departments/resolve";
-import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getProjectHealthList } from "@/lib/data/project-health";
 import { initProductionTracking, getProductionStore } from "@/lib/data/production-tracking";
 import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
@@ -38,6 +40,7 @@ import {
   qaCenterHref,
   wrapUpsHref,
 } from "@/lib/navigation/deep-links";
+import { isProductionEmployee } from "@/lib/users/production-roster";
 import type { User, WorkPackage } from "@/types/flow";
 import { addDays, addWeeks, format } from "date-fns";
 
@@ -164,7 +167,7 @@ function buildRecommendations(
 }
 
 export async function buildPlanningCenterSnapshot(viewer: User): Promise<PlanningCenterSnapshot> {
-  initFlowStore();
+  await ensureAppDataLoaded();
   initProductionTracking();
   const store = getFlowStore();
   const settings = getForecastSettings();
@@ -218,8 +221,8 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
   }, 0);
 
   const scopedEmployees = memberIds
-    ? store.users.filter((u) => memberIds.includes(u.id) && u.role === "employee")
-    : store.users.filter((u) => u.is_active && u.role === "employee");
+    ? store.users.filter((u) => memberIds.includes(u.id) && isProductionEmployee(u))
+    : store.users.filter(isProductionEmployee);
   const dailyCapacity = Math.max(scopedEmployees.length, 1) * settings.productive_hours_per_day;
   const capacityUtilizationPct = Math.min(
     100,
@@ -326,7 +329,10 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
       value: listDepartments().filter((d) => d.status === "active").length,
       href: "/settings/departments",
     },
-  ];
+  ].map((metric) => ({
+    ...metric,
+    helpKey: PLANNING_METRIC_HELP_KEYS[metric.id],
+  }));
 
   const onTimeProjects = projects.filter(
     (p) => p.project_due_date_status === "on_track" || !p.project_due_date_status

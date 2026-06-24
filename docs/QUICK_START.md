@@ -82,7 +82,8 @@ Everything the Team Lead does, plus:
 4. **Reports** (`/reports`) — team productivity and QA metrics.
 5. **Org Chart** (`/org-chart`) — seat assignments and live ops status.
 
-**Create new work:** Click **New Work** → choose **New Project** (standard programs) or **New Task** (quick assignment).
+**Create new work:** Click **New Work** → choose **New Project** (standard programs) or **New Task** (quick assignment).  
+**Full walkthrough:** [Creating Projects & Tasks](/docs/creating-work) in Help & Docs.
 
 ---
 

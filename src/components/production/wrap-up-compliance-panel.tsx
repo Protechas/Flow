@@ -39,8 +39,6 @@ export function WrapUpCompliancePanel({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (rows.length === 0) return null;
-
   const submitted = rows.filter((r) => r.wrapUpStatus === "submitted").length;
   const missing = rows.filter((r) => r.wrapUpStatus === "missing").length;
   const overridden = rows.filter((r) => r.wrapUpStatus === "overridden").length;
@@ -49,11 +47,26 @@ export function WrapUpCompliancePanel({
 
   const overrideTarget = rows.find((r) => r.userId === overrideUserId);
 
+  if (rows.length === 0) {
+    return (
+      <EnterpriseSection
+        title="End-of-day wrap-up compliance"
+        description="Hourly employees must submit today's wrap-up before clocking out for the day"
+        helpKey="wrapUpCompliance"
+      >
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          No employees have clocked in today. Daily report tracking starts when someone begins their shift.
+        </p>
+      </EnterpriseSection>
+    );
+  }
+
   return (
     <>
       <EnterpriseSection
         title="End-of-day wrap-up compliance"
         description="Hourly employees must submit today's wrap-up before clocking out for the day"
+        helpKey="wrapUpCompliance"
         actions={
           <Button size="sm" variant="outline" render={<Link href="/wrap-ups" />}>
             <Moon className="h-4 w-4 mr-1.5" />
@@ -62,11 +75,11 @@ export function WrapUpCompliancePanel({
         }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
-          <EnterpriseKpi label="Submitted" value={submitted} />
-          <EnterpriseKpi label="Missing" value={missing} warn={missing > 0} />
-          <EnterpriseKpi label="Overridden" value={overridden} />
-          <EnterpriseKpi label="Clocked out today" value={clockedOut} />
-          <EnterpriseKpi label="Blocked attempts" value={blocked} warn={blocked > 0} />
+          <EnterpriseKpi label="Submitted" value={submitted} helpKey="wrapUpSubmitted" />
+          <EnterpriseKpi label="Missing" value={missing} warn={missing > 0} helpKey="wrapUpMissing" />
+          <EnterpriseKpi label="Overridden" value={overridden} helpKey="wrapUpOverridden" />
+          <EnterpriseKpi label="Clocked out today" value={clockedOut} helpKey="clockedIn" />
+          <EnterpriseKpi label="Blocked attempts" value={blocked} warn={blocked > 0} helpKey="wrapUpBlockedAttempts" />
         </div>
 
         <EnterpriseDataTable compact>

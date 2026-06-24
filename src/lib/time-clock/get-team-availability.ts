@@ -12,6 +12,7 @@ import {
   getEmployeeClockStatus,
 } from "@/lib/time-clock/labels";
 import type { TeamMemberAvailability } from "@/lib/time-clock/availability-types";
+import { isTimeClockMember } from "@/lib/time-clock/members";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import type { User } from "@/types/flow";
@@ -30,7 +31,7 @@ export function getTeamAvailability(users: User[]): TeamMemberAvailability[] {
   const today = format(new Date(), "yyyy-MM-dd");
 
   return users
-    .filter((u) => u.role === "employee" && u.is_active)
+    .filter(isTimeClockMember)
     .map((user) => {
       const shiftRequired = requiresShiftClock(user);
       const activeEntry = getActiveClockEntry(user.id);

@@ -18,8 +18,8 @@ export default async function LoginPage({
     ? AUTH_ERRORS[errorCode] ?? decodeURIComponent(errorCode)
     : null;
 
-  const demoUsers = getDemoUsersForLogin();
   const supabaseEnabled = isSupabaseConfigured();
+  const demoUsers = supabaseEnabled ? [] : getDemoUsersForLogin();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

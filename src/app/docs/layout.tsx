@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { isEmployeeUser, getCurrentUser } from "@/lib/auth/session";
-import { hydrateAppStore } from "@/lib/data/users";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -21,7 +21,7 @@ export default async function DocsLayout({
   if (!user) redirect("/login");
 
   if (isSupabaseConfigured()) {
-    await hydrateAppStore();
+    await ensureAppDataLoaded();
   } else {
     await hydrateForecastSettings();
   }

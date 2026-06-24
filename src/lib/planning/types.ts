@@ -26,6 +26,8 @@ export type DepartmentCapacityStatus =
 
 export type DelayImpactLevel = "none" | "minor" | "moderate" | "severe";
 
+import type { HelpTextKey } from "@/lib/help/help-text";
+
 export interface PlanningMetricLink {
   id: string;
   label: string;
@@ -34,6 +36,7 @@ export interface PlanningMetricLink {
   warn?: boolean;
   critical?: boolean;
   sublabel?: string;
+  helpKey?: HelpTextKey;
 }
 
 export interface ExecutiveForecastSummary {

@@ -40,6 +40,11 @@ import {
   unarchiveManufacturer,
   duplicateWorkPackage,
 } from "@/lib/data/flow-store";
+import {
+  persistNewProject,
+  persistProjectRemoval,
+  persistProjectUpdate,
+} from "@/lib/data/projects-db";
 import { uploadTaskFile } from "@/lib/data/production-tracking";
 import type {
   ManufacturerInput,
@@ -105,8 +110,10 @@ export async function createProjectAction(
   const sanitized = {
     ...input,
     project_owner_id: ownerId,
+    created_by: user.id,
   };
   const project = createProject(sanitized, templateId);
+  await persistNewProject(project);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -139,11 +146,13 @@ export async function createBoardAction(input: {
       team_id: input.teamId,
       project_owner_id:
         normalizeRole(user.role) === "teamlead" ? user.id : user.id,
+      created_by: user.id,
       estimated_total_documents: null,
       planning_complexity_level: "standard",
     },
     "custom"
   );
+  await persistNewProject(project);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -199,11 +208,13 @@ export async function createProjectWizardAction(input: {
       department_id: input.departmentId,
       team_id: input.teamId,
       project_owner_id: ownerId,
+      created_by: user.id,
       estimated_total_documents: input.estimatedDocuments ?? null,
       planning_complexity_level: input.complexity ?? "standard",
     },
     tpl
   );
+  await persistNewProject(project);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -252,7 +263,12 @@ export async function createQuickTaskAction(input: {
       normalizeRole(user.role) === "teamlead" ? user.id : null,
   };
 
+  const hadProject = Boolean(input.projectId);
   const task = createQuickTask(quickInput);
+  if (!hadProject) {
+    const project = getFlowStore().projects.find((p) => p.id === task.project_id);
+    if (project) await persistNewProject(project);
+  }
   const assigneeName = input.assignedTo
     ? getFlowStore().users.find((u) => u.id === input.assignedTo)?.full_name ?? input.assignedTo
     : "unassigned";
@@ -271,6 +287,7 @@ export async function createQuickTaskAction(input: {
 export async function updateProjectAction(id: string, updates: Partial<ProjectInput & { status?: string }>) {
   await requirePermission("projects:edit");
   const p = updateProject(id, updates);
+  if (p) await persistProjectUpdate(id, p);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -285,18 +302,21 @@ export async function updateProjectAction(id: string, updates: Partial<ProjectIn
 export async function archiveProjectAction(id: string) {
   await requirePermission("projects:edit");
   archiveProject(id);
+  await persistProjectUpdate(id, { status: "archived" });
   revalidateAll();
 }
 
 export async function unarchiveProjectAction(id: string) {
   await requirePermission("projects:edit");
   unarchiveProject(id);
+  await persistProjectUpdate(id, { status: "active" });
   revalidateAll();
 }
 
 export async function deleteProjectAction(id: string) {
   await requirePermission("projects:delete");
   deleteProject(id);
+  await persistProjectRemoval(id);
   revalidateAll();
 }
 
