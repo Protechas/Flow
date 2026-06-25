@@ -63,6 +63,23 @@ const DB_CHECKS = [
     label: "project_metric_values table",
     sql: "SELECT to_regclass('public.project_metric_values') AS v",
   },
+  {
+    label: "year_work_items table",
+    sql: "SELECT to_regclass('public.year_work_items') AS v",
+  },
+  {
+    label: "projects.structure_mode",
+    sql: `SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='projects' AND column_name='structure_mode'`,
+  },
+  {
+    label: "work_visibility_settings table",
+    sql: "SELECT to_regclass('public.work_visibility_settings') AS v",
+  },
+  {
+    label: "project_intelligence_snapshots table",
+    sql: "SELECT to_regclass('public.project_intelligence_snapshots') AS v",
+  },
 ];
 
 function fail(msg) {
