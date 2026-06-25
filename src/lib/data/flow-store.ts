@@ -539,6 +539,7 @@ export function createProject(input: ProjectInput, templateId?: ProjectTemplateI
     name: input.name,
     description: input.description ?? null,
     project_type: input.project_type,
+    structure_mode: input.structure_mode ?? null,
     department_id: input.department_id ?? team?.department_id ?? DEFAULT_DEPARTMENT_ID,
     team_id: teamId,
     is_cross_department: input.is_cross_department ?? false,
@@ -836,6 +837,8 @@ export function createWorkPackage(input: WorkPackageInput): WorkPackage {
     file_count: 0,
     qa_status: "pending",
     correction_count: 0,
+    qa_required: input.qa_required ?? true,
+    files_required: input.files_required ?? false,
     forecast_mode: "planning",
     assigned_at: input.assigned_to ? ts() : null,
     started_at: null,
@@ -1302,6 +1305,7 @@ export function createDailyWrapUp(input: {
   } else {
     dailyWrapUps = [entry, ...dailyWrapUps];
   }
+  void import("@/lib/data/wrap-ups-db").then((m) => m.persistDailyWrapUp(entry));
   return entry;
 }
 
@@ -1332,7 +1336,9 @@ export function updateDailyWrapUpReview(
   const idx = dailyWrapUps.findIndex((w) => w.id === id);
   if (idx < 0) return null;
   dailyWrapUps[idx] = { ...dailyWrapUps[idx], ...updates };
-  return dailyWrapUps[idx];
+  const saved = dailyWrapUps[idx];
+  void import("@/lib/data/wrap-ups-db").then((m) => m.persistDailyWrapUp(saved));
+  return saved;
 }
 
 export function getWrapUpOverride(userId: string, wrapDate: string): DailyWrapUpOverride | null {
@@ -1365,6 +1371,7 @@ export function createWrapUpOverride(input: {
   } else {
     dailyWrapUpOverrides = [entry, ...dailyWrapUpOverrides];
   }
+  void import("@/lib/data/wrap-ups-db").then((m) => m.persistWrapUpOverride(entry));
   return entry;
 }
 
@@ -1388,6 +1395,14 @@ export function getWrapUpBlockAttempt(
   );
 }
 
+export function replaceWrapUpStore(data: {
+  dailyWrapUps: DailyWrapUp[];
+  dailyWrapUpOverrides: DailyWrapUpOverride[];
+}): void {
+  dailyWrapUps = data.dailyWrapUps;
+  dailyWrapUpOverrides = data.dailyWrapUpOverrides;
+}
+
 // ——— Departments ———
 
 export function replaceDepartmentStructureStore(
@@ -1406,6 +1421,14 @@ export function replaceProjectsStructureStore(
 ): void {
   projects = projectList;
   manufacturers = manufacturerList;
+}
+
+export function replaceWorkStructureStore(
+  yearList: YearWorkItem[],
+  packageList: WorkPackage[]
+): void {
+  yearWorkItems = yearList;
+  workPackages = packageList;
 }
 
 export function listProjectsStore(): Project[] {

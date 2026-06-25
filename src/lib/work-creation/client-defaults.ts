@@ -64,6 +64,24 @@ export function filterProgramProjects(projects: Project[]): Project[] {
   return projects.filter((p) => p.status === "active" && p.project_type !== "board");
 }
 
+/** Boards first for managers/team leads; programs for program-focused roles. */
+export function workTargetProjects(projects: Project[], role: string): Project[] {
+  const active = projects.filter((p) => p.status === "active");
+  const boards = filterBoardProjects(active);
+  const programs = filterProgramProjects(active);
+  const r = normalizeRole(role);
+  const managerLike = ["manager", "teamlead", "admin", "super_admin", "senior_manager"].includes(r);
+  if (managerLike) {
+    return boards.length || programs.length ? [...boards, ...programs] : active;
+  }
+  return programs.length ? programs : active;
+}
+
+export function projectTargetLabel(project: Project): string {
+  if (project.project_type === "board") return `${project.name} (Board)`;
+  return project.name;
+}
+
 export interface CreationDefaults {
   departmentId: string;
   teamId: string;

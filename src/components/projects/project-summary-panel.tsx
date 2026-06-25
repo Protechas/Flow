@@ -176,7 +176,7 @@ export function ProjectSummaryPanel({
             size="sm"
             variant="outline"
             className="h-8"
-            render={<Link href={operationsHref({ projectId: project.id })} />}
+            render={<Link href={operationsHref({ grouping: "by_program", projectId: project.id })} />}
           >
             View tasks
           </Button>

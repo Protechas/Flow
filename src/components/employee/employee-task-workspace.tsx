@@ -33,6 +33,7 @@ import type { WorkEligibility } from "@/lib/work-eligibility";
 import type { EmployeeWorkflowInput } from "@/lib/employee/workflow-state";
 import { computeProductionMetrics, formatMinutes } from "@/lib/production/metrics";
 import { WORK_STATUSES } from "@/lib/constants";
+import { getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
 import { cn } from "@/lib/utils";
 import type {
   Comment,
@@ -147,6 +148,9 @@ function EmployeeTaskWorkspaceContent({
 
   const pkgComments = comments.filter((c) => c.work_package_id === task.id);
   const statusLabel = WORK_STATUSES.find((s) => s.value === task.status)?.label ?? task.status;
+  const hierarchyLabels = task.project
+    ? getProjectHierarchyLabels(task.project)
+    : getProjectHierarchyLabels({});
 
   const canWork = !["done", "ready_for_qa", "in_qa"].includes(task.status);
   const canSubmit = ["working_on_it", "correction_needed", "assigned"].includes(task.status);
@@ -389,11 +393,11 @@ function EmployeeTaskWorkspaceContent({
               <dd className="font-medium">{task.project?.name ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground text-[10px] uppercase">Manufacturer</dt>
+              <dt className="text-muted-foreground text-[10px] uppercase">{hierarchyLabels.workPackageShort}</dt>
               <dd className="font-medium">{task.manufacturer?.name ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground text-[10px] uppercase">Year</dt>
+              <dt className="text-muted-foreground text-[10px] uppercase">{hierarchyLabels.phaseShort}</dt>
               <dd className="font-medium">{task.year}</dd>
             </div>
             <div>

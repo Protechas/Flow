@@ -12,6 +12,7 @@ import type {
   YearWorkItem,
 } from "@/types/flow";
 import { addDays, isBefore, isWithinInterval, parseISO, startOfDay } from "date-fns";
+import { operationsHref, projectsHref } from "@/lib/navigation/deep-links";
 
 export type ProjectWithStats = Project & {
   manufacturerCount: number;
@@ -49,6 +50,10 @@ export interface PortfolioKpis {
 export interface NextAction {
   label: string;
   tone: "default" | "warn" | "danger" | "success" | "muted";
+  /** Navigate here when the chip is clicked. */
+  href?: string;
+  /** Open task composer for this project instead of navigating. */
+  openTaskComposer?: boolean;
 }
 
 function primaryDueDate(project: Project): string | null {
@@ -183,7 +188,7 @@ export function buildPortfolioKpis(
 }
 
 export interface PortfolioScope {
-  departmentId?: string;
+  departmentId?: string | null;
   teamId?: string;
 }
 
@@ -197,8 +202,11 @@ export function filterProjectsForPortfolio(
 ): ProjectWithStats[] {
   let pool = projects;
 
-  if (scope?.departmentId) {
-    pool = pool.filter((p) => p.department_id === scope.departmentId);
+  if (scope && scope.departmentId !== undefined) {
+    pool =
+      scope.departmentId === null
+        ? pool.filter((p) => !p.department_id)
+        : pool.filter((p) => p.department_id === scope.departmentId);
   }
   if (scope?.teamId) {
     pool = pool.filter((p) => p.team_id === scope.teamId);
@@ -262,8 +270,17 @@ export function getProjectNextAction(
   }
 
   const mfrs = manufacturers.filter((m) => m.project_id === project.id && !m.is_archived);
+  const projectHref = projectsHref({ projectId: project.id });
+  const opsHref = operationsHref({ grouping: "by_program", projectId: project.id });
+
   if (mfrs.length === 0) {
-    return { label: "Add workstream", tone: "warn" };
+    const isBoard = project.project_type === "board" || project.project_type === "research";
+    return {
+      label: isBoard ? "Add first task" : "Add workstream",
+      tone: "warn",
+      openTaskComposer: isBoard,
+      href: isBoard ? undefined : projectHref,
+    };
   }
 
   const years = yearItems.filter((y) => y.project_id === project.id);
@@ -271,36 +288,44 @@ export function getProjectNextAction(
     (m) => !years.some((y) => y.manufacturer_id === m.id)
   );
   if (mfrWithoutYears) {
-    return { label: "Add phases", tone: "warn" };
+    return { label: "Add phases", tone: "warn", href: projectHref };
   }
 
   const yearsWithoutTasks = years.filter(
     (y) => !packages.some((p) => p.year_work_item_id === y.id)
   );
   if (yearsWithoutTasks.length > 0) {
-    return { label: "Add tasks", tone: "warn" };
+    return { label: "Add tasks", tone: "warn", openTaskComposer: true, href: opsHref };
   }
 
   const unassigned = packages.filter(
     (p) => p.project_id === project.id && !p.assigned_to && p.status !== "done"
   );
   if (unassigned.length > 0) {
-    return { label: "Assign tasks", tone: "warn" };
+    return { label: "Assign tasks", tone: "warn", href: opsHref };
   }
 
   if (project.project_due_date_status === "behind_capacity") {
-    return { label: "Fix due date", tone: "danger" };
+    return { label: "Fix due date", tone: "danger", href: projectHref };
   }
 
   if (projectReadyForQa(packages, project.id)) {
-    return { label: "Review QA", tone: "warn" };
+    return {
+      label: "Review QA",
+      tone: "warn",
+      href: operationsHref({ grouping: "by_program", projectId: project.id, view: "ready_for_qa" }),
+    };
   }
 
   if (project.project_due_date_status === "at_risk") {
-    return { label: "Review forecast risk", tone: "warn" };
+    return {
+      label: "Review forecast risk",
+      tone: "warn",
+      href: `/project-health?search=${encodeURIComponent(project.name)}`,
+    };
   }
 
-  return { label: "Project on track", tone: "success" };
+  return { label: "Project on track", tone: "success", href: opsHref };
 }
 
 export function getManufacturerNextAction(

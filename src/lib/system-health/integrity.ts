@@ -186,7 +186,7 @@ export function buildSystemHealthReport(): SystemHealthReport {
     title: "Active tasks with incomplete forecast inputs",
     detail: "Document count or forecast status is missing — completion dates may be unreliable.",
     count: activeNoForecast.length,
-    href: "/settings/forecasting",
+    href: "/planning",
     sampleIds: activeNoForecast.slice(0, 5).map((p) => p.id),
   });
 

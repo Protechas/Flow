@@ -5,6 +5,8 @@ import { PackageDetailContent } from "@/components/operations/package-detail-con
 import { AddManufacturerDialog } from "@/components/operations/operations-dialogs";
 import { AddWorkPackageDialog } from "@/components/projects/add-work-package-dialog";
 import { formatLastActivity } from "@/components/operations/rollup-cells";
+import { getProgramLabels, getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
+import { structureCountSummary } from "@/lib/projects/hierarchy-display";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type {
@@ -24,12 +26,14 @@ import {
 
 export type OpsPanelSelection =
   | { kind: "project"; node: OperationsTree["projects"][0] }
-  | { kind: "manufacturer"; node: OperationsTree["projects"][0]["manufacturers"][0]; projectName: string }
+  | { kind: "manufacturer"; node: OperationsTree["projects"][0]["manufacturers"][0]; projectName: string; projectType?: string | null; structureMode?: string | null }
   | {
       kind: "year";
       node: OperationsTree["projects"][0]["manufacturers"][0]["years"][0];
       manufacturerName: string;
       projectName: string;
+      projectType?: string | null;
+      structureMode?: string | null;
     }
   | { kind: "package"; pkg: WorkPackage };
 
@@ -68,24 +72,34 @@ export function OperationsDetailPanel({
 
   const header = (() => {
     switch (selection.kind) {
-      case "project":
+      case "project": {
+        const labels = getProjectHierarchyLabels(selection.node.project);
+        const r = selection.node.rollup;
         return {
           icon: FolderKanban,
           title: selection.node.project.name,
-          subtitle: `${selection.node.rollup.manufacturerCount} manufacturers · ${selection.node.rollup.totalPackages} tasks`,
+          subtitle: structureCountSummary(labels, {
+            workstreams: r.manufacturerCount,
+            phases: r.yearCount,
+            tasks: r.totalPackages,
+          }),
         };
-      case "manufacturer":
+      }
+      case "manufacturer": {
+        const labels = getProgramLabels(selection.projectType, selection.structureMode);
         return {
           icon: Factory,
           title: selection.node.manufacturer.name,
-          subtitle: `${selection.projectName} · ${selection.node.rollup.yearCount} years`,
+          subtitle: `${selection.projectName} · ${selection.node.rollup.yearCount} ${labels.phasePlural.toLowerCase()}`,
         };
-      case "year":
+      }
+      case "year": {
         return {
           icon: Calendar,
           title: String(selection.node.yearWorkItem.year),
           subtitle: `${selection.projectName} · ${selection.manufacturerName}`,
         };
+      }
       case "package": {
         const pkg = resolvePackage(selection.pkg.id) ?? selection.pkg;
         return {
@@ -126,12 +140,19 @@ export function OperationsDetailPanel({
           />
         )}
         {selection.kind === "manufacturer" && (
-          <ManufacturerPanelBody node={selection.node} projectName={selection.projectName} />
+          <ManufacturerPanelBody
+            node={selection.node}
+            projectName={selection.projectName}
+            projectType={selection.projectType}
+            structureMode={selection.structureMode}
+          />
         )}
         {selection.kind === "year" && (
           <YearPanelBody
             node={selection.node}
             manufacturerName={selection.manufacturerName}
+            projectType={selection.projectType}
+            structureMode={selection.structureMode}
             analysts={analysts}
             forecastSettings={forecastSettings}
             canManage={canManage}
@@ -177,6 +198,7 @@ function ProjectPanelBody({
 }) {
   const p = node.project;
   const r = node.rollup;
+  const labels = getProjectHierarchyLabels(p);
   const owner = analysts.find((a) => a.id === p.project_owner_id);
   const due = p.active_project_due_date ?? p.manual_project_due_date ?? p.due_date;
 
@@ -227,18 +249,22 @@ function ProjectPanelBody({
       {canManage && (
         <AddManufacturerDialog
           projectId={p.id}
+          projectType={p.project_type}
+          structureMode={p.structure_mode}
           analysts={analysts}
           trigger={
             <Button variant="outline" size="sm" className="w-full h-8 text-xs">
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add manufacturer
+              Add {labels.workPackageShort.toLowerCase()}
             </Button>
           }
         />
       )}
 
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active tasks</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Active {labels.taskPlural.toLowerCase()}
+        </p>
         <ul className="space-y-1.5 text-sm max-h-48 overflow-y-auto">
           {node.manufacturers.flatMap((m) =>
             m.years.flatMap((y) =>
@@ -260,11 +286,16 @@ function ProjectPanelBody({
 function ManufacturerPanelBody({
   node,
   projectName,
+  projectType,
+  structureMode,
 }: {
   node: OperationsTree["projects"][0]["manufacturers"][0];
   projectName: string;
+  projectType?: string | null;
+  structureMode?: string | null;
 }) {
   const r = node.rollup;
+  const labels = getProgramLabels(projectType, structureMode);
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground">Project: {projectName}</p>
@@ -276,8 +307,8 @@ function ManufacturerPanelBody({
         <Progress value={r.completedPct} className="h-2" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Metric label="Years" value={r.yearCount} />
-        <Metric label="Tasks" value={r.totalPackages} />
+        <Metric label={labels.phasePlural} value={r.yearCount} />
+        <Metric label={labels.taskPlural} value={r.totalPackages} />
         <Metric label="Est hours" value={`${r.estimatedHours}h`} />
         <Metric label="Actual hours" value={`${r.hoursLogged}h`} />
         <Metric label="Files" value={r.fileCount} />
@@ -293,6 +324,8 @@ function ManufacturerPanelBody({
 function YearPanelBody({
   node,
   manufacturerName,
+  projectType,
+  structureMode,
   analysts,
   forecastSettings,
   canManage,
@@ -300,6 +333,8 @@ function YearPanelBody({
 }: {
   node: OperationsTree["projects"][0]["manufacturers"][0]["years"][0];
   manufacturerName: string;
+  projectType?: string | null;
+  structureMode?: string | null;
   analysts: User[];
   forecastSettings: ForecastSettings;
   canManage: boolean;
@@ -307,13 +342,14 @@ function YearPanelBody({
 }) {
   const y = node.yearWorkItem;
   const r = node.rollup;
+  const labels = getProgramLabels(projectType, structureMode);
   const assignee = analysts.find((a) => a.id === y.assigned_to);
 
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground">{manufacturerName}</p>
       <div className="grid grid-cols-2 gap-2">
-        <Metric label="Tasks" value={r.totalPackages} />
+        <Metric label={labels.taskPlural} value={r.totalPackages} />
         <Metric label="Done" value={`${r.completedPct}%`} />
         <Metric label="Est hours" value={`${y.estimated_hours}h`} />
         <Metric label="Actual hours" value={`${y.actual_hours}h`} />
@@ -339,13 +375,15 @@ function YearPanelBody({
           trigger={
             <Button variant="outline" size="sm" className="w-full h-8 text-xs">
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add work package
+              Add {labels.task.toLowerCase()}
             </Button>
           }
         />
       )}
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tasks</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {labels.taskPlural}
+        </p>
         <ul className="space-y-1 text-sm">
           {node.packages.map((pkg) => (
             <li key={pkg.id} className="truncate text-muted-foreground">{pkg.title}</li>

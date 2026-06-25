@@ -26,6 +26,10 @@ export interface QuickTaskInput {
   complexityLevel?: ForecastComplexityLevel;
   projectOwnerId?: string | null;
   priority?: WorkPriority;
+  manualDueDate?: string | null;
+  notes?: string | null;
+  qaRequired?: boolean;
+  filesRequired?: boolean;
 }
 
 function normalizeName(name: string) {
@@ -35,7 +39,7 @@ function normalizeName(name: string) {
 export function createQuickTask(input: QuickTaskInput): WorkPackage {
   initFlowStore();
   const mfrName = normalizeName(input.manufacturerName);
-  if (!mfrName) throw new Error("Manufacturer name is required");
+  if (!mfrName) throw new Error("Workstream name is required");
 
   let projectId = input.projectId ?? null;
   if (!projectId) {
@@ -115,10 +119,13 @@ export function createQuickTask(input: QuickTaskInput): WorkPackage {
     assigned_to: assignee,
     status: assignee ? "assigned" : "not_started",
     priority: input.priority ?? "medium",
-    due_date: null,
+    due_date: input.manualDueDate ?? null,
+    manual_due_date: input.manualDueDate ?? null,
     estimated_hours: 8,
     estimated_document_count: input.estimatedDocumentCount ?? null,
     complexity_level: input.complexityLevel ?? "standard",
-    notes: null,
+    qa_required: input.qaRequired ?? true,
+    files_required: input.filesRequired ?? false,
+    notes: input.notes ?? null,
   });
 }

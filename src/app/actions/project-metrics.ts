@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore } from "@/lib/data/flow-store";
 import {
@@ -51,8 +51,7 @@ export async function createProjectMetricAction(
   await ensureProjectMetricsHydrated();
   const created = createProjectMetricDefinition(projectId, input);
   await persistMetricDefinition(created);
-  revalidatePath("/projects");
-  revalidatePath("/executive");
+  revalidateWorkSurfaces(projectId);
   return created;
 }
 
@@ -68,8 +67,7 @@ export async function updateProjectMetricAction(
 
   const updated = updateProjectMetricDefinitionRecord(metricId, input);
   if (updated) await persistMetricDefinition(updated);
-  revalidatePath("/projects");
-  revalidatePath("/executive");
+  revalidateWorkSurfaces(existing.project_id);
   return updated;
 }
 
@@ -81,7 +79,7 @@ export async function archiveProjectMetricAction(metricId: string) {
 
   const archived = archiveProjectMetricDefinition(metricId);
   if (archived) await persistMetricDefinition(archived);
-  revalidatePath("/projects");
+  revalidateWorkSurfaces(existing.project_id);
   return archived;
 }
 
@@ -92,7 +90,7 @@ export async function reorderProjectMetricsAction(projectId: string, orderedIds:
 
   const reordered = reorderProjectMetricDefinitions(projectId, orderedIds);
   for (const def of reordered) await persistMetricDefinition(def);
-  revalidatePath("/projects");
+  revalidateWorkSurfaces(projectId);
   return reordered;
 }
 
@@ -108,8 +106,7 @@ export async function updateProjectMetricValueAction(metricId: string, value: st
   const updated = getProjectMetricDefinition(metricId);
   if (updated) await persistMetricDefinition(updated);
   await persistMetricValue(entry);
-  revalidatePath("/projects");
-  revalidatePath("/executive");
+  revalidateWorkSurfaces(project.id);
   return entry;
 }
 

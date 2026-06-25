@@ -2,9 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { ProjectMetricDisplay } from "@/components/projects/project-metric-display";
+import { ProjectHealthIntelligenceRow } from "@/components/project-health/project-health-intelligence-row";
 import { PROJECT_HEALTH_STAT_HELP } from "@/lib/help/help-text";
 import type { HelpTextKey } from "@/lib/help/help-text";
 import { FLOW_MATERIAL } from "@/components/platform";
+import type { ProgramIntelligence } from "@/lib/projects/project-intelligence";
 import type { ProjectHealth } from "@/types/flow";
 import { AlertTriangle, Calendar, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,9 +14,13 @@ import { cn } from "@/lib/utils";
 export function ProjectHealthDashboard({
   projects,
   highlightSearch,
+  intelligenceByProject = {},
+  highlightProjectId,
 }: {
   projects: ProjectHealth[];
   highlightSearch?: string;
+  intelligenceByProject?: Record<string, ProgramIntelligence>;
+  highlightProjectId?: string;
 }) {
   return (
     <div className={cn("space-y-6 p-4 sm:p-5", FLOW_MATERIAL.ambientCommand)}>
@@ -25,6 +31,9 @@ export function ProjectHealthDashboard({
         const matchesSearch =
           !highlightSearch ||
           ph.project.name.toLowerCase().includes(highlightSearch.toLowerCase());
+        const matchesProject =
+          !highlightProjectId || ph.project.id === highlightProjectId;
+        const intelligence = intelligenceByProject[ph.project.id];
 
         return (
           <article
@@ -32,10 +41,20 @@ export function ProjectHealthDashboard({
             id={`project-${ph.project.id}`}
             className={cn(
               "enterprise-panel-elevated p-5 sm:p-6 space-y-6 scroll-mt-24",
-              matchesSearch && highlightSearch && "ring-1 ring-primary/40"
+              (matchesSearch && highlightSearch) || (matchesProject && highlightProjectId)
+                ? "ring-1 ring-primary/40"
+                : undefined
             )}
             data-accent={accent}
           >
+            {intelligence && (
+              <ProjectHealthIntelligenceRow
+                projectId={ph.project.id}
+                projectName={ph.project.name}
+                intelligence={intelligence}
+              />
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold tracking-tight">{ph.project.name}</h3>

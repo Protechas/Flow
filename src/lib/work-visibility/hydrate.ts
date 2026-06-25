@@ -6,15 +6,33 @@ import {
   writeGlobalWorkVisibilitySettings,
 } from "@/lib/work-visibility/settings-persistence";
 import type { WorkVisibilitySettings } from "@/types/flow";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  hydrateWorkVisibilitySettingsFromSupabase,
+  persistWorkVisibilitySettingsToSupabase,
+} from "@/lib/settings/supabase-settings";
 
-let hydrated = false;
+let hydratedFromSupabase = false;
+let cookieHydrated = false;
 
 export function getWorkVisibilitySettings(): WorkVisibilitySettings {
   return readGlobalWorkVisibilitySettings() ?? defaultWorkVisibilitySettings();
 }
 
 export async function hydrateWorkVisibilitySettings(): Promise<WorkVisibilitySettings> {
-  if (hydrated && readGlobalWorkVisibilitySettings()) {
+  if (isSupabaseConfigured()) {
+    if (!hydratedFromSupabase) {
+      const loaded = await hydrateWorkVisibilitySettingsFromSupabase();
+      if (!loaded) {
+        writeGlobalWorkVisibilitySettings(defaultWorkVisibilitySettings());
+      }
+      hydratedFromSupabase = true;
+      return getWorkVisibilitySettings();
+    }
+    return getWorkVisibilitySettings();
+  }
+
+  if (cookieHydrated && readGlobalWorkVisibilitySettings()) {
     return getWorkVisibilitySettings();
   }
 
@@ -23,13 +41,25 @@ export async function hydrateWorkVisibilitySettings(): Promise<WorkVisibilitySet
   if (fromCookie) {
     settings = mergeWorkVisibilitySettings(settings, fromCookie);
   }
-
   writeGlobalWorkVisibilitySettings(settings);
-  hydrated = true;
+  cookieHydrated = true;
   return settings;
 }
 
 export function setWorkVisibilitySettings(settings: WorkVisibilitySettings): void {
   writeGlobalWorkVisibilitySettings(settings);
-  hydrated = true;
+}
+
+export async function persistWorkVisibilitySettings(
+  settings: WorkVisibilitySettings,
+  userId: string
+): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await persistWorkVisibilitySettingsToSupabase(settings, userId);
+    return;
+  }
+  const { writeWorkVisibilitySettingsCookie } = await import(
+    "@/lib/work-visibility/settings-persistence"
+  );
+  await writeWorkVisibilitySettingsCookie(settings);
 }

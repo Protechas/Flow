@@ -6,6 +6,7 @@ import { requirePermission, requireUser } from "@/lib/auth/session";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { persistNewProject } from "@/lib/data/projects-db";
+import { persistWorkStructureForProject } from "@/lib/data/work-items-db";
 import { createProjectFromEnterpriseTemplate } from "@/lib/templates/generate-from-template";
 import type { CreateProjectFromTemplateInput, SaveCustomTemplateInput } from "@/lib/templates/enterprise-types";
 import {
@@ -14,10 +15,11 @@ import {
   saveCustomEnterpriseTemplate,
 } from "@/lib/templates/template-registry";
 
-function revalidateTemplatePaths() {
+import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
+
+function revalidateTemplatePaths(projectId?: string) {
   revalidatePath("/operations/templates");
-  revalidatePath("/operations");
-  revalidatePath("/projects");
+  revalidateWorkSurfaces(projectId);
 }
 
 export async function createProjectFromTemplateAction(input: CreateProjectFromTemplateInput) {
@@ -38,6 +40,7 @@ export async function createProjectFromTemplateAction(input: CreateProjectFromTe
       ownerId
     );
     await persistNewProject({ ...project, created_by: user.id });
+    await persistWorkStructureForProject(project.id);
     await writeAuditLog({
       action: "project_changed",
       entityType: "project",
@@ -45,7 +48,7 @@ export async function createProjectFromTemplateAction(input: CreateProjectFromTe
       summary: `Created project from template: ${project.name}`,
       metadata: { templateId: input.templateId },
     });
-    revalidateTemplatePaths();
+    revalidateTemplatePaths(project.id);
     return { ok: true as const, projectId: project.id };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "CREATE_FAILED";
@@ -90,5 +93,5 @@ export async function createProjectFromTemplateAndRedirectAction(
   if (!result.ok) {
     throw new Error(result.error);
   }
-  redirect(`/projects?highlight=${result.projectId}`);
+  redirect(`/projects/${result.projectId}`);
 }

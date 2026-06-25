@@ -2,7 +2,11 @@ import { PlanningCenterView } from "@/components/planning/planning-center-view";
 import { FlowPageShell, PLATFORM_EYEBROWS, WorkspaceContainer } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
-import { getAnalysts } from "@/lib/data/projects";
+import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
+import { FilterToolbar } from "@/components/platform";
+import { getAnalysts, getManufacturers, getYearWorkItems } from "@/lib/data/projects";
+import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
+import { isReadOnly } from "@/lib/auth/permissions";
 import { getFlowStore, initFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
@@ -27,6 +31,10 @@ export default async function PlanningPage() {
   const departments = getActiveDepartments(filterDepartmentsForViewer(listDepartments(), user));
   const branchIds = getScopeMemberIds(user, store.users, listTeamsStore());
   const analysts = await getAnalysts();
+  const [manufacturers, yearItems] = await Promise.all([
+    getManufacturers(undefined, true),
+    getYearWorkItems(),
+  ]);
   const scopedAnalysts = branchIds?.length
     ? analysts.filter((a) => branchIds.includes(a.id))
     : analysts;
@@ -41,12 +49,31 @@ export default async function PlanningPage() {
     projects = projects.filter((p) => projectIds.has(p.id));
   }
 
+  const managerWorkHub = usesManagerWorkHub(user.role);
+  const activeProjectIds = new Set(projects.map((p) => p.id));
+
   return (
     <FlowPageShell
       title="Planning & Forecasting"
       eyebrow={PLATFORM_EYEBROWS.planning}
       breadcrumbs={[{ label: "Planning & Forecasting" }]}
       description="Capacity, forecast completion, expected outcomes, and operational recommendations — integrated with live assignments and delivery data."
+      headerActions={
+        !isReadOnly(user.role) && managerWorkHub ? (
+          <FilterToolbar>
+            <ManagerWorkSetup
+              user={user}
+              departments={departments}
+              teams={listTeamsStore()}
+              projects={projects}
+              manufacturers={manufacturers.filter((m) => activeProjectIds.has(m.project_id))}
+              yearItems={yearItems.filter((y) => activeProjectIds.has(y.project_id))}
+              analysts={scopedAnalysts.length ? scopedAnalysts : analysts}
+              forecastSettings={store.forecastSettings}
+            />
+          </FilterToolbar>
+        ) : undefined
+      }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
           <PlanningCenterView

@@ -390,6 +390,8 @@ export interface Project {
   name: string;
   description?: string | null;
   project_type: string;
+  /** How work is organized in the UI — drives smart labels alongside project_type. */
+  structure_mode?: string | null;
   department_id?: string | null;
   team_id?: string | null;
   is_cross_department?: boolean;
@@ -493,6 +495,8 @@ export interface WorkPackage {
   file_count: number;
   qa_status: QaStatus;
   correction_count: number;
+  qa_required?: boolean;
+  files_required?: boolean;
   created_at: string;
   updated_at: string;
   project?: Project;
@@ -1758,6 +1762,7 @@ export type ProjectInput = Pick<
   | "name"
   | "description"
   | "project_type"
+  | "structure_mode"
   | "status"
   | "priority"
   | "start_date"
@@ -1810,6 +1815,8 @@ export type WorkPackageInput = Pick<
   | "estimated_document_count"
   | "complexity_level"
   | "manual_due_date"
+  | "qa_required"
+  | "files_required"
 >;
 
 export type FeedbackCategory =

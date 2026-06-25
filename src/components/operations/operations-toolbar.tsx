@@ -18,15 +18,22 @@ import {
   type OpsSavedViewId,
 } from "@/lib/operations/board-filters";
 import { OPS_LAYOUT_MODES, type OpsLayoutMode } from "@/lib/operations/layout";
+import { OPS_GROUPING_MODES, type OpsGroupingId } from "@/lib/operations/task-views";
 import { QA_STATUSES, WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
 import type { Project, User } from "@/types/flow";
 import { ChevronDown, ChevronUp, Filter, LayoutGrid, Search, Table2, X } from "lucide-react";
 import { useState } from "react";
+import {
+  defaultStructureFilterLabel,
+  structureSearchPlaceholder,
+} from "@/lib/projects/hierarchy-display";
 import { cn } from "@/lib/utils";
 
 interface OperationsToolbarProps {
   filters: OpsBoardFilters;
   onFiltersChange: (f: OpsBoardFilters) => void;
+  groupingId: OpsGroupingId;
+  onGroupingChange: (id: OpsGroupingId) => void;
   layoutMode: OpsLayoutMode;
   onLayoutModeChange: (mode: OpsLayoutMode) => void;
   projects: Project[];
@@ -48,6 +55,8 @@ interface OperationsToolbarProps {
 export function OperationsToolbar({
   filters,
   onFiltersChange,
+  groupingId,
+  onGroupingChange,
   layoutMode,
   onLayoutModeChange,
   projects,
@@ -90,32 +99,52 @@ export function OperationsToolbar({
     <div className="space-y-3 mb-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-md border border-border/60 p-0.5 bg-muted/20">
-          {OPS_LAYOUT_MODES.map((mode) => (
+          {OPS_GROUPING_MODES.map((mode) => (
             <Button
               key={mode.id}
               variant="outline"
               size="sm"
               className={cn(
                 "h-7 text-xs px-2.5 border-transparent bg-transparent shadow-none",
-                layoutMode === mode.id && "flow-segment-active"
+                groupingId === mode.id && "flow-segment-active"
               )}
               title={mode.description}
-              onClick={() => onLayoutModeChange(mode.id)}
+              onClick={() => onGroupingChange(mode.id)}
             >
-              {mode.id === "browser" ? (
-                <LayoutGrid className="h-3.5 w-3.5 mr-1" />
-              ) : (
-                <Table2 className="h-3.5 w-3.5 mr-1" />
-              )}
               {mode.label}
             </Button>
           ))}
         </div>
 
+        {groupingId === "hierarchy" && (
+          <div className="flex rounded-md border border-border/60 p-0.5 bg-muted/20">
+            {OPS_LAYOUT_MODES.map((mode) => (
+              <Button
+                key={mode.id}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-7 text-xs px-2.5 border-transparent bg-transparent shadow-none",
+                  layoutMode === mode.id && "flow-segment-active"
+                )}
+                title={mode.description}
+                onClick={() => onLayoutModeChange(mode.id)}
+              >
+                {mode.id === "browser" ? (
+                  <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+                ) : (
+                  <Table2 className="h-3.5 w-3.5 mr-1" />
+                )}
+                {mode.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search projects, manufacturers, years, tasks…"
+            placeholder={structureSearchPlaceholder()}
             className="pl-8 h-9"
             value={filters.search}
             onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
@@ -155,12 +184,16 @@ export function OperationsToolbar({
         )}
 
         <div className="flex gap-1 ml-auto">
-          <Button variant="ghost" size="sm" className="h-8" onClick={onExpandAll} title="Expand all">
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8" onClick={onCollapseAll} title="Collapse all">
-            <ChevronUp className="h-3.5 w-3.5" />
-          </Button>
+          {groupingId === "hierarchy" && (
+            <>
+              <Button variant="ghost" size="sm" className="h-8" onClick={onExpandAll} title="Expand all">
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8" onClick={onCollapseAll} title="Collapse all">
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -202,12 +235,12 @@ export function OperationsToolbar({
                 value={filters.manufacturerId ?? "__all__"}
                 items={manufacturers}
                 getLabel={(m) => m.name}
-                placeholder="Manufacturer"
-                sentinels={[{ value: "__all__", label: "All manufacturers" }]}
+                placeholder={defaultStructureFilterLabel().replace(/^All /, "")}
+                sentinels={[{ value: "__all__", label: defaultStructureFilterLabel() }]}
               />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All manufacturers</SelectItem>
+              <SelectItem value="__all__">{defaultStructureFilterLabel()}</SelectItem>
               {manufacturers.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
                   {m.name}

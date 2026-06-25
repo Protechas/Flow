@@ -223,7 +223,9 @@ Environment variables (typical):
 |---------|---------------|
 | Permissions | `src/lib/auth/permissions.ts` |
 | Projects UI | `src/components/projects/project-workspace.tsx` |
-| Project creation | `src/components/work-creation/new-work-wizard.tsx` |
+| Task creation | `src/components/work-creation/create-task-composer.tsx` |
+| Board creation | `src/components/work-creation/create-board-wizard.tsx` |
+| Project creation | `src/components/work-creation/program-builder.tsx` |
 | Operations board | `src/components/operations/` |
 | Employee workspace | `src/components/employee/employee-workspace-view.tsx` |
 | Executive dashboard | `src/components/executive/executive-dashboard-view.tsx` |

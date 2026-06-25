@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { EntitySelectValue } from "@/components/ui/entity-select-value";
 import { userDisplayName } from "@/lib/users/display-name";
+import { getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { calculateTaskForecast, formatForecastDays } from "@/lib/forecast/engine";
 import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
@@ -37,6 +38,7 @@ import type {
   YearWorkItem,
 } from "@/types/flow";
 import { Plus } from "lucide-react";
+import { useFlowToast } from "@/components/ui/flow-toast";
 
 export function AddWorkPackageDialog({
   yearItem,
@@ -76,8 +78,11 @@ export function AddWorkPackageDialog({
   const [complexity, setComplexity] = useState<ForecastComplexityLevel>("standard");
   const [assignee, setAssignee] = useState(yearItem.assigned_to ?? "__none__");
   const [taskTitle, setTaskTitle] = useState("");
+  const { toast } = useFlowToast();
 
-  const mfr = manufacturerName ?? "Work";
+  const project = resolvedProjects.find((p) => p.id === yearItem.project_id);
+  const labels = project ? getProjectHierarchyLabels(project) : getProjectHierarchyLabels({});
+  const mfr = manufacturerName ?? labels.workPackageShort;
   const defaultTitle = `${mfr} ${yearItem.year}`;
   const title = taskTitle.trim() || defaultTitle;
 
@@ -98,7 +103,6 @@ export function AddWorkPackageDialog({
     [docs, complexity, settings]
   );
 
-  const project = resolvedProjects.find((p) => p.id === yearItem.project_id);
   const departmentId = project?.department_id ?? undefined;
   const planningDue =
     docs > 0 && forecast.suggested_due_date
@@ -118,14 +122,14 @@ export function AddWorkPackageDialog({
           trigger ?? (
             <Button variant="ghost" size="sm" className="h-7 text-xs">
               <Plus className="h-3 w-3 mr-1" />
-              Add task
+              Add {labels.task.toLowerCase()}
             </Button>
           )
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add task</DialogTitle>
+          <DialogTitle>Add {labels.task.toLowerCase()}</DialogTitle>
           <p className="text-sm text-muted-foreground">
             {mfr} · {yearItem.year}
           </p>
@@ -208,28 +212,38 @@ export function AddWorkPackageDialog({
           onSubmit={(e) => {
             e.preventDefault();
             startTransition(async () => {
-              await createWorkPackageAction({
-                project_id: yearItem.project_id,
-                manufacturer_id: yearItem.manufacturer_id,
-                year_work_item_id: yearItem.id,
-                year: yearItem.year,
-                title,
-                assigned_to: assignee && assignee !== "__none__" ? assignee : null,
-                status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
-                priority: yearItem.priority,
-                due_date: planningDue,
-                manual_due_date: docs > 0 ? forecast.suggested_due_date : null,
-                estimated_hours: yearItem.estimated_hours ?? 8,
-                estimated_document_count: docs > 0 ? docs : null,
-                complexity_level: complexity,
-                notes: null,
-              });
-              setOpen(false);
-              setConfirmStep(false);
-              setDocCount("");
-              setTaskTitle("");
-              setAssignee(yearItem.assigned_to ?? "__none__");
-              setComplexity("standard");
+              try {
+                if (!title.trim()) throw new Error("Task name is required.");
+                await createWorkPackageAction({
+                  project_id: yearItem.project_id,
+                  manufacturer_id: yearItem.manufacturer_id,
+                  year_work_item_id: yearItem.id,
+                  year: yearItem.year,
+                  title,
+                  assigned_to: assignee && assignee !== "__none__" ? assignee : null,
+                  status: assignee && assignee !== "__none__" ? "assigned" : "not_started",
+                  priority: yearItem.priority,
+                  due_date: planningDue,
+                  manual_due_date: docs > 0 ? forecast.suggested_due_date : null,
+                  estimated_hours: yearItem.estimated_hours ?? 8,
+                  estimated_document_count: docs > 0 ? docs : null,
+                  complexity_level: complexity,
+                  notes: null,
+                });
+                toast({ variant: "success", title: "Task created", description: title });
+                setOpen(false);
+                setConfirmStep(false);
+                setDocCount("");
+                setTaskTitle("");
+                setAssignee(yearItem.assigned_to ?? "__none__");
+                setComplexity("standard");
+              } catch (e) {
+                toast({
+                  variant: "error",
+                  title: "Could not create task",
+                  description: e instanceof Error ? e.message : "Something went wrong.",
+                });
+              }
             });
           }}
         >

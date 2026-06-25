@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { updateProjectAction } from "@/app/actions/crud";
 import { ProjectForecastSection } from "@/components/forecast/project-forecast-section";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogTitle,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/wizard-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -26,6 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PROJECT_STATUSES, PROJECT_TYPES, WORK_PRIORITIES } from "@/lib/constants";
+import {
+  boardDescriptionPurpose,
+  formatBoardDescription,
+  parseBoardTaskDefaults,
+} from "@/lib/work-creation/board-defaults";
 import {
   projectOwnerCandidates,
   resolveOwnerLabel,
@@ -53,8 +60,19 @@ export function EditProjectDialog({
 }) {
   const ownerCandidates = projectOwnerCandidates(managers, viewer);
   const ownerId = project.project_owner_id ?? "__none__";
+  const isBoard = project.project_type === "board" || project.project_type === "research";
+  const boardDefaults = isBoard ? parseBoardTaskDefaults(project) : null;
+
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [boardPurpose, setBoardPurpose] = useState(
+    () => boardDescriptionPurpose(project.description) || ""
+  );
+  const [qaRequired, setQaRequired] = useState(boardDefaults?.qaRequired ?? true);
+  const [filesRequired, setFilesRequired] = useState(boardDefaults?.filesRequired ?? false);
+  const [defaultWorkstream, setDefaultWorkstream] = useState(
+    boardDefaults?.defaultWorkstream ?? "General"
+  );
   const [docCount, setDocCount] = useState(
     project.estimated_total_documents != null ? String(project.estimated_total_documents) : ""
   );
@@ -71,10 +89,20 @@ export function EditProjectDialog({
     const fd = new FormData(e.currentTarget);
     const owner = fd.get("project_owner_id") as string;
     const docs = Number(fd.get("estimated_total_documents")) || null;
+    const rawDescription = (fd.get("description") as string) || null;
+    const description = isBoard
+      ? formatBoardDescription(boardPurpose, {
+          templateId: boardDefaults?.templateId ?? "custom_board",
+          qaRequired,
+          filesRequired,
+          defaultWorkstream: defaultWorkstream.trim() || "General",
+        })
+      : rawDescription;
+
     startTransition(async () => {
       await updateProjectAction(project.id, {
         name: fd.get("name") as string,
-        description: (fd.get("description") as string) || null,
+        description,
         project_type: fd.get("project_type") as string,
         status: fd.get("status") as string,
         priority: fd.get("priority") as WorkPriority,
@@ -107,9 +135,43 @@ export function EditProjectDialog({
             <Input id="edit-name" name="name" required defaultValue={project.name} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-desc">Description</Label>
-            <Input id="edit-desc" name="description" defaultValue={project.description ?? ""} />
+            <Label htmlFor="edit-desc">{isBoard ? "Board purpose" : "Description"}</Label>
+            {isBoard ? (
+              <Textarea
+                id="edit-desc"
+                value={boardPurpose}
+                onChange={(e) => setBoardPurpose(e.target.value)}
+                rows={3}
+                placeholder="What work will this board track?"
+              />
+            ) : (
+              <Input id="edit-desc" name="description" defaultValue={project.description ?? ""} />
+            )}
           </div>
+          {isBoard && (
+            <div className="rounded-md border border-border/50 p-3 space-y-3">
+              <p className="text-xs font-medium">Default tracking for new tasks</p>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={qaRequired} onCheckedChange={(v) => setQaRequired(Boolean(v))} />
+                QA required
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={filesRequired}
+                  onCheckedChange={(v) => setFilesRequired(Boolean(v))}
+                />
+                Files required
+              </label>
+              <div className="space-y-2">
+                <Label className="text-xs">Default workstream</Label>
+                <Input
+                  value={defaultWorkstream}
+                  onChange={(e) => setDefaultWorkstream(e.target.value)}
+                  placeholder="General"
+                />
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Type</Label>

@@ -34,6 +34,37 @@ let taskSubmissions: TaskSubmissionRecord[] = [];
 let qaReviewRecords: QaReviewRecord[] = [];
 let productionInitialized = false;
 
+export function replaceProductionTrackingStore(data: {
+  timeClockEntries: TimeClockEntry[];
+  taskTimeEntries: TaskTimeEntry[];
+  taskFileUploads: TaskFileUpload[];
+  taskSubmissions: TaskSubmissionRecord[];
+  qaReviewRecords: QaReviewRecord[];
+}) {
+  timeClockEntries = data.timeClockEntries;
+  taskTimeEntries = data.taskTimeEntries;
+  taskFileUploads = data.taskFileUploads;
+  taskSubmissions = data.taskSubmissions;
+  qaReviewRecords = data.qaReviewRecords;
+  productionInitialized = true;
+}
+
+function persistClock(entry: TimeClockEntry) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistTimeClockEntry(entry));
+}
+function persistTaskTime(entry: TaskTimeEntry) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistTaskTimeEntry(entry));
+}
+function persistFile(file: TaskFileUpload) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistTaskFileUpload(file));
+}
+function persistSubmission(record: TaskSubmissionRecord) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistTaskSubmission(record));
+}
+function persistQaReview(record: QaReviewRecord) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistQaReviewRecord(record));
+}
+
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -92,6 +123,7 @@ export function clockIn(userId: string): TimeClockEntry {
     updated_at: ts(),
   };
   timeClockEntries = [entry, ...timeClockEntries];
+  persistClock(entry);
 
   const today = todayDate();
   const hadLunchToday = timeClockEntries.some(
@@ -127,6 +159,7 @@ export function clockOut(userId: string, outType: TimeClockOutType): TimeClockEn
     updated_at: now,
   };
   timeClockEntries = timeClockEntries.map((e) => (e.id === entry.id ? updated : e));
+  persistClock(updated);
   const label = outType === "lunch" ? "Clocked out for lunch" : "Clocked out for the day";
   logActivityBridge(userId, "time_log", `${label} — ${total}m`);
   return updated;
@@ -158,6 +191,7 @@ export function editClockEntry(
     updated_at: ts(),
   };
   timeClockEntries[idx] = updated;
+  persistClock(updated);
   return updated;
 }
 
@@ -276,6 +310,7 @@ export function startTaskTimer(userId: string, taskId: string): TaskTimeEntry {
     updated_at: ts(),
   };
   taskTimeEntries = [entry, ...taskTimeEntries];
+  persistTaskTime(entry);
   activateTaskLiveForecastExternal(taskId, entry.started_at);
   logActivityBridge(userId, "time_log", `Started task timer`, taskId);
   return entry;
@@ -300,6 +335,7 @@ export function pauseTaskTimer(userId: string): TaskTimeEntry {
     updated_at: now,
   };
   taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  persistTaskTime(updated);
   return updated;
 }
 
@@ -322,6 +358,7 @@ export function resumeTaskTimer(userId: string): TaskTimeEntry {
     updated_at: now,
   };
   taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  persistTaskTime(updated);
   return updated;
 }
 
@@ -345,6 +382,7 @@ export function stopTaskTimer(userId: string): TaskTimeEntry {
     updated_at: now,
   };
   taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  persistTaskTime(updated);
   refreshTaskLiveForecastExternal(entry.task_id, getTotalTaskMinutes(entry.task_id));
   return updated;
 }
@@ -417,6 +455,7 @@ export function uploadTaskFile(input: {
     created_at: ts(),
   };
   taskFileUploads = [upload, ...taskFileUploads];
+  persistFile(upload);
 
   const count = taskFileUploads.filter((f) => f.task_id === input.task_id).length;
   updateWorkPackageExternal(input.task_id, { file_count: count });
@@ -501,6 +540,7 @@ export function submitTaskForReview(input: {
     updated_at: ts(),
   };
   taskSubmissions = [record, ...taskSubmissions];
+  persistSubmission(record);
 
   updateWorkPackageExternal(input.task_id, {
     status: "ready_for_qa",
@@ -553,6 +593,7 @@ export function recordProductionQaReview(input: {
     created_at: ts(),
   };
   qaReviewRecords = [record, ...qaReviewRecords];
+  persistQaReview(record);
 
   if (input.submission_id) {
     const statusMap: Record<QaResult, TaskSubmissionStatus> = {
@@ -561,11 +602,12 @@ export function recordProductionQaReview(input: {
       major_correction: "correction_requested",
       rejected: "rejected",
     };
-    taskSubmissions = taskSubmissions.map((s) =>
-      s.id === input.submission_id
-        ? { ...s, status: statusMap[input.result], updated_at: ts() }
-        : s
-    );
+    taskSubmissions = taskSubmissions.map((s) => {
+      if (s.id !== input.submission_id) return s;
+      const updated = { ...s, status: statusMap[input.result], updated_at: ts() };
+      persistSubmission(updated);
+      return updated;
+    });
   }
 
   return record;

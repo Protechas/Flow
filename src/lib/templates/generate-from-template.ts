@@ -97,6 +97,8 @@ export function generateProjectFromTemplate(
       complexity_level: template.forecastingEnabled
         ? taskTpl.complexity_level ?? template.defaultComplexity
         : "standard",
+      qa_required: taskTpl.requires_qa,
+      files_required: taskTpl.requires_files,
     });
   }
 

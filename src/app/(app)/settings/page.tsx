@@ -94,6 +94,9 @@ export default async function SettingsPage() {
                 <Button variant="outline" size="sm" render={<Link href="/settings/work-visibility" />}>
                   Work visibility
                 </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/help-flags" />}>
+                  Help flag settings
+                </Button>
                 <Button variant="outline" size="sm" render={<Link href="/docs" />}>
                   Help &amp; docs
                 </Button>

@@ -1,5 +1,8 @@
 import { OperationsBoard } from "@/components/operations/operations-board";
-import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
+import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
+import { CreateBoardWizard } from "@/components/work-creation/create-board-wizard";
+import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
+import { AssignTaskTrigger } from "@/components/work-creation/assign-task-trigger";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
 import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
 import { HelpFlagsPanel } from "@/components/help-flags/help-flags-panel";
@@ -28,7 +31,7 @@ import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listHelpFlagsForViewer } from "@/lib/help-flags/engine";
 import { getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
-import { getAnalysts, getManagers } from "@/lib/data/projects";
+import { getAnalysts, getManagers, getManufacturers, getYearWorkItems } from "@/lib/data/projects";
 import { getAllTaskFileUploads, initProductionTracking } from "@/lib/data/production-tracking";
 import { getOperationsTree, getWorkPackages } from "@/lib/data/work-packages";
 import {
@@ -42,9 +45,9 @@ import { getActiveDepartments } from "@/lib/departments/filters";
 import { resolveDepartmentForProject } from "@/lib/departments/resolve";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
-import { parseOpsViewParam, alertCenterHref } from "@/lib/navigation/deep-links";
+import { parseOpsViewParam, parseOpsGroupingParam, alertCenterHref } from "@/lib/navigation/deep-links";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
-import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
 import { OperationsPlanningProvider } from "@/components/operations/operations-planning-context";
 import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
 import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
@@ -54,7 +57,7 @@ import { runWorkflowChecksAction } from "@/app/actions/notifications";
 export default async function OperationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string; search?: string; package?: string; taskId?: string; view?: string }>;
+  searchParams: Promise<{ department?: string; search?: string; package?: string; taskId?: string; view?: string; grouping?: string; projectId?: string }>;
 }) {
   const user = await requirePageAccess("/operations");
   const {
@@ -63,12 +66,16 @@ export default async function OperationsPage({
     package: packageParam,
     taskId: taskIdParam,
     view: viewParam,
+    grouping: groupingParam,
+    projectId: projectIdParam,
   } = await searchParams;
   const resolvedPackageId = (packageParam ?? taskIdParam)?.trim();
   if (resolvedPackageId) {
     await requireWorkPackageAccess(resolvedPackageId, "/operations");
   }
   const initialViewId = parseOpsViewParam(viewParam);
+  const initialGroupingId = parseOpsGroupingParam(groupingParam) ?? (projectIdParam ? "by_program" : "today");
+  const initialProjectId = projectIdParam?.trim() || undefined;
   await hydrateForecastSettings();
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
@@ -85,11 +92,19 @@ export default async function OperationsPage({
   const viewOwnOnly =
     hasPermission(user.role, "work:view_own") && !hasPermission(user.role, "work:view_all") && !hasPermission(user.role, "work:view_team");
 
-  const [rawTree, analysts, managers] = await Promise.all([
+  const [rawTree, analysts, managers, manufacturers, yearItems] = await Promise.all([
     getOperationsTree(viewOwnOnly ? { assignedTo: user.id } : undefined),
     getAnalysts(),
     getManagers(),
+    getManufacturers(undefined, true),
+    getYearWorkItems(),
   ]);
+
+  const activeProjectIds = new Set(
+    store.projects.filter((p) => p.status === "active").map((p) => p.id)
+  );
+  const scopedManufacturers = manufacturers.filter((m) => activeProjectIds.has(m.project_id));
+  const scopedYearItems = yearItems.filter((y) => activeProjectIds.has(y.project_id));
 
   const branchIds = getScopeMemberIds(user, store.users, teams);
   const teamUserIds = viewOwnOnly ? [user.id] : getTeamUserIds(user, analysts, store.users, teams);
@@ -106,6 +121,9 @@ export default async function OperationsPage({
   }
 
   const allowedModes = getAllowedCreationModes(user.role);
+  const managerWorkHub = usesManagerWorkHub(user.role);
+  const canCreateTask =
+    !isReadOnly(user.role) && getAllowedCreationModes(user.role).includes("task");
   const assignableIds = new Set(getAssignableUserIds(user, store.users, teams));
   const scopedAnalysts = store.users.filter(
     (a) =>
@@ -164,7 +182,7 @@ export default async function OperationsPage({
           ? "Manage team boards, projects, and tasks — update status, assign work, and submit to QA."
           : viewOwnOnly
             ? "Your assigned work — update status, log time, and submit to QA."
-            : "Primary operations workspace — manage projects, manufacturers, years, and work packages."
+            : "Primary operations workspace — manage programs, work structure, and tasks."
       }
       pulse={
         <OperationalPostureStrip
@@ -207,17 +225,38 @@ export default async function OperationsPage({
       }
       filters={
         <FilterToolbar>
-          {allowedModes.length > 0 && !isReadOnly(user.role) && (
-            <NewWorkWizard
+          {!isReadOnly(user.role) && managerWorkHub && (
+            <ManagerWorkSetup
               user={user}
               departments={departments}
-              teams={listTeamsStore()}
+              teams={teams}
               projects={store.projects.filter((p) => p.status === "active")}
+              manufacturers={scopedManufacturers}
+              yearItems={scopedYearItems}
               analysts={scopedAnalysts}
-              managers={managers}
               forecastSettings={store.forecastSettings}
-              workPackages={store.workPackages}
             />
+          )}
+          {!isReadOnly(user.role) && !managerWorkHub && allowedModes.includes("task") && (
+            <CreateTaskComposer
+              user={user}
+              projects={store.projects.filter((p) => p.status === "active")}
+              manufacturers={scopedManufacturers}
+              yearItems={scopedYearItems}
+              analysts={scopedAnalysts}
+              forecastSettings={store.forecastSettings}
+            />
+          )}
+          {!isReadOnly(user.role) && !managerWorkHub && allowedModes.includes("board") && (
+            <CreateBoardWizard
+              user={user}
+              departments={departments}
+              teams={teams}
+              analysts={scopedAnalysts}
+            />
+          )}
+          {canAssignWork(user.role) && !isReadOnly(user.role) && (
+            <AssignTaskTrigger analysts={scopedAnalysts} workPackages={packages} />
           )}
           <DepartmentFilterBar departments={departments} />
         </FilterToolbar>
@@ -243,8 +282,10 @@ export default async function OperationsPage({
             <OperationsBoard
             tree={tree}
             initialSearch={searchParam?.trim() ?? ""}
+            initialProjectId={initialProjectId}
             initialPackageId={resolvedPackageId || undefined}
             initialViewId={initialViewId}
+            initialGroupingId={initialGroupingId}
             taskFileUploads={getAllTaskFileUploads()}
             analysts={scopedAnalysts}
             currentUserId={user.id}
@@ -260,6 +301,11 @@ export default async function OperationsPage({
             comments={store.comments}
             timeLogs={store.timeLogs}
             forecastSettings={store.forecastSettings}
+            canCreateTask={canCreateTask}
+            creationUser={user}
+            activeProjects={store.projects.filter((p) => p.status === "active")}
+            scopedManufacturers={scopedManufacturers}
+            scopedYearItems={scopedYearItems}
           />
           <LiveActivityStream
             events={recentActivity}

@@ -143,7 +143,7 @@ export function buildPlanningCalendarEvents(input: PlanningCalendarBuildInput): 
       kind: "project_forecast",
       title: project.name,
       subtitle: "Project forecast completion",
-      href: `/projects?projectId=${project.id}`,
+      href: `/projects/${project.id}`,
       riskLevel: risk,
       statusLabel: "Project forecast",
     });

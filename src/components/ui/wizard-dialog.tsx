@@ -8,12 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-type WizardDialogSize = "md" | "lg" | "xl";
+type WizardDialogSize = "md" | "lg" | "xl" | "full";
 
 const SIZE_CLASS: Record<WizardDialogSize, string> = {
   md: "sm:max-w-lg",
   lg: "sm:max-w-2xl",
   xl: "sm:max-w-3xl",
+  full: "sm:max-w-[min(96vw,72rem)]",
 };
 
 /** Dialog shell for multi-step wizards — fixed header/footer, scrollable body. */
@@ -27,7 +28,7 @@ export function WizardDialogContent({
     <DialogContent
       className={cn(
         "flex w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0",
-        "max-h-[min(90vh,820px)]",
+        "max-h-[min(94vh,900px)]",
         SIZE_CLASS[size],
         className
       )}

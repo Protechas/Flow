@@ -320,6 +320,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "people:view_team",
 
+    "dashboard:view",
+
     "innovation_hub:submit",
 
   ],
@@ -445,9 +447,9 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/projects": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
-  "/people": ["admin", "manager", "teamlead", "viewer"],
+  "/people": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
-  "/qa-center": ["admin", "manager", "teamlead", "viewer"],
+  "/qa-center": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
   "/reports": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer", "employee"],
 
@@ -457,7 +459,7 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/performance": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
-  "/project-health": ["admin", "super_admin", "senior_manager", "manager"],
+  "/project-health": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/files": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"],
 
@@ -481,6 +483,7 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
   "/settings/workload-alerts": ["admin", "super_admin"],
 
   "/settings/work-visibility": ["admin", "super_admin"],
+  "/settings/help-flags": ["admin", "super_admin"],
 
   "/system-health": ["admin", "super_admin"],
 
@@ -654,7 +657,7 @@ export const NAV_CONFIG: {
 
   { id: "production", href: "/production", label: "Production", icon: "Factory", group: "operations", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
-  { id: "project-health", href: "/project-health", label: "Project Health", icon: "HeartPulse", group: "operations", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager"] },
+  { id: "project-health", href: "/project-health", label: "Project Health", icon: "HeartPulse", group: "operations", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "operations", permissions: "company_documents:view", roles: ["admin", "manager", "teamlead", "employee", "viewer"] },
 
@@ -816,6 +819,8 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
       "/operations/templates",
 
       "/projects",
+
+      "/project-health",
 
       "/people",
 

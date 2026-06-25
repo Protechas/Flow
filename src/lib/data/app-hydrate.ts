@@ -2,7 +2,10 @@ import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { initFlowStore, getFlowStore } from "@/lib/data/flow-store";
 import { ensureProjectsHydrated } from "@/lib/data/projects-db";
+import { ensureWorkStructureHydrated } from "@/lib/data/work-items-db";
 import { hydrateAppStore } from "@/lib/data/users";
+import { ensureProductionTrackingHydrated } from "@/lib/data/production-tracking-db";
+import { ensureWrapUpsHydrated } from "@/lib/data/wrap-ups-db";
 
 const hydrateApp = cache(async (): Promise<void> => {
   if (!isSupabaseConfigured()) {
@@ -11,6 +14,9 @@ const hydrateApp = cache(async (): Promise<void> => {
   }
   await hydrateAppStore();
   await ensureProjectsHydrated();
+  await ensureWorkStructureHydrated();
+  await ensureProductionTrackingHydrated();
+  await ensureWrapUpsHydrated();
 });
 
 /**

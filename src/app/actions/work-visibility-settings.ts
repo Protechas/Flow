@@ -5,9 +5,11 @@ import { requirePermission } from "@/lib/auth/session";
 import {
   getWorkVisibilitySettings,
   hydrateWorkVisibilitySettings,
+  persistWorkVisibilitySettings,
   setWorkVisibilitySettings,
 } from "@/lib/work-visibility/hydrate";
 import { writeWorkVisibilitySettingsCookie } from "@/lib/work-visibility/settings-persistence";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { WorkVisibilitySettings } from "@/types/flow";
 
 const PATHS = [
@@ -43,7 +45,11 @@ export async function updateWorkVisibilitySettingsAction(input: {
     updated_by: user.id,
   };
   setWorkVisibilitySettings(next);
-  await writeWorkVisibilitySettingsCookie(next);
+  if (isSupabaseConfigured()) {
+    await persistWorkVisibilitySettings(next, user.id);
+  } else {
+    await writeWorkVisibilitySettingsCookie(next);
+  }
   PATHS.forEach((p) => revalidatePath(p));
   return next;
 }

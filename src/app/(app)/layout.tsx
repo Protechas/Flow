@@ -27,12 +27,16 @@ export default async function AppLayout({
     await hydrateWorkloadAlertSettings();
     const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
     await hydrateHelpFlagSettings();
+    const { hydrateWorkVisibilitySettings } = await import("@/lib/work-visibility/hydrate");
+    await hydrateWorkVisibilitySettings();
   } else {
     await hydrateForecastSettings();
     const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
     await hydrateWorkloadAlertSettings();
     const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
     await hydrateHelpFlagSettings();
+    const { hydrateWorkVisibilitySettings } = await import("@/lib/work-visibility/hydrate");
+    await hydrateWorkVisibilitySettings();
   }
 
   const demoMode = !isSupabaseConfigured();

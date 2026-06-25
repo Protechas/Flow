@@ -1,4 +1,6 @@
 import type { OpsSavedViewId } from "@/lib/operations/board-filters";
+import type { OpsGroupingId } from "@/lib/operations/task-views";
+import type { PortfolioViewMode } from "@/components/projects/project-workspace";
 import type { ActivityEvent } from "@/types/flow";
 
 function withQuery(path: string, params: Record<string, string | undefined | null>): string {
@@ -16,6 +18,7 @@ export function operationsHref(opts?: {
   package?: string;
   taskId?: string;
   view?: OpsSavedViewId;
+  grouping?: OpsGroupingId;
   projectId?: string;
 }): string {
   const packageId = opts?.package ?? opts?.taskId;
@@ -25,6 +28,7 @@ export function operationsHref(opts?: {
     package: packageId,
     taskId: opts?.taskId && !opts?.package ? opts.taskId : undefined,
     view: opts?.view && opts.view !== "all" ? opts.view : undefined,
+    grouping: opts?.grouping && opts.grouping !== "today" ? opts.grouping : undefined,
     projectId: opts?.projectId,
   });
 }
@@ -33,11 +37,15 @@ export function projectsHref(opts?: {
   department?: string;
   projectId?: string;
   highlight?: string;
+  view?: PortfolioViewMode;
 }): string {
+  const id = opts?.projectId ?? opts?.highlight;
+  if (id) {
+    return withQuery(`/projects/${id}`, { department: opts?.department });
+  }
   return withQuery("/projects", {
     department: opts?.department,
-    projectId: opts?.projectId ?? opts?.highlight,
-    highlight: opts?.highlight,
+    view: opts?.view && opts.view !== "cards" ? opts.view : undefined,
   });
 }
 
@@ -105,10 +113,15 @@ export function filesHref(opts?: { taskId?: string }): string {
   return withQuery("/files", { taskId: opts?.taskId });
 }
 
-export function projectHealthHref(opts?: { search?: string; risk?: string }): string {
+export function projectHealthHref(opts?: {
+  search?: string;
+  risk?: string;
+  projectId?: string;
+}): string {
   return withQuery("/project-health", {
     search: opts?.search,
     risk: opts?.risk,
+    projectId: opts?.projectId,
   });
 }
 
@@ -151,5 +164,18 @@ export function parseOpsViewParam(value: string | undefined): OpsSavedViewId | u
   if (value && allowed.includes(value as OpsSavedViewId)) {
     return value as OpsSavedViewId;
   }
+  return undefined;
+}
+
+export function parseOpsGroupingParam(value: string | undefined): OpsGroupingId | undefined {
+  const allowed: OpsGroupingId[] = ["hierarchy", "today", "by_program", "by_person"];
+  if (value && allowed.includes(value as OpsGroupingId)) {
+    return value as OpsGroupingId;
+  }
+  return undefined;
+}
+
+export function parsePortfolioViewParam(value: string | undefined): PortfolioViewMode | undefined {
+  if (value === "cards" || value === "structure") return value;
   return undefined;
 }

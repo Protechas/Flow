@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
   assertCanAssignWorkPackage,
@@ -47,6 +46,15 @@ import {
   persistProjectRemoval,
   persistProjectUpdate,
 } from "@/lib/data/projects-db";
+import {
+  deleteWorkPackageDb,
+  deleteYearWorkItemDb,
+  persistManufacturerChange,
+  persistQuickTaskChain,
+  persistWorkPackageDb,
+  persistWorkStructureForProject,
+  persistYearWorkItemDb,
+} from "@/lib/data/work-items-db";
 import { uploadTaskFile } from "@/lib/data/production-tracking";
 import type {
   ManufacturerInput,
@@ -55,31 +63,20 @@ import type {
   WorkPackage,
 } from "@/types/flow";
 import type { ProjectTemplateId } from "@/lib/templates/project-templates";
+import { getBoardTemplate } from "@/lib/work-creation/templates";
+import { formatBoardDescription } from "@/lib/work-creation/board-defaults";
 import { createQuickTask, type QuickTaskInput } from "@/lib/data/create-work-setup";
 import type { ForecastComplexityLevel } from "@/types/flow";
 import { syncDerivedOperationalAlerts } from "@/lib/integrations/sync-derived-alerts";
+import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
 
-const PATHS = [
-  "/operations",
-  "/executive",
-  "/people",
-  "/project-health",
-  "/projects",
-  "/qa-center",
-  "/reports",
-  "/work",
-  "/performance",
-  "/planning",
-  "/alert-center",
-];
-
-function revalidateAll() {
-  PATHS.forEach((p) => revalidatePath(p));
+function revalidateAll(projectId?: string | null) {
+  revalidateWorkSurfaces(projectId);
 }
 
-function afterWorkMutation() {
+function afterWorkMutation(projectId?: string | null) {
   syncDerivedOperationalAlerts();
-  revalidateAll();
+  revalidateWorkSurfaces(projectId);
 }
 
 function assertEmployeeStatusChange(
@@ -132,6 +129,16 @@ export async function createBoardAction(input: {
   departmentId: string;
   teamId: string;
   templateId?: string;
+  qaRequired?: boolean;
+  filesRequired?: boolean;
+  firstTask?: {
+    title: string;
+    assignedTo?: string | null;
+    dueDate?: string | null;
+    qaRequired?: boolean;
+    filesRequired?: boolean;
+    workstreamName?: string;
+  } | null;
 }) {
   const user = await requirePermission("projects:create");
   const name = input.name.trim();
@@ -153,11 +160,20 @@ export async function createBoardAction(input: {
     );
   }
 
+  const tpl = getBoardTemplate(input.templateId ?? "custom_board");
+  const qaRequired = input.qaRequired ?? tpl.defaultQaRequired ?? true;
+  const filesRequired = input.filesRequired ?? tpl.defaultFilesRequired ?? false;
   const tplPurpose = input.description?.trim();
+
   const project = createProject(
     {
       name,
-      description: tplPurpose || null,
+      description: formatBoardDescription(tplPurpose, {
+        templateId: tpl.id,
+        qaRequired,
+        filesRequired,
+        defaultWorkstream: tpl.defaultWorkstream ?? "General",
+      }),
       project_type: "board",
       status: "active",
       priority: "medium",
@@ -173,6 +189,29 @@ export async function createBoardAction(input: {
     "custom"
   );
   const saved = await persistNewProject(project);
+
+  if (input.firstTask?.title?.trim()) {
+    const taskQa = input.firstTask.qaRequired ?? qaRequired;
+    const taskFiles = input.firstTask.filesRequired ?? filesRequired;
+    const task = createQuickTask({
+      projectId: saved.id,
+      manufacturerName: input.firstTask.workstreamName ?? tpl.defaultWorkstream ?? "General",
+      year: new Date().getFullYear(),
+      taskTitle: input.firstTask.title.trim(),
+      assignedTo: input.firstTask.assignedTo ?? null,
+      manualDueDate: input.firstTask.dueDate ?? null,
+      qaRequired: taskQa,
+      filesRequired: taskFiles,
+      notes: [
+        taskQa ? "QA required" : null,
+        taskFiles ? "Files required" : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+    await persistQuickTaskChain(task, null);
+  }
+
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -235,6 +274,7 @@ export async function createProjectWizardAction(input: {
     tpl
   );
   await persistNewProject(project);
+  await persistWorkStructureForProject(project.id);
   await writeAuditLog({
     action: "project_changed",
     entityType: "project",
@@ -257,6 +297,10 @@ export async function createQuickTaskAction(input: {
   complexityLevel?: ForecastComplexityLevel;
   projectDocumentEstimate?: number | null;
   priority?: import("@/types/flow").WorkPriority;
+  manualDueDate?: string | null;
+  notes?: string | null;
+  qaRequired?: boolean;
+  filesRequired?: boolean;
   departmentId?: string;
   teamId?: string;
 }) {
@@ -279,16 +323,20 @@ export async function createQuickTaskAction(input: {
     complexityLevel: input.complexityLevel,
     projectDocumentEstimate: input.projectDocumentEstimate,
     priority: input.priority,
+    manualDueDate: input.manualDueDate,
+    notes: input.notes,
+    qaRequired: input.qaRequired,
+    filesRequired: input.filesRequired,
     projectOwnerId:
       normalizeRole(user.role) === "teamlead" ? user.id : null,
   };
 
   const hadProject = Boolean(input.projectId);
   const task = createQuickTask(quickInput);
-  if (!hadProject) {
-    const project = getFlowStore().projects.find((p) => p.id === task.project_id);
-    if (project) await persistNewProject(project);
-  }
+  const project = !hadProject
+    ? getFlowStore().projects.find((p) => p.id === task.project_id)
+    : null;
+  await persistQuickTaskChain(task, project ?? null);
   const assigneeName = input.assignedTo
     ? getFlowStore().users.find((u) => u.id === input.assignedTo)?.full_name ?? input.assignedTo
     : "unassigned";
@@ -300,7 +348,7 @@ export async function createQuickTaskAction(input: {
     summary: `Created task ${task.title} → ${assigneeName}`,
     metadata: { project_id: task.project_id, assigned_to: input.assignedTo },
   });
-  revalidateAll();
+  revalidateAll(task.project_id);
   return task;
 }
 
@@ -315,7 +363,7 @@ export async function updateProjectAction(id: string, updates: Partial<ProjectIn
     summary: `Updated project ${p?.name ?? id}`,
     metadata: updates as Record<string, unknown>,
   });
-  revalidateAll();
+  revalidateAll(id);
   return p;
 }
 
@@ -323,7 +371,7 @@ export async function archiveProjectAction(id: string) {
   await requirePermission("projects:edit");
   archiveProject(id);
   await persistProjectUpdate(id, { status: "archived" });
-  revalidateAll();
+  revalidateAll(id);
 }
 
 export async function unarchiveProjectAction(id: string) {
@@ -356,6 +404,17 @@ export async function createManufacturerAction(input: ManufacturerInput, years?:
   await requirePermission("projects:edit");
   const mfr = createManufacturer(input);
   if (years?.length) bulkCreateYears(mfr.id, input.project_id, years);
+  await persistManufacturerChange(mfr);
+  const store = getFlowStore();
+  for (const year of store.yearWorkItems.filter((y) => y.manufacturer_id === mfr.id)) {
+    await persistYearWorkItemDb(year);
+  }
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "manufacturer",
+    entityId: mfr.id,
+    summary: `Added workstream ${mfr.name}`,
+  });
   revalidateAll();
   return mfr;
 }
@@ -363,6 +422,7 @@ export async function createManufacturerAction(input: ManufacturerInput, years?:
 export async function updateManufacturerAction(id: string, updates: Partial<ManufacturerInput>) {
   await requirePermission("projects:edit");
   const m = updateManufacturer(id, updates);
+  if (m) await persistManufacturerChange(m);
   revalidateAll();
   return m;
 }
@@ -376,6 +436,13 @@ export async function deleteManufacturerAction(id: string) {
 export async function createYearAction(input: import("@/types/flow").YearWorkItemInput) {
   await requirePermission("projects:edit");
   const y = createYearWorkItem(input);
+  await persistYearWorkItemDb(y);
+  await writeAuditLog({
+    action: "project_changed",
+    entityType: "year_work_item",
+    entityId: y.id,
+    summary: `Added phase ${y.year}`,
+  });
   revalidateAll();
   return y;
 }
@@ -387,6 +454,9 @@ export async function bulkCreateYearsAction(
 ) {
   await requirePermission("projects:edit");
   const items = bulkCreateYears(manufacturerId, projectId, years);
+  for (const item of items) {
+    await persistYearWorkItemDb(item);
+  }
   revalidateAll();
   return items;
 }
@@ -394,7 +464,16 @@ export async function bulkCreateYearsAction(
 export async function updateYearAction(id: string, updates: Partial<import("@/types/flow").YearWorkItem>) {
   const user = await requireUser();
   if (hasPermission(user.role, "projects:edit")) {
+    const prev = getFlowStore().yearWorkItems.find((y) => y.id === id);
     updateYearWorkItem(id, updates);
+    const saved = getFlowStore().yearWorkItems.find((y) => y.id === id);
+    if (saved) await persistYearWorkItemDb(saved);
+    if (updates.assigned_to !== undefined && prev?.assigned_to !== updates.assigned_to) {
+      const store = getFlowStore();
+      for (const pkg of store.workPackages.filter((p) => p.year_work_item_id === id)) {
+        await persistWorkPackageDb(pkg);
+      }
+    }
     revalidateAll();
     return;
   }
@@ -404,6 +483,7 @@ export async function updateYearAction(id: string, updates: Partial<import("@/ty
 export async function deleteYearAction(id: string) {
   await requirePermission("projects:delete");
   deleteYearWorkItem(id);
+  await deleteYearWorkItemDb(id);
   revalidateAll();
 }
 
@@ -411,8 +491,17 @@ export async function createWorkPackageAction(input: WorkPackageInput) {
   const user = await requireUser();
   if (hasPermission(user.role, "projects:edit")) {
     if (input.assigned_to) await assertCanAssignWorkPackage(user, input.assigned_to);
+    if (!input.title?.trim()) throw new Error("Task name is required");
     const p = createWorkPackage(input);
-    afterWorkMutation();
+    await persistWorkPackageDb(p);
+    await writeAuditLog({
+      action: "project_changed",
+      entityType: "work_package",
+      entityId: p.id,
+      summary: `Created task ${p.title}`,
+      metadata: { project_id: p.project_id, assigned_to: p.assigned_to },
+    });
+    afterWorkMutation(p.project_id);
     return p;
   }
   throw new Error("FORBIDDEN");
@@ -426,6 +515,20 @@ export async function updateWorkPackageAction(id: string, updates: Partial<WorkP
     await assertCanAssignWorkPackage(user, updates.assigned_to);
   }
   const p = updateWorkPackage(id, updates);
+  if (p) await persistWorkPackageDb(p);
+  if (updates.assigned_to !== undefined) {
+    const assignee = updates.assigned_to
+      ? getFlowStore().users.find((u) => u.id === updates.assigned_to)?.full_name ??
+        updates.assigned_to
+      : "unassigned";
+    await writeAuditLog({
+      action: "assignment_changed",
+      entityType: "work_package",
+      entityId: id,
+      summary: `Assigned task to ${assignee}`,
+      metadata: { assigned_to: updates.assigned_to },
+    });
+  }
   if (updates.status) {
     await writeAuditLog({
       action: "status_changed",
@@ -435,14 +538,16 @@ export async function updateWorkPackageAction(id: string, updates: Partial<WorkP
       metadata: { status: updates.status },
     });
   }
-  afterWorkMutation();
+  afterWorkMutation(p?.project_id);
   return p;
 }
 
 export async function deleteWorkPackageAction(id: string) {
   await requirePermission("work:delete");
+  const existing = getFlowStore().workPackages.find((p) => p.id === id);
   deleteWorkPackage(id);
-  revalidateAll();
+  await deleteWorkPackageDb(id);
+  revalidateAll(existing?.project_id);
 }
 
 export async function submitWorkPackageToQaAction(id: string) {
@@ -455,6 +560,8 @@ export async function submitWorkPackageToQaAction(id: string) {
     await assertWorkEligible(user, "submit_qa", { taskId: id });
   }
   updateWorkPackage(id, { status: "ready_for_qa", qa_status: "pending" });
+  const saved = getFlowStore().workPackages.find((p) => p.id === id);
+  if (saved) await persistWorkPackageDb(saved);
   await writeAuditLog({
     action: "status_changed",
     entityType: "work_package",
@@ -479,6 +586,8 @@ export async function completeWorkPackageAction(id: string) {
     completed_date: today,
     qa_status: "passed",
   });
+  const saved = getFlowStore().workPackages.find((p) => p.id === id);
+  if (saved) await persistWorkPackageDb(saved);
   revalidateAll();
 }
 
@@ -497,7 +606,8 @@ export async function assignWorkPackageAction(
     const pkg = getFlowStore().workPackages.find((p) => p.id === id);
     if (pkg?.status === "not_started") updates.status = "assigned";
   }
-  updateWorkPackage(id, updates);
+  const p = updateWorkPackage(id, updates);
+  if (p) await persistWorkPackageDb(p);
   const assignee = assignedTo
     ? getFlowStore().users.find((u) => u.id === assignedTo)?.full_name ?? assignedTo
     : "unassigned";
@@ -646,7 +756,8 @@ export async function bulkUpdateWorkPackagesAction(
     }
   }
   for (const id of ids) {
-    updateWorkPackage(id, updates);
+    const saved = updateWorkPackage(id, updates);
+    if (saved) await persistWorkPackageDb(saved);
   }
   await writeAuditLog({
     action: "project_changed",

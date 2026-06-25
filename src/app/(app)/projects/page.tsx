@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { NewWorkWizard } from "@/components/work-creation/new-work-wizard";
+import { ProgramBuilder } from "@/components/work-creation/program-builder";
+import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
+import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
+import { CreateBoardWizard } from "@/components/work-creation/create-board-wizard";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
 import {
   FilterToolbar,
@@ -25,19 +29,24 @@ import {
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
+import { parsePortfolioViewParam } from "@/lib/navigation/deep-links";
 import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
 
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string; projectId?: string; highlight?: string }>;
+  searchParams: Promise<{ department?: string; projectId?: string; highlight?: string; view?: string }>;
 }) {
   await requirePageAccess("/projects");
   const user = await getCurrentUser();
   if (!user) return null;
-  const { department: deptParam, projectId, highlight } = await searchParams;
-  const initialProjectId = (projectId ?? highlight)?.trim() || undefined;
+  const { department: deptParam, projectId, highlight, view: viewParam } = await searchParams;
+  const canonicalId = (projectId ?? highlight)?.trim();
+  if (canonicalId) {
+    const qs = deptParam ? `?department=${encodeURIComponent(deptParam)}` : "";
+    redirect(`/projects/${canonicalId}${qs}`);
+  }
   const departmentFilter = parseDepartmentFilter({ department: deptParam });
 
   await hydrateForecastSettings();
@@ -112,6 +121,8 @@ export default async function ProjectsPage({
     : projectOwnerCandidates(managers, user);
 
   const allowedModes = getAllowedCreationModes(user.role);
+  const managerWorkHub = usesManagerWorkHub(user.role);
+  const initialPortfolioView = parsePortfolioViewParam(viewParam) ?? "cards";
 
   return (
     <FlowPageShell
@@ -120,22 +131,53 @@ export default async function ProjectsPage({
       breadcrumbs={[{ label: isBranchScoped ? "Team Projects" : "Projects" }]}
       description={
         isBranchScoped
-          ? "Build and monitor projects, manufacturers, years, and tasks for your branch"
-          : "Scan project health, forecast risk, and work structure — then drill into manufacturers, years, and tasks"
+          ? "Build and monitor programs, work structure, and tasks for your branch"
+          : "Scan program health, forecast risk, and work structure — then drill into tasks and deliverables"
       }
       headerActions={
         <FilterToolbar>
           {allowedModes.length > 0 && (
-            <NewWorkWizard
-              user={user}
-              departments={departments}
-              teams={listTeamsStore()}
-              projects={projects}
-              analysts={analysts}
-              managers={projectOwners}
-              forecastSettings={store.forecastSettings}
-              workPackages={store.workPackages}
-            />
+            <>
+              {allowedModes.includes("project") && (
+                <ProgramBuilder
+                  user={user}
+                  departments={departments}
+                  teams={listTeamsStore()}
+                  managers={projectOwners}
+                  forecastSettings={store.forecastSettings}
+                />
+              )}
+              {managerWorkHub && (
+                <ManagerWorkSetup
+                  user={user}
+                  departments={departments}
+                  teams={listTeamsStore()}
+                  projects={projects}
+                  manufacturers={scopedManufacturers}
+                  yearItems={scopedYearItems}
+                  analysts={analysts}
+                  forecastSettings={store.forecastSettings}
+                />
+              )}
+              {!managerWorkHub && allowedModes.includes("task") && (
+                <CreateTaskComposer
+                  user={user}
+                  projects={projects}
+                  manufacturers={scopedManufacturers}
+                  yearItems={scopedYearItems}
+                  analysts={analysts}
+                  forecastSettings={store.forecastSettings}
+                />
+              )}
+              {!managerWorkHub && allowedModes.includes("board") && (
+                <CreateBoardWizard
+                  user={user}
+                  departments={departments}
+                  teams={listTeamsStore()}
+                  analysts={analysts}
+                />
+              )}
+            </>
           )}
           <DepartmentFilterBar departments={departments} />
         </FilterToolbar>
@@ -158,8 +200,8 @@ export default async function ProjectsPage({
             teams={listTeamsStore()}
             qaReviews={store.qaReviews}
             activity={store.activity}
-            initialProjectId={initialProjectId}
-            highlightProjectId={highlight?.trim() || undefined}
+            initialProjectId={undefined}
+            initialPortfolioView={initialPortfolioView}
           />
         </WorkspaceContainer>
       }

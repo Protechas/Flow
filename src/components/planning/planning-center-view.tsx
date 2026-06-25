@@ -262,7 +262,7 @@ export function PlanningCenterView({
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 px-4 py-3 hover:bg-muted/10"
             >
               <div>
-                <Link href={`/projects?projectId=${p.projectId}`} className="font-medium hover:text-primary">
+                <Link href={`/projects/${p.projectId}`} className="font-medium hover:text-primary">
                   {p.projectName}
                 </Link>
                 <p className="text-xs text-muted-foreground mt-0.5">

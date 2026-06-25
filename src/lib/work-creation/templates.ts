@@ -14,6 +14,9 @@ export interface BoardTemplate {
   description: string;
   purpose: string;
   projectType: "board";
+  defaultWorkstream?: string;
+  defaultQaRequired?: boolean;
+  defaultFilesRequired?: boolean;
 }
 
 export const BOARD_TEMPLATES: BoardTemplate[] = [
@@ -23,6 +26,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     description: "ADAS documentation and validation work queue",
     purpose: "Track ADAS program tasks across manufacturers and model years.",
     projectType: "board",
+    defaultWorkstream: "ADAS Queue",
+    defaultQaRequired: true,
+    defaultFilesRequired: true,
   },
   {
     id: "qa_review_board",
@@ -30,6 +36,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     description: "QA review and correction workflow",
     purpose: "Centralize packages ready for QA, corrections, and re-review.",
     projectType: "board",
+    defaultWorkstream: "QA Queue",
+    defaultQaRequired: true,
+    defaultFilesRequired: false,
   },
   {
     id: "training_board",
@@ -37,6 +46,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     description: "Onboarding and training assignments",
     purpose: "Assign training tasks and monitor completion for new analysts.",
     projectType: "board",
+    defaultWorkstream: "Training",
+    defaultQaRequired: false,
+    defaultFilesRequired: false,
   },
   {
     id: "si_library_board",
@@ -44,6 +56,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     description: "Service information library operations",
     purpose: "Organize SI library audits and maintenance work.",
     projectType: "board",
+    defaultWorkstream: "SI Library",
+    defaultQaRequired: true,
+    defaultFilesRequired: true,
   },
   {
     id: "custom_board",
@@ -51,6 +66,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     description: "Blank operations board",
     purpose: "General-purpose team work queue.",
     projectType: "board",
+    defaultWorkstream: "General",
+    defaultQaRequired: true,
+    defaultFilesRequired: false,
   },
 ];
 

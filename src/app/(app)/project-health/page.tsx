@@ -8,39 +8,66 @@ import {
   WorkspaceContainer,
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
-import { getProjectHealthList } from "@/lib/data/project-health";
+import { getProjectHealthIntelligenceMap, getProjectHealthList } from "@/lib/data/project-health";
 import { buildProjectMetricExportRows } from "@/lib/metrics/project-metrics-reporting";
-import { operationsHref, projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
+import { projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
 
 export default async function ProjectHealthPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; risk?: string }>;
+  searchParams: Promise<{ search?: string; risk?: string; projectId?: string }>;
 }) {
   await requirePageAccess("/project-health");
-  const { search, risk } = await searchParams;
-  let projects = await getProjectHealthList();
+  const { search, risk, projectId } = await searchParams;
+  const [projects, intelligenceByProject] = await Promise.all([
+    getProjectHealthList(),
+    getProjectHealthIntelligenceMap(),
+  ]);
+  let filtered = projects;
 
   if (search?.trim()) {
     const q = search.trim().toLowerCase();
-    projects = projects.filter(
+    filtered = filtered.filter(
       (p) =>
         p.project.name.toLowerCase().includes(q) ||
         p.project.description?.toLowerCase().includes(q)
     );
   }
 
-  if (risk === "at_risk") {
-    projects = projects.filter((p) => p.overdueCount > 0 || p.blockedCount > 0);
+  if (projectId?.trim()) {
+    filtered = filtered.filter((p) => p.project.id === projectId.trim());
   }
 
-  const atRisk = projects.filter((p) => p.overdueCount > 0 || p.blockedCount > 0).length;
+  if (risk === "at_risk") {
+    filtered = filtered.filter((p) => {
+      const intel = intelligenceByProject[p.project.id];
+      if (intel) {
+        return intel.riskTier === "at_risk" || intel.riskTier === "critical";
+      }
+      return p.overdueCount > 0 || p.blockedCount > 0;
+    });
+  }
+
+  const atRisk = filtered.filter((p) => {
+    const intel = intelligenceByProject[p.project.id];
+    if (intel) return intel.riskTier === "at_risk" || intel.riskTier === "critical";
+    return p.overdueCount > 0 || p.blockedCount > 0;
+  }).length;
   const avgProgress =
-    projects.length > 0
-      ? Math.round(projects.reduce((s, p) => s + p.overallProgress, 0) / projects.length)
+    filtered.length > 0
+      ? Math.round(filtered.reduce((s, p) => s + p.overallProgress, 0) / filtered.length)
       : 0;
-  const totalQaIssues = projects.reduce((s, p) => s + p.qaIssues, 0);
-  const exportRows = buildProjectMetricExportRows(projects.map((p) => p.project.id));
+  const totalQaIssues = filtered.reduce((s, p) => s + p.qaIssues, 0);
+  const exportRows = buildProjectMetricExportRows(filtered.map((p) => p.project.id));
+  const avgIntelligenceScore =
+    filtered.length > 0
+      ? Math.round(
+          filtered.reduce(
+            (s, p) => s + (intelligenceByProject[p.project.id]?.healthScore ?? 0),
+            0
+          ) / filtered.length
+        )
+      : 0;
 
   return (
     <FlowPageShell
@@ -52,7 +79,13 @@ export default async function ProjectHealthPage({
       pulse={
         <OperationalPostureStrip
           signals={[
-            { id: "projects", label: "Active", value: projects.length, status: "healthy", href: projectsHref(), helpKey: "activeProjects" },
+            { id: "projects", label: "Active", value: filtered.length, status: "healthy", href: projectsHref(), helpKey: "activeProjects" },
+            {
+              id: "intelligence",
+              label: "Avg health",
+              value: avgIntelligenceScore,
+              status: avgIntelligenceScore >= 75 ? "healthy" : "attention",
+            },
             {
               id: "progress",
               label: "Avg progress",
@@ -83,7 +116,13 @@ export default async function ProjectHealthPage({
         <KpiStrip
           columns={4}
           items={[
-            { id: "projects", label: "Active projects", value: projects.length, href: projectsHref(), helpKey: "activeProjects" },
+            { id: "projects", label: "Active projects", value: filtered.length, href: projectsHref(), helpKey: "activeProjects" },
+            {
+              id: "intelligence",
+              label: "Avg health score",
+              value: avgIntelligenceScore,
+              warn: avgIntelligenceScore < 75,
+            },
             { id: "progress", label: "Avg progress", value: `${avgProgress}%`, helpKey: "overallProgress" },
             {
               id: "risk",
@@ -106,7 +145,12 @@ export default async function ProjectHealthPage({
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
-          <ProjectHealthDashboard projects={projects} highlightSearch={search?.trim()} />
+          <ProjectHealthDashboard
+            projects={filtered}
+            highlightSearch={search?.trim()}
+            highlightProjectId={projectId?.trim()}
+            intelligenceByProject={intelligenceByProject}
+          />
         </WorkspaceContainer>
       }
     />

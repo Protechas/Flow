@@ -32,6 +32,17 @@ import { GroupHeaderMetrics } from "@/components/operations/group-header-metrics
 import { PackageDetailSheet } from "@/components/operations/package-detail-sheet";
 import { formatLastActivity, RollupCells } from "@/components/operations/rollup-cells";
 import { opsColCount, type OpsLayoutMode } from "@/lib/operations/layout";
+import {
+  buildPersonGroups,
+  buildProgramGroups,
+  buildTodayTasks,
+  collectFilteredPackages,
+  type OpsGroupingId,
+} from "@/lib/operations/task-views";
+import { OperationsTaskView } from "@/components/operations/operations-task-view";
+import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
+import { getHierarchyLabels, getProgramLabels, getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
+import { structureCountSummary } from "@/lib/projects/hierarchy-display";
 import { AddWorkPackageDialog } from "@/components/projects/add-work-package-dialog";
 import { PriorityBadge } from "@/components/work-tracker/priority-badge";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
@@ -78,7 +89,9 @@ import { cn } from "@/lib/utils";
 import type {
   Comment,
   ForecastSettings,
+  Manufacturer,
   OperationsTree,
+  Project,
   QaStatus,
   TaskFileUpload,
   TimeLog,
@@ -110,8 +123,10 @@ import {
 interface OperationsBoardProps {
   tree: OperationsTree;
   initialSearch?: string;
+  initialProjectId?: string;
   initialPackageId?: string;
   initialViewId?: OpsSavedViewId;
+  initialGroupingId?: OpsGroupingId;
   taskFileUploads: TaskFileUpload[];
   analysts: User[];
   forecastSettings: ForecastSettings;
@@ -127,6 +142,11 @@ interface OperationsBoardProps {
   readOnly: boolean;
   comments: Comment[];
   timeLogs: TimeLog[];
+  canCreateTask?: boolean;
+  creationUser?: User;
+  activeProjects?: Project[];
+  scopedManufacturers?: Manufacturer[];
+  scopedYearItems?: YearWorkItem[];
 }
 
 const TABLE_COL_COUNT = 14;
@@ -169,8 +189,10 @@ function flattenPackages(tree: OperationsTree): WorkPackage[] {
 export function OperationsBoard({
   tree,
   initialSearch = "",
+  initialProjectId,
   initialPackageId,
   initialViewId,
+  initialGroupingId = "today",
   taskFileUploads,
   analysts,
   forecastSettings,
@@ -186,6 +208,11 @@ export function OperationsBoard({
   readOnly,
   comments,
   timeLogs,
+  canCreateTask = false,
+  creationUser,
+  activeProjects = [],
+  scopedManufacturers = [],
+  scopedYearItems = [],
 }: OperationsBoardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,9 +226,11 @@ export function OperationsBoard({
   const [filters, setFilters] = useState<OpsBoardFilters>({
     ...DEFAULT_OPS_FILTERS,
     search: initialSearch,
+    projectId: initialProjectId,
     viewId: initialViewId ?? DEFAULT_OPS_FILTERS.viewId,
   });
   const [layoutMode, setLayoutMode] = useState<OpsLayoutMode>("browser");
+  const [groupingId, setGroupingId] = useState<OpsGroupingId>(initialGroupingId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [panelSelection, setPanelSelection] = useState<OpsPanelSelection | null>(null);
@@ -240,10 +269,74 @@ export function OperationsBoard({
   }, [initialSearch]);
 
   useEffect(() => {
+    if (initialProjectId) {
+      setFilters((f) => ({ ...f, projectId: initialProjectId }));
+      setGroupingId("by_program");
+    }
+  }, [initialProjectId]);
+
+  useEffect(() => {
+    if (initialGroupingId) {
+      setGroupingId(initialGroupingId);
+    }
+  }, [initialGroupingId]);
+
+  useEffect(() => {
     if (initialViewId) {
       setFilters((f) => ({ ...f, viewId: initialViewId }));
     }
   }, [initialViewId]);
+
+  const syncProjectParam = useCallback(
+    (projectId: string | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (projectId) params.set("projectId", projectId);
+      else params.delete("projectId");
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  const syncGroupingParam = useCallback(
+    (nextGrouping: OpsGroupingId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextGrouping === "today") params.delete("grouping");
+      else params.set("grouping", nextGrouping);
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  const handleFiltersChange = useCallback(
+    (next: OpsBoardFilters) => {
+      setFilters(next);
+      if (next.projectId !== filters.projectId) {
+        syncProjectParam(next.projectId);
+        if (next.projectId && groupingId !== "by_program") {
+          setGroupingId("by_program");
+          syncGroupingParam("by_program");
+        }
+      }
+    },
+    [filters.projectId, groupingId, syncProjectParam, syncGroupingParam]
+  );
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("projectId")?.trim();
+    if (!fromUrl) return;
+    setFilters((f) => (f.projectId === fromUrl ? f : { ...f, projectId: fromUrl }));
+    setGroupingId((g) => (g === "by_program" ? g : "by_program"));
+  }, [searchParams]);
+
+  const handleGroupingChange = useCallback(
+    (next: OpsGroupingId) => {
+      setGroupingId(next);
+      syncGroupingParam(next);
+    },
+    [syncGroupingParam]
+  );
 
   useEffect(() => {
     const packageId = searchParams.get("package") ?? searchParams.get("taskId") ?? initialPackageId ?? null;
@@ -278,6 +371,36 @@ export function OperationsBoard({
   const projects = useMemo(() => flattenProjects(tree), [tree]);
   const manufacturers = useMemo(() => flattenManufacturers(tree), [tree]);
 
+  const filteredProject = filters.projectId
+    ? activeProjects.find((p) => p.id === filters.projectId) ??
+      projects.find((p) => p.id === filters.projectId)
+    : null;
+
+  const taskEmptyState =
+    canCreateTask && creationUser && filters.projectId && filteredProject ? (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs">
+          {filteredProject.name} has no tasks in this view yet.
+        </p>
+        <CreateTaskComposer
+          user={creationUser}
+          projects={activeProjects.length ? activeProjects : [filteredProject]}
+          manufacturers={scopedManufacturers}
+          yearItems={scopedYearItems}
+          analysts={analysts}
+          forecastSettings={forecastSettings}
+          defaultProjectId={filters.projectId}
+          redirectToOperationsOnCreate
+          trigger={
+            <Button size="sm" className="h-8">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add first task
+            </Button>
+          }
+        />
+      </div>
+    ) : null;
+
   const toggleSelect = (key: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -287,10 +410,35 @@ export function OperationsBoard({
     });
   };
 
-  const selectedPkgIds = useMemo(
-    () => collectPackageIds(filteredTree, selected),
-    [filteredTree, selected]
+  const selectedPkgIds = useMemo(() => {
+    const fromTree = collectPackageIds(filteredTree, selected);
+    if (fromTree.length > 0 || groupingId === "hierarchy") return fromTree;
+    return [...selected]
+      .filter((k) => k.startsWith("pkg-"))
+      .map((k) => k.slice(4));
+  }, [filteredTree, selected, groupingId]);
+
+  const filteredPackages = useMemo(
+    () => collectFilteredPackages(tree, filters, teamUserIds),
+    [tree, filters, teamUserIds]
   );
+
+  const todayTasks = useMemo(
+    () => (groupingId === "today" ? buildTodayTasks(filteredPackages) : []),
+    [groupingId, filteredPackages]
+  );
+
+  const programGroups = useMemo(
+    () => (groupingId === "by_program" ? buildProgramGroups(filteredPackages) : []),
+    [groupingId, filteredPackages]
+  );
+
+  const personGroups = useMemo(
+    () => (groupingId === "by_person" ? buildPersonGroups(filteredPackages, analysts) : []),
+    [groupingId, filteredPackages, analysts]
+  );
+
+  const activeTaskId = panelSelection?.kind === "package" ? panelSelection.pkg.id : undefined;
 
   const updatePkg = (id: string, updates: Partial<WorkPackage>) => {
     startTransition(async () => {
@@ -317,7 +465,9 @@ export function OperationsBoard({
         <div className="flow-workspace-toolbar">
           <OperationsToolbar
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
+        groupingId={groupingId}
+        onGroupingChange={handleGroupingChange}
         layoutMode={layoutMode}
         onLayoutModeChange={setLayoutMode}
         projects={projects}
@@ -376,7 +526,12 @@ export function OperationsBoard({
         onBulkDelete={
           canDeleteWork
             ? () => {
-                if (confirm(`Delete ${selectedPkgIds.length} work packages?`)) {
+                const labels = getHierarchyLabels();
+                if (
+                  confirm(
+                    `Delete ${selectedPkgIds.length} ${labels.taskPlural.toLowerCase()}?`
+                  )
+                ) {
                   runBulk(() => bulkDeleteWorkPackagesAction(selectedPkgIds));
                 }
               }
@@ -388,6 +543,25 @@ export function OperationsBoard({
       <div className="flow-workspace-body overflow-hidden">
         <div className="flow-ops-split">
         <div className="flow-ops-table-pane">
+          {groupingId !== "hierarchy" ? (
+            <OperationsTaskView
+              groups={
+                groupingId === "by_program"
+                  ? programGroups
+                  : groupingId === "by_person"
+                    ? personGroups
+                    : null
+              }
+              flatTasks={groupingId === "today" ? todayTasks : null}
+              showGroups={groupingId === "by_program" || groupingId === "by_person"}
+              analysts={analysts}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onSelectTask={selectPackage}
+              activeTaskId={activeTaskId}
+              emptyState={taskEmptyState}
+            />
+          ) : (
           <table className={cn("w-full text-sm border-separate border-spacing-0", !compact && "min-w-[1400px]")}>
             <thead className="sticky top-0 z-10 enterprise-grid-header">
               <tr className="text-xs text-muted-foreground">
@@ -460,6 +634,7 @@ export function OperationsBoard({
               })}
             </tbody>
           </table>
+          )}
         </div>
 
         {panelSelection && (
@@ -559,6 +734,7 @@ function ProjectRows({
   forecastSettings: ForecastSettings;
 }) {
   const r = node.rollup;
+  const labels = getProjectHierarchyLabels(node.project);
   const owner = analysts.find((a) => a.id === node.project.project_owner_id);
   const due =
     node.project.active_project_due_date ??
@@ -591,7 +767,11 @@ function ProjectRows({
                 <FolderKanban className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="truncate">{node.project.name}</span>
                 <span className="text-[10px] text-muted-foreground font-normal shrink-0">
-                  {r.manufacturerCount} mfr · {r.yearCount} yr · {r.totalPackages} pkg
+                  {structureCountSummary(labels, {
+                    workstreams: r.manufacturerCount,
+                    phases: r.yearCount,
+                    tasks: r.totalPackages,
+                  })}
                 </span>
               </div>
               {compact && (
@@ -617,10 +797,12 @@ function ProjectRows({
                 canManage ? (
                   <AddManufacturerDialog
                     projectId={node.project.id}
+                    projectType={node.project.project_type}
+                    structureMode={node.project.structure_mode}
                     analysts={analysts}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Plus className="h-3.5 w-3.5 mr-2" /> Add Manufacturer
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Add {labels.workPackageShort}
                       </DropdownMenuItem>
                     }
                   />
@@ -668,6 +850,8 @@ function ProjectRows({
               panelSelection={panelSelection}
               onSelectPanel={onSelectPanel}
               projectName={node.project.name}
+              projectType={node.project.project_type}
+              structureMode={node.project.structure_mode}
               onUpdatePkg={onUpdatePkg}
               onUpdateYear={onUpdateYear}
               onDetail={onDetail}
@@ -703,6 +887,8 @@ function ManufacturerRows({
   panelSelection,
   onSelectPanel,
   projectName,
+  projectType,
+  structureMode,
   onUpdatePkg,
   onUpdateYear,
   onDetail,
@@ -731,6 +917,8 @@ function ManufacturerRows({
   panelSelection: OpsPanelSelection | null;
   onSelectPanel: (s: OpsPanelSelection) => void;
   projectName: string;
+  projectType?: string | null;
+  structureMode?: string | null;
   onUpdatePkg: (id: string, u: Partial<WorkPackage>) => void;
   onUpdateYear: (id: string, u: Partial<YearWorkItem>) => void;
   onDetail: (p: WorkPackage) => void;
@@ -739,6 +927,7 @@ function ManufacturerRows({
 }) {
   const mr = node.rollup;
   const mfr = node.manufacturer;
+  const labels = getProgramLabels(projectType, structureMode);
   const rowSelected = isPanelSelected(panelSelection, mKey);
 
   return (
@@ -760,13 +949,15 @@ function ManufacturerRows({
             <button
               type="button"
               className="flex-1 min-w-0 text-left"
-              onClick={() => onSelectPanel({ kind: "manufacturer", node, projectName })}
+              onClick={() =>
+                onSelectPanel({ kind: "manufacturer", node, projectName, projectType, structureMode })
+              }
             >
               <div className="flex items-center gap-2">
                 <Factory className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
                 {mfr.name}
                 <span className="text-[10px] text-muted-foreground font-normal">
-                  {mr.yearCount} yr · {mr.completedPct}% done
+                  {mr.yearCount} {labels.phasePlural.toLowerCase()} · {mr.completedPct}% done
                 </span>
               </div>
               {compact && <GroupHeaderMetrics rollup={mr} />}
@@ -790,10 +981,12 @@ function ManufacturerRows({
                 canManage ? (
                   <AddYearDialog
                     projectId={mfr.project_id}
+                    projectType={projectType}
+                    structureMode={structureMode}
                     manufacturerId={mfr.id}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Calendar className="h-3.5 w-3.5 mr-2" /> Add Year
+                        <Calendar className="h-3.5 w-3.5 mr-2" /> Add {labels.phaseShort}
                       </DropdownMenuItem>
                     }
                   />
@@ -803,9 +996,11 @@ function ManufacturerRows({
                 canManage ? (
                   <BulkYearsDialog
                     mfr={mfr}
+                    projectType={projectType}
+                    structureMode={structureMode}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Calendar className="h-3.5 w-3.5 mr-2" /> Bulk Create Years
+                        <Calendar className="h-3.5 w-3.5 mr-2" /> Bulk {labels.phasePlural}
                       </DropdownMenuItem>
                     }
                   />
@@ -840,6 +1035,8 @@ function ManufacturerRows({
               yearNode={yearNode}
               manufacturerName={mfr.name}
               projectName={projectName}
+              projectType={projectType}
+              structureMode={structureMode}
               yOpen={yOpen}
               onToggleChild={onToggleChild}
               selected={selected}
@@ -874,6 +1071,8 @@ function YearRowsGroup({
   yearNode,
   manufacturerName,
   projectName,
+  projectType,
+  structureMode,
   yOpen,
   onToggleChild,
   selected,
@@ -901,6 +1100,8 @@ function YearRowsGroup({
   yearNode: OperationsTree["projects"][0]["manufacturers"][0]["years"][0];
   manufacturerName: string;
   projectName: string;
+  projectType?: string | null;
+  structureMode?: string | null;
   yOpen: boolean;
   onToggleChild: (k: string) => void;
   selected: Set<string>;
@@ -926,6 +1127,7 @@ function YearRowsGroup({
 }) {
   const y = yearNode.yearWorkItem;
   const yr = yearNode.rollup;
+  const labels = getProgramLabels(projectType, structureMode);
   const rowSelected = isPanelSelected(panelSelection, yKey);
 
   return (
@@ -949,7 +1151,14 @@ function YearRowsGroup({
               type="button"
               className="flex items-center gap-2 text-left"
               onClick={() =>
-                onSelectPanel({ kind: "year", node: yearNode, manufacturerName, projectName })
+                onSelectPanel({
+                  kind: "year",
+                  node: yearNode,
+                  manufacturerName,
+                  projectName,
+                  projectType,
+                  structureMode,
+                })
               }
             >
               <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -993,7 +1202,7 @@ function YearRowsGroup({
                     forecastSettings={forecastSettings}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Plus className="h-3.5 w-3.5 mr-2" /> Add Work Package
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Add {labels.task}
                       </DropdownMenuItem>
                     }
                   />

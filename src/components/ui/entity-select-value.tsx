@@ -36,3 +36,19 @@ export function EntitySelectValue<T extends { id: string }>({
     </SelectValue>
   );
 }
+
+/** Enum / static option lists — same UUID display fix as EntitySelectValue. */
+export function OptionSelectValue({
+  value,
+  options,
+  placeholder = "Select…",
+}: {
+  value?: string | null;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  const match = value ? options.find((o) => o.value === value) : undefined;
+  return (
+    <SelectValue placeholder={placeholder}>{match?.label}</SelectValue>
+  );
+}

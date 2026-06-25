@@ -1,18 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition, useEffect, type ReactNode } from "react";
 import {
   archiveManufacturerAction,
   archiveProjectAction,
-  bulkCreateYearsAction,
-  createManufacturerAction,
-  createYearAction,
   deleteManufacturerAction,
   deleteProjectAction,
   deleteYearAction,
   unarchiveProjectAction,
   updateYearAction,
 } from "@/app/actions/crud";
+import {
+  AddManufacturerDialog,
+  AddYearDialog,
+  BulkYearsDialog,
+} from "@/components/operations/operations-dialogs";
 import { ProjectForecastPanel } from "@/components/forecast/project-forecast-panel";
 import { DueDateStatusBadge } from "@/components/forecast/due-date-status-badge";
 import { AddWorkPackageDialog } from "@/components/projects/add-work-package-dialog";
@@ -22,28 +25,13 @@ import {
   ProjectPortfolioDetailPanel,
   type PortfolioSelection,
 } from "@/components/projects/project-portfolio-detail-panel";
+import { ProjectPortfolioCards } from "@/components/projects/project-portfolio-cards";
+import { PortfolioIntelligenceStrip } from "@/components/projects/portfolio-intelligence-strip";
+import { ProgramIntelligencePanel } from "@/components/projects/program-intelligence-panel";
 import { ProjectPortfolioKpis } from "@/components/projects/project-portfolio-kpis";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  WizardDialogBody,
-  WizardDialogContent,
-  WizardDialogFooter,
-  WizardDialogHeader,
-  WizardDialogScroll,
-} from "@/components/ui/wizard-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -51,10 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { resolveUserLabel, userDisplayName } from "@/lib/users/display-name";
-import { WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
-import { DUE_DATE_STATUS_HINTS } from "@/lib/forecast/constants";
+import { WORK_STATUSES } from "@/lib/constants";
 import { formatForecastDays, formatForecastHours } from "@/lib/forecast/engine";
 import {
   buildManufacturerRollupContext,
@@ -70,8 +56,12 @@ import {
   type PortfolioScope,
   type ProjectWithStats,
 } from "@/lib/projects/portfolio-utils";
-import { HIERARCHY_LABELS } from "@/lib/projects/hierarchy-labels";
-import { YEAR_RANGE } from "@/lib/templates/project-templates";
+import { ProjectPortfolioQuickActions } from "@/components/projects/project-portfolio-quick-actions";
+import { BulkWorkPackagesDialog } from "@/components/work-creation/bulk-work-packages-dialog";
+import { getAllowedCreationModes } from "@/lib/work-creation/permissions";
+import { getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
+import { ProjectNextActionBadge } from "@/components/projects/project-next-action-badge";
+import { BoardTrackingBadges } from "@/components/projects/board-tracking-badges";
 import { cn } from "@/lib/utils";
 import type {
   ActivityEvent,
@@ -86,6 +76,8 @@ import type {
   YearWorkItem,
 } from "@/types/flow";
 import {
+  LayoutGrid,
+  ListTree,
   Archive,
   ArchiveRestore,
   ChevronDown,
@@ -113,8 +105,13 @@ interface ProjectWorkspaceProps {
   qaReviews?: QaReview[];
   activity?: ActivityEvent[];
   initialProjectId?: string;
-  highlightProjectId?: string;
+  /** Canonical program page — hides portfolio chrome, keeps structure tree. */
+  singleProjectMode?: boolean;
+  /** Portfolio landing view — cards (default) or inline structure tree. */
+  initialPortfolioView?: PortfolioViewMode;
 }
+
+export type PortfolioViewMode = "cards" | "structure";
 
 const FILTER_CHIPS: { id: PortfolioFilter; label: string }[] = [
   { id: "all", label: "All Projects" },
@@ -160,12 +157,17 @@ export function ProjectWorkspace({
   qaReviews = [],
   activity = [],
   initialProjectId,
-  highlightProjectId,
+  singleProjectMode = false,
+  initialPortfolioView = "cards",
 }: ProjectWorkspaceProps) {
+  const [portfolioView, setPortfolioView] = useState<PortfolioViewMode>(
+    singleProjectMode ? "structure" : initialPortfolioView
+  );
   const [expandedProject, setExpandedProject] = useState<string | null>(
     initialProjectId ?? activeProjects[0]?.id ?? null
   );
   const [portfolioFilter, setPortfolioFilter] = useState<PortfolioFilter | "hours_sort">("all");
+  const [departmentScopeId, setDepartmentScopeId] = useState<string | null | undefined>(undefined);
   const [selection, setSelection] = useState<PortfolioSelection>(null);
   const [pending, startTransition] = useTransition();
 
@@ -183,6 +185,9 @@ export function ProjectWorkspace({
   );
 
   const portfolioScope = useMemo((): PortfolioScope | undefined => {
+    if (departmentScopeId !== undefined) {
+      return { departmentId: departmentScopeId };
+    }
     if (portfolioFilter === "my_team" && user?.team_id) {
       return { teamId: user.team_id };
     }
@@ -191,7 +196,7 @@ export function ProjectWorkspace({
       if (deptId) return { departmentId: deptId };
     }
     return undefined;
-  }, [portfolioFilter, user?.team_id, teams]);
+  }, [departmentScopeId, portfolioFilter, user?.team_id, teams]);
 
   const filteredProjects = useMemo(() => {
     const pool =
@@ -214,13 +219,10 @@ export function ProjectWorkspace({
     return pool;
   }, [activeProjects, archivedProjects, portfolioFilter, workPackages, yearItems, allMfrs, portfolioScope]);
 
-  const atRiskProjects = useMemo(
-    () =>
-      activeProjects.filter((p) =>
-        ["behind_capacity", "at_risk"].includes(p.project_due_date_status ?? "")
-      ),
-    [activeProjects]
-  );
+  const singleProject = useMemo(() => {
+    if (!singleProjectMode || !initialProjectId) return null;
+    return filteredProjects.find((p) => p.id === initialProjectId) ?? activeProjects.find((p) => p.id === initialProjectId);
+  }, [singleProjectMode, initialProjectId, filteredProjects, activeProjects]);
 
   const setFilter = (filter: PortfolioFilter | "hours_sort") => {
     setPortfolioFilter(filter);
@@ -229,50 +231,55 @@ export function ProjectWorkspace({
     }
   };
 
+  const canCreateTask = Boolean(
+    user && canEdit && getAllowedCreationModes(user.role).includes("task")
+  );
+
   return (
     <div className="flow-project-portfolio space-y-6">
-      <ProjectPortfolioKpis kpis={kpis} activeFilter={portfolioFilter} onFilter={setFilter} />
-
-      {atRiskProjects.length > 0 && portfolioFilter !== "archived" && (
-        <section className="enterprise-panel p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Project Health & Risk</h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setFilter("at_risk")}
-            >
-              View all at risk
-            </Button>
-          </div>
-          <ul className="space-y-2">
-            {atRiskProjects.slice(0, 4).map((p) => (
-              <li
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/50 bg-muted/10 px-3 py-2 text-sm"
-              >
-                <button
-                  type="button"
-                  className="font-medium hover:text-primary text-left"
-                  onClick={() => {
-                    setExpandedProject(p.id);
-                    setSelection({ kind: "project", projectId: p.id });
-                  }}
-                >
-                  {p.name}
-                </button>
-                <DueDateStatusBadge status={p.project_due_date_status} />
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            {DUE_DATE_STATUS_HINTS.behind_capacity}
-          </p>
-        </section>
+      {!singleProjectMode && (
+        <ProjectPortfolioKpis kpis={kpis} activeFilter={portfolioFilter} onFilter={setFilter} />
       )}
 
+      {!singleProjectMode && (
+        <PortfolioIntelligenceStrip
+          projects={activeProjects}
+          packages={workPackages}
+          manufacturers={allMfrs}
+          yearItems={yearItems}
+          qaReviews={qaReviews}
+          activity={activity}
+          forecastSettings={forecastSettings}
+          departments={departments}
+          onSelectProject={(projectId) => {
+            setPortfolioView("structure");
+            setExpandedProject(projectId);
+            setSelection({ kind: "project", projectId });
+          }}
+          onSelectDepartment={(departmentId) => {
+            setDepartmentScopeId(departmentId);
+            setPortfolioFilter("all");
+            setPortfolioView("cards");
+          }}
+        />
+      )}
+
+      {singleProjectMode && singleProject && (
+        <ProgramIntelligencePanel
+          project={singleProject}
+          packages={workPackages}
+          manufacturers={allMfrs}
+          yearItems={yearItems}
+          qaReviews={qaReviews}
+          activity={activity}
+          forecastSettings={forecastSettings}
+          user={user}
+          projects={activeProjects}
+          analysts={analysts}
+        />
+      )}
+
+      {!singleProjectMode && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {FILTER_CHIPS.map((chip) => (
@@ -294,7 +301,36 @@ export function ProjectWorkspace({
             </Button>
           ))}
         </div>
+        <div className="flex rounded-md border border-border/60 p-0.5 bg-muted/20">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn(
+              "h-8 text-xs px-2.5 border-transparent bg-transparent shadow-none",
+              portfolioView === "cards" && "flow-segment-active"
+            )}
+            onClick={() => setPortfolioView("cards")}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+            Programs
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn(
+              "h-8 text-xs px-2.5 border-transparent bg-transparent shadow-none",
+              portfolioView === "structure" && "flow-segment-active"
+            )}
+            onClick={() => setPortfolioView("structure")}
+          >
+            <ListTree className="h-3.5 w-3.5 mr-1" />
+            Structure
+          </Button>
+        </div>
       </div>
+      )}
 
       {filteredProjects.length === 0 ? (
         <div className="enterprise-panel p-10 text-center text-sm text-muted-foreground">
@@ -302,6 +338,26 @@ export function ProjectWorkspace({
             ? "No archived projects in your scope."
             : "No projects match this filter. Try another view or create a new project."}
         </div>
+      ) : portfolioView === "cards" && !singleProjectMode ? (
+        <ProjectPortfolioCards
+          projects={filteredProjects}
+          manufacturers={allMfrs}
+          yearItems={yearItems}
+          workPackages={workPackages}
+          departments={departments}
+          forecastSettings={forecastSettings}
+          qaReviews={qaReviews}
+          activity={activity}
+          user={user}
+          allProjects={activeProjects}
+          analysts={analysts}
+          canCreateTask={canCreateTask}
+          onSelectProject={(projectId) => {
+            setPortfolioView("structure");
+            setExpandedProject(projectId);
+            setSelection({ kind: "project", projectId });
+          }}
+        />
       ) : (
         <div className="space-y-4">
           {filteredProjects.map((project) => {
@@ -318,6 +374,7 @@ export function ProjectWorkspace({
               activity
             );
             const nextAction = getProjectNextAction(project, allMfrs, yearItems, workPackages);
+            const labels = getProjectHierarchyLabels(project);
             const primaryDue =
               project.active_project_due_date ??
               project.manual_project_due_date ??
@@ -331,8 +388,7 @@ export function ProjectWorkspace({
                 id={`project-${project.id}`}
                 className={cn(
                   "enterprise-panel overflow-hidden scroll-mt-24",
-                  archived && "opacity-85",
-                  highlightProjectId === project.id && "ring-1 ring-primary/40"
+                  archived && "opacity-85"
                 )}
               >
                 <header className="p-4 border-b border-border/50 space-y-4">
@@ -349,7 +405,17 @@ export function ProjectWorkspace({
                       )}
                       <div className="min-w-0">
                         <h3 className="text-base font-semibold truncate group-hover:text-primary transition-colors">
-                          {project.name}
+                          {singleProjectMode ? (
+                            project.name
+                          ) : (
+                            <Link
+                              href={`/projects/${project.id}`}
+                              className="hover:text-primary"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {project.name}
+                            </Link>
+                          )}
                         </h3>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {departmentLabel(project, departments)} · {formatProjectType(project.project_type)}
@@ -358,15 +424,29 @@ export function ProjectWorkspace({
                     </button>
                     <div className="flex flex-wrap items-center gap-2">
                       {archived && <Badge variant="outline">Archived</Badge>}
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-sm border px-2 py-0.5 text-[10px] font-medium",
-                          nextActionClass(nextAction.tone)
-                        )}
-                        title="Suggested next step for this project"
-                      >
-                        Next: {nextAction.label}
-                      </span>
+                      <BoardTrackingBadges project={project} />
+                      {user && !archived ? (
+                        <ProjectNextActionBadge
+                          action={nextAction}
+                          project={project}
+                          projects={activeProjects}
+                          manufacturers={allMfrs}
+                          yearItems={yearItems}
+                          analysts={analysts}
+                          forecastSettings={forecastSettings}
+                          user={user}
+                        />
+                      ) : (
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-sm border px-2 py-0.5 text-[10px] font-medium",
+                            nextActionClass(nextAction.tone)
+                          )}
+                          title="Suggested next step for this project"
+                        >
+                          Next: {nextAction.label}
+                        </span>
+                      )}
                       <DueDateStatusBadge status={project.project_due_date_status} />
                     </div>
                   </div>
@@ -455,8 +535,32 @@ export function ProjectWorkspace({
                         Delete
                       </Button>
                     )}
+                    {!archived && (
+                      <ProjectPortfolioQuickActions
+                        project={project}
+                        user={user}
+                        projects={activeProjects}
+                        manufacturers={allMfrs}
+                        yearItems={yearItems}
+                        analysts={analysts}
+                        forecastSettings={forecastSettings}
+                        canCreateTask={canCreateTask}
+                      />
+                    )}
                     {!archived && canEdit && (
-                      <AddManufacturerDialog projectId={project.id} analysts={analysts} />
+                      <>
+                        <AddManufacturerDialog
+                          projectId={project.id}
+                          projectType={project.project_type}
+                          structureMode={project.structure_mode}
+                          analysts={analysts}
+                        />
+                        <BulkWorkPackagesDialog
+                          projectId={project.id}
+                          labels={labels}
+                          projectType={project.project_type}
+                        />
+                      </>
                     )}
                     <Button
                       variant="secondary"
@@ -475,11 +579,24 @@ export function ProjectWorkspace({
                     <ProjectForecastPanel project={project} />
                     {mfrs.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-                        <p>This project has no {HIERARCHY_LABELS.workstreamPlural.toLowerCase()} yet.</p>
-                        <p className="mt-1">Add a workstream to begin building the work structure.</p>
+                        <p>This project has no {labels.workPackagePlural.toLowerCase()} yet.</p>
+                        <p className="mt-1">
+                          Add a {labels.workPackageShort.toLowerCase()} to begin building the work
+                          structure.
+                        </p>
                         {canEdit && (
-                          <div className="mt-4 flex justify-center">
-                            <AddManufacturerDialog projectId={project.id} analysts={analysts} />
+                          <div className="mt-4 flex justify-center gap-2 flex-wrap">
+                            <AddManufacturerDialog
+                              projectId={project.id}
+                              projectType={project.project_type}
+                              structureMode={project.structure_mode}
+                              analysts={analysts}
+                            />
+                            <BulkWorkPackagesDialog
+                              projectId={project.id}
+                              labels={labels}
+                              projectType={project.project_type}
+                            />
                           </div>
                         )}
                       </div>
@@ -488,6 +605,9 @@ export function ProjectWorkspace({
                         <ManufacturerPanel
                           key={mfr.id}
                           mfr={mfr}
+                          projectType={project.project_type}
+                          structureMode={project.structure_mode}
+                          labels={labels}
                           years={yearItems.filter((y) => y.manufacturer_id === mfr.id)}
                           packages={workPackages.filter((p) => p.manufacturer_id === mfr.id)}
                           allWorkPackages={workPackages}
@@ -531,7 +651,7 @@ export function ProjectWorkspace({
                     )}
                     {archivedMfrs.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {archivedMfrs.length} archived manufacturer(s) hidden
+                        {archivedMfrs.length} archived {labels.workPackagePlural.toLowerCase()} hidden
                       </p>
                     )}
                   </div>
@@ -546,6 +666,7 @@ export function ProjectWorkspace({
         selection={selection}
         onClose={() => setSelection(null)}
         projects={[...activeProjects, ...archivedProjects]}
+        allProjects={activeProjects}
         manufacturers={allMfrs}
         yearItems={yearItems}
         packages={workPackages}
@@ -556,6 +677,8 @@ export function ProjectWorkspace({
         viewer={user}
         canEdit={canEdit}
         canDelete={canDelete}
+        canCreateTask={canCreateTask}
+        forecastSettings={forecastSettings}
         managers={managers}
       />
     </div>
@@ -581,6 +704,9 @@ function Metric({
 
 function ManufacturerPanel({
   mfr,
+  projectType,
+  structureMode,
+  labels,
   years,
   packages,
   allWorkPackages,
@@ -602,6 +728,9 @@ function ManufacturerPanel({
   onSelectTask,
 }: {
   mfr: Manufacturer;
+  projectType?: string | null;
+  structureMode?: string | null;
+  labels: import("@/lib/work-packages/smart-labels").SmartHierarchyLabels;
   years: YearWorkItem[];
   packages: WorkPackage[];
   allWorkPackages: WorkPackage[];
@@ -637,8 +766,8 @@ function ManufacturerPanel({
             </button>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-            <span>{years.length} years</span>
-            <span>{packages.length} tasks</span>
+            <span>{years.length} {labels.phasePlural.toLowerCase()}</span>
+            <span>{packages.length} {labels.taskPlural.toLowerCase()}</span>
             <span>{rollup.completedPct}% progress</span>
             <span>{rollup.readyForQa} ready for QA</span>
             {issueCount > 0 && <span className="text-amber-400">{issueCount} issues</span>}
@@ -665,7 +794,7 @@ function ManufacturerPanel({
                 size="sm"
                 className="h-7 text-xs"
                 disabled={pending}
-                title="Archive manufacturer"
+                title={`Archive ${labels.workPackageShort.toLowerCase()}`}
                 onClick={() => {
                   if (confirm(`Archive ${mfr.name}?`)) {
                     startTransition(() => archiveManufacturerAction(mfr.id));
@@ -689,7 +818,7 @@ function ManufacturerPanel({
                 }
               }}
             >
-              Delete Manufacturer
+              Delete {labels.workPackageShort}
             </Button>
           )}
         </div>
@@ -697,11 +826,31 @@ function ManufacturerPanel({
 
       {years.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>No years have been added for this manufacturer.</p>
+          <p>No {labels.phasePlural.toLowerCase()} have been added for this {labels.workPackageShort.toLowerCase()}.</p>
           {canEdit && (
             <div className="mt-3 flex justify-center gap-2">
-              <AddYearDialog mfr={mfr} />
-              <BulkYearsDialog mfr={mfr} />
+              <AddYearDialog
+                projectId={mfr.project_id}
+                projectType={projectType}
+                structureMode={structureMode}
+                manufacturerId={mfr.id}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-7 text-xs">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add {labels.phaseShort}
+                  </Button>
+                }
+              />
+              <BulkYearsDialog
+                mfr={mfr}
+                projectType={projectType}
+                structureMode={structureMode}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-7 text-xs">
+                    Bulk Add {labels.phasePlural}
+                  </Button>
+                }
+              />
             </div>
           )}
         </div>
@@ -709,8 +858,28 @@ function ManufacturerPanel({
         <>
           {canEdit && (
             <div className="flex flex-wrap gap-2">
-              <AddYearDialog mfr={mfr} />
-              <BulkYearsDialog mfr={mfr} />
+              <AddYearDialog
+                projectId={mfr.project_id}
+                projectType={projectType}
+                structureMode={structureMode}
+                manufacturerId={mfr.id}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-7 text-xs">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add {labels.phaseShort}
+                  </Button>
+                }
+              />
+              <BulkYearsDialog
+                mfr={mfr}
+                projectType={projectType}
+                structureMode={structureMode}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-7 text-xs">
+                    Bulk Add {labels.phasePlural}
+                  </Button>
+                }
+              />
             </div>
           )}
           <div className="space-y-2">
@@ -898,251 +1067,5 @@ function YearRow({
         )
       )}
     </div>
-  );
-}
-
-function AddYearDialog({ mfr }: { mfr: Manufacturer }) {
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="h-7 text-xs" />}>
-        <Plus className="h-3 w-3 mr-1" />
-        Add Year
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-xs">
-        <DialogHeader>
-          <DialogTitle>Add Year — {mfr.name}</DialogTitle>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const year = Number((new FormData(e.currentTarget).get("year") as string));
-            startTransition(async () => {
-              await createYearAction({
-                project_id: mfr.project_id,
-                manufacturer_id: mfr.id,
-                year,
-                status: "not_started",
-                priority: "medium",
-                estimated_hours: 8,
-              });
-              setOpen(false);
-            });
-          }}
-        >
-          <div className="space-y-2 py-2">
-            <Label>{HIERARCHY_LABELS.phase}</Label>
-            <Input name="year" type="number" min={1990} max={2035} required defaultValue={2026} />
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              Add
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BulkYearsDialog({ mfr }: { mfr: Manufacturer }) {
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<number[]>([...YEAR_RANGE]);
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="h-7 text-xs" />}>
-        Bulk Add Years
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Bulk Add Years — {mfr.name}</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-5 gap-2 py-2">
-          {YEAR_RANGE.map((y) => (
-            <label key={y} className="flex items-center gap-1 text-xs">
-              <Checkbox
-                checked={selected.includes(y)}
-                onCheckedChange={() =>
-                  setSelected((prev) =>
-                    prev.includes(y) ? prev.filter((x) => x !== y) : [...prev, y].sort()
-                  )
-                }
-              />
-              {y}
-            </label>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button
-            disabled={pending || selected.length === 0}
-            onClick={() =>
-              startTransition(async () => {
-                await bulkCreateYearsAction(mfr.id, mfr.project_id, selected);
-                setOpen(false);
-              })
-            }
-          >
-            Create {selected.length} years
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AddManufacturerDialog({
-  projectId,
-  analysts,
-}: {
-  projectId: string;
-  analysts: User[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [selectedYears, setSelectedYears] = useState<number[]>([2024, 2025, 2026]);
-
-  function toggleYear(year: number) {
-    setSelectedYears((prev) =>
-      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year].sort()
-    );
-  }
-
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const owner = fd.get("assigned_to") as string;
-    startTransition(async () => {
-      await createManufacturerAction(
-        {
-          project_id: projectId,
-          name: fd.get("name") as string,
-          assigned_to: owner && owner !== "__none__" ? owner : null,
-          status: fd.get("status") as WorkStatus,
-          priority: fd.get("priority") as import("@/types/flow").WorkPriority,
-          due_date: (fd.get("due_date") as string) || null,
-          notes: (fd.get("notes") as string) || null,
-        },
-        selectedYears
-      );
-      setOpen(false);
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="h-8" />}>
-        <Plus className="h-3.5 w-3.5 mr-1" />
-        Add {HIERARCHY_LABELS.workstreamShort}
-      </DialogTrigger>
-      <WizardDialogContent size="md">
-        <WizardDialogHeader>
-          <DialogTitle>Add {HIERARCHY_LABELS.workstreamShort}</DialogTitle>
-        </WizardDialogHeader>
-        <WizardDialogBody>
-          <WizardDialogScroll>
-            <form id="workspace-add-manufacturer-form" onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="mfr-name">{HIERARCHY_LABELS.workstream} name *</Label>
-            <Input id="mfr-name" name="name" required placeholder="Toyota" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Owner</Label>
-              <Select name="assigned_to" defaultValue="__none__">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {analysts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mfr-due">Due date</Label>
-              <Input id="mfr-due" name="due_date" type="date" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select name="status" defaultValue="not_started">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORK_STATUSES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select name="priority" defaultValue="medium">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORK_PRIORITIES.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={2} />
-          </div>
-          <div className="space-y-2">
-            <Label>Bulk create years</Label>
-            <div className="grid grid-cols-5 gap-2">
-              {YEAR_RANGE.map((year) => (
-                <label key={year} className="flex items-center gap-1.5 text-xs cursor-pointer">
-                  <Checkbox
-                    checked={selectedYears.includes(year)}
-                    onCheckedChange={() => toggleYear(year)}
-                  />
-                  {year}
-                </label>
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => setSelectedYears([...YEAR_RANGE])}
-            >
-              Select all 2017–2026
-            </Button>
-            </div>
-            </form>
-          </WizardDialogScroll>
-          <WizardDialogFooter>
-            <Button
-              type="submit"
-              form="workspace-add-manufacturer-form"
-              disabled={pending || selectedYears.length === 0}
-            >
-              {pending ? "Adding…" : `Add & create ${selectedYears.length} years`}
-            </Button>
-          </WizardDialogFooter>
-        </WizardDialogBody>
-      </WizardDialogContent>
-    </Dialog>
   );
 }

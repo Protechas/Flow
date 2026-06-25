@@ -36,6 +36,7 @@ function mapProject(row: Record<string, unknown>): Project {
     name: String(row.name),
     description: row.description ? String(row.description) : null,
     project_type: row.project_type ? String(row.project_type) : "custom",
+    structure_mode: row.structure_mode ? String(row.structure_mode) : null,
     department_id: row.department_id ? String(row.department_id) : null,
     team_id: row.team_id ? String(row.team_id) : null,
     is_cross_department: Boolean(row.is_cross_department),
@@ -113,6 +114,7 @@ function projectToRow(project: Project, extended = true): Record<string, unknown
   return {
     ...base,
     project_type: project.project_type ?? "custom",
+    structure_mode: project.structure_mode ?? null,
     priority: project.priority ?? "medium",
     project_owner_id: uuidOrNull(project.project_owner_id),
     due_date: project.due_date ?? null,

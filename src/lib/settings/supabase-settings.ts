@@ -13,6 +13,7 @@ import type {
   ForecastSettings,
   HelpFlagSettings,
   WorkloadAlertSettings,
+  WorkVisibilitySettings,
 } from "@/types/flow";
 
 /** Load org forecast settings from Supabase into the in-memory store. */
@@ -189,4 +190,69 @@ export function defaultHelpFlagSettingsIfMissing(): HelpFlagSettings {
   const settings = defaultHelpFlagSettings();
   writeGlobalHelpFlagSettings(settings);
   return settings;
+}
+
+export async function hydrateWorkVisibilitySettingsFromSupabase(): Promise<WorkVisibilitySettings | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("work_visibility_settings")
+    .select(
+      "id, enabled, alerts_enabled, activity_gap_threshold_minutes, task_tracking_compliance_target_pct, daily_report_required, capacity_alert_threshold_pct, updated_at, updated_by"
+    )
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const { defaultWorkVisibilitySettings, writeGlobalWorkVisibilitySettings } = await import(
+    "@/lib/work-visibility/settings-persistence"
+  );
+
+  const settings: WorkVisibilitySettings = {
+    id: String(data.id ?? defaultWorkVisibilitySettings().id),
+    enabled: Boolean(data.enabled),
+    alerts_enabled: Boolean(data.alerts_enabled),
+    activity_gap_threshold_minutes: Number(data.activity_gap_threshold_minutes),
+    task_tracking_compliance_target_pct: Number(data.task_tracking_compliance_target_pct),
+    daily_report_required: Boolean(data.daily_report_required),
+    capacity_alert_threshold_pct: Number(data.capacity_alert_threshold_pct),
+    updated_at: data.updated_at ?? new Date().toISOString(),
+    updated_by: data.updated_by ?? null,
+  };
+
+  writeGlobalWorkVisibilitySettings(settings);
+  return settings;
+}
+
+export async function persistWorkVisibilitySettingsToSupabase(
+  settings: WorkVisibilitySettings,
+  userId: string
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("work_visibility_settings")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+
+  const row = {
+    enabled: settings.enabled,
+    alerts_enabled: settings.alerts_enabled,
+    activity_gap_threshold_minutes: settings.activity_gap_threshold_minutes,
+    task_tracking_compliance_target_pct: settings.task_tracking_compliance_target_pct,
+    daily_report_required: settings.daily_report_required,
+    capacity_alert_threshold_pct: settings.capacity_alert_threshold_pct,
+    updated_at: new Date().toISOString(),
+    updated_by: userId,
+  };
+
+  if (existing?.id) {
+    await supabase.from("work_visibility_settings").update(row).eq("id", existing.id);
+  } else {
+    await supabase.from("work_visibility_settings").insert(row);
+  }
 }

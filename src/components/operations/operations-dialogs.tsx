@@ -33,17 +33,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WORK_PRIORITIES, WORK_STATUSES } from "@/lib/constants";
+import { getProgramLabels } from "@/lib/projects/hierarchy-labels";
 import { YEAR_RANGE } from "@/lib/templates/project-templates";
 import type { Manufacturer, User, WorkPriority, WorkStatus } from "@/types/flow";
 import { Plus } from "lucide-react";
 
 export function BulkYearsDialog({
   mfr,
+  projectType,
+  structureMode,
   trigger,
 }: {
   mfr: Manufacturer;
+  projectType?: string | null;
+  structureMode?: string | null;
   trigger?: React.ReactElement;
 }) {
+  const labels = getProgramLabels(projectType, structureMode);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<number[]>([...YEAR_RANGE]);
@@ -61,10 +67,10 @@ export function BulkYearsDialog({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Bulk years — {mfr.name}</DialogTitle>
+          <DialogTitle>Bulk {labels.phasePlural.toLowerCase()} — {mfr.name}</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          Select a year range to create year work items under this manufacturer.
+          Select a range to create {labels.phasePlural.toLowerCase()} under this {labels.workPackageShort.toLowerCase()}.
         </p>
         <div className="grid grid-cols-5 gap-2 py-2">
           {YEAR_RANGE.map((y) => (
@@ -101,13 +107,18 @@ export function BulkYearsDialog({
 
 export function AddManufacturerDialog({
   projectId,
+  projectType,
+  structureMode,
   analysts,
   trigger,
 }: {
   projectId: string;
+  projectType?: string | null;
+  structureMode?: string | null;
   analysts: User[];
   trigger?: React.ReactElement;
 }) {
+  const labels = getProgramLabels(projectType, structureMode);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [selectedYears, setSelectedYears] = useState<number[]>([...YEAR_RANGE]);
@@ -146,20 +157,20 @@ export function AddManufacturerDialog({
           trigger ?? (
             <Button variant="outline" size="sm">
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Add Manufacturer
+              Add {labels.workPackageShort}
             </Button>
           )
         }
       />
       <WizardDialogContent size="md">
         <WizardDialogHeader>
-          <DialogTitle>Add Manufacturer</DialogTitle>
+          <DialogTitle>Add {labels.workPackageShort}</DialogTitle>
         </WizardDialogHeader>
         <WizardDialogBody>
           <WizardDialogScroll>
             <form id="add-manufacturer-form" onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mfr-name">Manufacturer name *</Label>
+            <Label htmlFor="mfr-name">{labels.workPackage} name *</Label>
             <Input id="mfr-name" name="name" required placeholder="Toyota" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -231,7 +242,7 @@ export function AddManufacturerDialog({
           </WizardDialogScroll>
           <WizardDialogFooter>
             <Button type="submit" form="add-manufacturer-form" disabled={pending}>
-              Add manufacturer
+              Add {labels.workPackageShort.toLowerCase()}
             </Button>
           </WizardDialogFooter>
         </WizardDialogBody>
@@ -242,13 +253,18 @@ export function AddManufacturerDialog({
 
 export function AddYearDialog({
   projectId,
+  projectType,
+  structureMode,
   manufacturerId,
   trigger,
 }: {
   projectId: string;
+  projectType?: string | null;
+  structureMode?: string | null;
   manufacturerId: string;
   trigger?: React.ReactElement;
 }) {
+  const labels = getProgramLabels(projectType, structureMode);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -258,14 +274,14 @@ export function AddYearDialog({
         render={
           trigger ?? (
             <Button variant="ghost" size="sm" className="h-7 text-xs">
-              Add year
+              Add {labels.phaseShort.toLowerCase()}
             </Button>
           )
         }
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add year work item</DialogTitle>
+          <DialogTitle>Add {labels.phaseShort.toLowerCase()}</DialogTitle>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -286,7 +302,7 @@ export function AddYearDialog({
           }}
         >
           <div className="space-y-2">
-            <Label>Model year</Label>
+            <Label>{labels.phase}</Label>
             <Input name="year" type="number" min={1990} max={2035} required defaultValue={2026} />
           </div>
           <DialogFooter>

@@ -5,6 +5,8 @@ import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { resolveProjectMetrics } from "@/lib/metrics/project-metrics-resolver";
+import { buildProgramIntelligence, type ProgramIntelligence } from "@/lib/projects/project-intelligence";
+import type { ProjectWithStats } from "@/lib/projects/portfolio-utils";
 import type { ProjectHealth } from "@/types/flow";
 import { addDays, format } from "date-fns";
 
@@ -60,4 +62,42 @@ export async function getProjectHealthList(): Promise<ProjectHealth[]> {
       customMetrics: resolveProjectMetrics(project),
     };
   });
+}
+
+export async function getProjectHealthIntelligenceMap(): Promise<Record<string, ProgramIntelligence>> {
+  await hydrateForecastSettings();
+  initFlowStore();
+  const forecastSettings = getFlowStore().forecastSettings;
+  const store = getMockStore();
+  const packages = await getWorkPackages();
+  const map: Record<string, ProgramIntelligence> = {};
+
+  for (const project of store.projects) {
+    if (project.status === "archived") continue;
+    const projectPkgs = packages.filter((p) => p.project_id === project.id);
+    const rollup = projectRollup(
+      project,
+      projectPkgs,
+      store.manufacturers,
+      store.qaReviews,
+      store.yearWorkItems.filter((y) => y.project_id === project.id)
+    );
+    const withStats: ProjectWithStats = {
+      ...project,
+      manufacturerCount: rollup.manufacturerCount,
+      yearCount: rollup.yearCount,
+      completedPct: rollup.completedPct,
+    };
+    map[project.id] = buildProgramIntelligence(
+      withStats,
+      packages,
+      store.manufacturers,
+      store.yearWorkItems,
+      store.qaReviews,
+      store.activity,
+      forecastSettings
+    );
+  }
+
+  return map;
 }

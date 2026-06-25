@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { qaStatusLabel } from "@/lib/constants";
+import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-flags";
+import { TrackingFlagsBadges } from "@/components/work-tracker/tracking-flags-badges";
 import { formatLastActivity } from "@/components/operations/rollup-cells";
 import { cn } from "@/lib/utils";
 import type { Comment, TaskFileUpload, TimeLog, User, WorkPackage } from "@/types/flow";
@@ -71,6 +73,7 @@ export function PackageDetailContent({
   const pkgFiles = taskFiles.filter((f) => f.task_id === pkg.id);
   const pkgLogs = timeLogs.filter((t) => t.work_package_id === pkg.id);
   const assignee = analysts.find((a) => a.id === pkg.assigned_to);
+  const tracking = resolveWorkPackageTrackingFlags(pkg);
 
   const refresh = () => {
     onUpdated?.();
@@ -78,7 +81,10 @@ export function PackageDetailContent({
   };
 
   const canSubmit =
-    canSubmitQa && pkg.status !== "done" && !["ready_for_qa", "in_qa"].includes(pkg.status);
+    canSubmitQa &&
+    tracking.qaRequired &&
+    pkg.status !== "done" &&
+    !["ready_for_qa", "in_qa"].includes(pkg.status);
   const canComplete = canEdit && pkg.status !== "done";
   const isEmployeeTask = assignee?.id === currentUserId;
 
@@ -163,6 +169,8 @@ export function PackageDetailContent({
           </Link>
         )}
       </div>
+
+      <TrackingFlagsBadges pkg={pkg} className="flex flex-wrap gap-1.5" />
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div>
