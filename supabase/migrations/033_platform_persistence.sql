@@ -31,7 +31,10 @@ CREATE TABLE IF NOT EXISTS project_intelligence_snapshots (
   capacity_load_pct INTEGER,
   avg_capacity_load_pct INTEGER,
   at_risk_count INTEGER,
-  risk_tier TEXT,
+  risk_tier TEXT CHECK (risk_tier IS NULL OR risk_tier IN ('healthy', 'watch', 'at_risk', 'critical')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_intel_snapshots_date ON project_intelligence_snapshots (snapshot_date DESC);
 CREATE INDEX IF NOT EXISTS idx_intel_snapshots_program ON project_intelligence_snapshots (project_id, snapshot_date DESC);
 
