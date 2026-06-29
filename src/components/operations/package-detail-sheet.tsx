@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { PackageDetailContent } from "@/components/operations/package-detail-content";
-import type { Comment, TaskFileUpload, TimeLog, User, WorkPackage } from "@/types/flow";
+import type { Comment, ForecastSettings, TaskFileUpload, TimeLog, User, WorkPackage } from "@/types/flow";
 
 interface PackageDetailSheetProps {
   pkg: WorkPackage | null;
@@ -19,6 +19,7 @@ interface PackageDetailSheetProps {
   timeLogs: TimeLog[];
   currentUserId: string;
   analysts: User[];
+  forecastSettings: ForecastSettings;
   canAssign: boolean;
   canEdit: boolean;
   canSubmitQa?: boolean;
@@ -34,6 +35,7 @@ export function PackageDetailSheet({
   timeLogs,
   currentUserId,
   analysts,
+  forecastSettings,
   canAssign,
   canEdit,
   canSubmitQa = false,
@@ -59,6 +61,7 @@ export function PackageDetailSheet({
             timeLogs={timeLogs}
             currentUserId={currentUserId}
             analysts={analysts}
+            forecastSettings={forecastSettings}
             actions={{ canAssign, canEdit, canSubmitQa, canManage }}
             onUpdated={() => router.refresh()}
           />

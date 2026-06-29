@@ -167,6 +167,7 @@ export function OperationsDetailPanel({
             timeLogs={timeLogs}
             currentUserId={currentUserId}
             analysts={analysts}
+            forecastSettings={forecastSettings}
             actions={{ canAssign, canEdit, canSubmitQa, canManage }}
             onUpdated={refresh}
           />

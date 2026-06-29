@@ -11,6 +11,7 @@ import {
   updateWorkPackageAction,
 } from "@/app/actions/crud";
 import { TaskFileUploadZone } from "@/components/employee/task-file-upload-zone";
+import { TaskForecastMetricsSaveBlock } from "@/components/forecast/task-forecast-metrics-save-block";
 import { TaskLiveForecastPanel } from "@/components/forecast/task-live-forecast-panel";
 import { PriorityBadge } from "@/components/work-tracker/priority-badge";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
@@ -29,7 +30,7 @@ import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-fl
 import { TrackingFlagsBadges } from "@/components/work-tracker/tracking-flags-badges";
 import { formatLastActivity } from "@/components/operations/rollup-cells";
 import { cn } from "@/lib/utils";
-import type { Comment, TaskFileUpload, TimeLog, User, WorkPackage } from "@/types/flow";
+import type { Comment, ForecastSettings, TaskFileUpload, TimeLog, User, WorkPackage } from "@/types/flow";
 import {
   CheckCircle2,
   ClipboardList,
@@ -54,6 +55,7 @@ export function PackageDetailContent({
   currentUserId,
   analysts,
   actions,
+  forecastSettings,
   onUpdated,
 }: {
   pkg: WorkPackage;
@@ -63,6 +65,7 @@ export function PackageDetailContent({
   currentUserId: string;
   analysts: User[];
   actions: PackageDetailActions;
+  forecastSettings?: ForecastSettings;
   onUpdated?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -210,6 +213,15 @@ export function PackageDetailContent({
           <dd className="mt-0.5 text-muted-foreground">{formatLastActivity(pkg.updated_at)}</dd>
         </div>
       </dl>
+
+      {forecastSettings && (canEdit || pkg.estimated_document_count) && (
+        <TaskForecastMetricsSaveBlock
+          task={pkg}
+          forecastSettings={forecastSettings}
+          canEdit={canEdit}
+          onSaved={refresh}
+        />
+      )}
 
       <TaskLiveForecastPanel task={pkg} allowManualProgress={canEdit} />
 

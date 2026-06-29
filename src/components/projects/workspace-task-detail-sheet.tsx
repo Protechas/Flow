@@ -9,14 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  TaskForecastMetricsEditor,
+  formatTaskMinutesPerFile,
+} from "@/components/forecast/task-forecast-metrics-editor";
+import {
   mergeTaskCustomFields,
   parseCustomFields,
   taskProgress,
 } from "@/lib/projects/workspace-config";
 import type { WorkspaceColumnDef } from "@/lib/projects/workspace-types";
-import { primaryDueDate } from "@/lib/forecast/live";
-import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
-import type { ForecastComplexityLevel, User, WorkPackage } from "@/types/flow";
+import type { ForecastComplexityLevel, ForecastSettings, User, WorkPackage } from "@/types/flow";
 import { Progress } from "@/components/ui/progress";
 
 export function WorkspaceTaskDetailSheet({
@@ -25,6 +27,7 @@ export function WorkspaceTaskDetailSheet({
   managers,
   canEdit,
   columns,
+  forecastSettings,
   showForecastFields = true,
   onClose,
   onUpdated,
@@ -34,6 +37,7 @@ export function WorkspaceTaskDetailSheet({
   managers: User[];
   canEdit: boolean;
   columns: WorkspaceColumnDef[];
+  forecastSettings: ForecastSettings;
   /** When true, show estimated documents/files for due-date forecasting. */
   showForecastFields?: boolean;
   onClose: () => void;
@@ -52,6 +56,9 @@ export function WorkspaceTaskDetailSheet({
   const [complexity, setComplexity] = useState<ForecastComplexityLevel>(
     task?.complexity_level ?? "standard"
   );
+  const [minutesPerFile, setMinutesPerFile] = useState(
+    formatTaskMinutesPerFile(task?.estimated_minutes_per_document)
+  );
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
 
   const people = [...managers, ...analysts];
@@ -69,6 +76,7 @@ export function WorkspaceTaskDetailSheet({
       task.estimated_document_count != null ? String(task.estimated_document_count) : ""
     );
     setComplexity(task.complexity_level ?? "standard");
+    setMinutesPerFile(formatTaskMinutesPerFile(task.estimated_minutes_per_document));
     setCustomFields(parseCustomFields(task.description));
   }, [task]);
 
@@ -76,6 +84,10 @@ export function WorkspaceTaskDetailSheet({
     if (!task) return;
     startTransition(async () => {
       const docCount = estimatedFiles.trim() === "" ? null : Number(estimatedFiles);
+      const minutes =
+        minutesPerFile.trim() === "" ? null : Number.isNaN(Number(minutesPerFile))
+          ? null
+          : Number(minutesPerFile);
       await updateWorkPackageAction(task.id, {
         title: title.trim(),
         notes: notes.trim() || null,
@@ -85,6 +97,7 @@ export function WorkspaceTaskDetailSheet({
         estimated_hours: Number(hours) || 0,
         estimated_document_count: docCount,
         complexity_level: complexity,
+        estimated_minutes_per_document: minutes,
         description: mergeTaskCustomFields(task.description, customFields),
       });
       onUpdated();
@@ -169,67 +182,31 @@ export function WorkspaceTaskDetailSheet({
                 </div>
               </div>
 
-              <div className={showForecastFields ? "grid grid-cols-2 gap-3" : "space-y-2"}>
-                <div className="space-y-2">
-                  <Label>Estimated hours</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={hours}
-                    disabled={!canEdit}
-                    onChange={(e) => setHours(e.target.value)}
-                  />
-                </div>
-                {showForecastFields && (
-                  <div className="space-y-2">
-                    <Label>Estimated files</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      placeholder="e.g. 120"
-                      value={estimatedFiles}
-                      disabled={!canEdit}
-                      onChange={(e) => setEstimatedFiles(e.target.value)}
-                    />
-                    <p className="text-[11px] text-muted-foreground leading-snug">
-                      Used with forecasting to calculate suggested due dates.
-                    </p>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <Label>Estimated hours</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={hours}
+                  disabled={!canEdit}
+                  onChange={(e) => setHours(e.target.value)}
+                />
               </div>
 
-                {showForecastFields && (
-                  <div className="space-y-2">
-                    <Label>Complexity</Label>
-                    <select
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                      value={complexity}
-                      disabled={!canEdit}
-                      onChange={(e) =>
-                        setComplexity(e.target.value as ForecastComplexityLevel)
-                      }
-                    >
-                      {COMPLEXITY_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label} ({o.multiplier})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-              {showForecastFields && primaryDueDate(task) && (
-                <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">Forecasted due date: </span>
-                  <span className="font-medium">{primaryDueDate(task)}</span>
-                  {task.due_date_status && (
-                    <span className="ml-2 text-xs capitalize text-muted-foreground">
-                      ({task.due_date_status.replace(/_/g, " ")})
-                    </span>
-                  )}
-                </div>
+              {showForecastFields && (
+                <TaskForecastMetricsEditor
+                  forecastSettings={forecastSettings}
+                  canEdit={canEdit}
+                  estimatedFiles={estimatedFiles}
+                  onEstimatedFilesChange={setEstimatedFiles}
+                  complexity={complexity}
+                  onComplexityChange={setComplexity}
+                  minutesPerFile={minutesPerFile}
+                  onMinutesPerFileChange={setMinutesPerFile}
+                  manualDueDate={dueDate || undefined}
+                  startDate={task.start_date ?? task.forecast_start_date}
+                />
               )}
 
               <div className="space-y-2">
@@ -263,9 +240,6 @@ export function WorkspaceTaskDetailSheet({
               <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
                 <p>QA: {task.qa_status}</p>
                 <p>Uploaded files: {task.file_count}</p>
-                {task.estimated_document_count != null && (
-                  <p>Estimated files: {task.estimated_document_count}</p>
-                )}
                 <p>Corrections: {task.correction_count}</p>
               </div>
 

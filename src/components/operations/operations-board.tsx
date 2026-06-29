@@ -669,6 +669,7 @@ export function OperationsBoard({
         timeLogs={timeLogs}
         currentUserId={currentUserId}
         analysts={analysts}
+        forecastSettings={forecastSettings}
         canAssign={allowAssign}
         canEdit={allowEdit}
         canSubmitQa={canSubmitQa}

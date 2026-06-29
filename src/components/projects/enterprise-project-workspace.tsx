@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Settings2 } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Plus, Settings2 } from "lucide-react";
 import { updateWorkPackageAction } from "@/app/actions/crud";
 import {
   addWorkspaceSectionAction,
@@ -24,6 +24,7 @@ import type { ProjectWorkspaceConfig, WorkspaceColumnDef } from "@/lib/projects/
 import type {
   ActivityEvent,
   Department,
+  ForecastSettings,
   Manufacturer,
   Project,
   QaReview,
@@ -52,6 +53,26 @@ function statusLabel(status: string) {
   return status.replace(/_/g, " ");
 }
 
+type TaskSort = "default" | "title-asc" | "title-desc";
+
+function sortTasks(tasks: WorkPackage[], sort: TaskSort): WorkPackage[] {
+  if (sort === "default") return tasks;
+  const sorted = [...tasks];
+  const cmp =
+    sort === "title-asc"
+      ? (a: WorkPackage, b: WorkPackage) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true })
+      : (a: WorkPackage, b: WorkPackage) =>
+          b.title.localeCompare(a.title, undefined, { sensitivity: "base", numeric: true });
+  return sorted.sort(cmp);
+}
+
+function nextTitleSort(current: TaskSort): TaskSort {
+  if (current === "default") return "title-asc";
+  if (current === "title-asc") return "title-desc";
+  return "default";
+}
+
 export function EnterpriseProjectWorkspace({
   project,
   manufacturers,
@@ -63,6 +84,7 @@ export function EnterpriseProjectWorkspace({
   qaReviews,
   activity,
   canEdit,
+  forecastSettings,
 }: {
   project: Project;
   manufacturers: Manufacturer[];
@@ -74,6 +96,7 @@ export function EnterpriseProjectWorkspace({
   qaReviews: QaReview[];
   activity: ActivityEvent[];
   canEdit: boolean;
+  forecastSettings: ForecastSettings;
 }) {
   const sections = useMemo(
     () => manufacturers.filter((m) => m.project_id === project.id),
@@ -89,10 +112,16 @@ export function EnterpriseProjectWorkspace({
   const [view, setView] = useState<"tasks" | "forecast" | "qa" | "activity">("tasks");
   const [pending, startTransition] = useTransition();
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
+  const [taskSort, setTaskSort] = useState<TaskSort>("title-asc");
 
   const sectionTasks = useMemo(
     () => workPackages.filter((t) => t.manufacturer_id === activeSectionId),
     [workPackages, activeSectionId]
+  );
+
+  const sortedSectionTasks = useMemo(
+    () => sortTasks(sectionTasks, taskSort),
+    [sectionTasks, taskSort]
   );
 
   const allProjectTasks = useMemo(
@@ -402,7 +431,17 @@ export function EnterpriseProjectWorkspace({
                   {sectionTasks.length} task{sectionTasks.length === 1 ? "" : "s"} in{" "}
                   {sections.find((s) => s.id === activeSectionId)?.name ?? "section"}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                    value={taskSort}
+                    onChange={(e) => setTaskSort(e.target.value as TaskSort)}
+                    aria-label="Sort tasks"
+                  >
+                    <option value="default">Sort: Default order</option>
+                    <option value="title-asc">Sort: A → Z</option>
+                    <option value="title-desc">Sort: Z → A</option>
+                  </select>
                   {canEdit && (
                     <>
                       <Button size="sm" variant="outline" onClick={() => setColumnDialogOpen(true)}>
@@ -436,13 +475,30 @@ export function EnterpriseProjectWorkspace({
                           className="px-3 py-2 text-left font-medium text-muted-foreground"
                           style={{ width: col.width }}
                         >
-                          {col.label}
+                          {col.builtIn === "title" ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                              onClick={() => setTaskSort((s) => nextTitleSort(s))}
+                              title="Sort by task name"
+                            >
+                              {col.label}
+                              {taskSort === "title-asc" && (
+                                <ArrowDownAZ className="h-3.5 w-3.5 text-primary" />
+                              )}
+                              {taskSort === "title-desc" && (
+                                <ArrowUpAZ className="h-3.5 w-3.5 text-primary" />
+                              )}
+                            </button>
+                          ) : (
+                            col.label
+                          )}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {sectionTasks.map((task) => (
+                    {sortedSectionTasks.map((task) => (
                       <tr
                         key={task.id}
                         className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
@@ -455,7 +511,7 @@ export function EnterpriseProjectWorkspace({
                         ))}
                       </tr>
                     ))}
-                    {sectionTasks.length === 0 && (
+                    {sortedSectionTasks.length === 0 && (
                       <tr>
                         <td
                           colSpan={visibleColumns.length}
@@ -486,6 +542,7 @@ export function EnterpriseProjectWorkspace({
         managers={managers}
         canEdit={canEdit}
         columns={config.columns}
+        forecastSettings={forecastSettings}
         showForecastFields={config.tracking.forecasting || config.tracking.fileUploads}
         onClose={() => setSelectedTaskId(null)}
         onUpdated={() => startTransition(async () => {})}

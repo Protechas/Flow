@@ -54,6 +54,14 @@ export function TaskLiveForecastPanel({
             <p className="font-semibold capitalize">{task.complexity_level ?? "standard"}</p>
           </div>
           <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Min / file</p>
+            <p className="font-semibold tabular-nums">
+              {task.estimated_minutes_per_document != null
+                ? `${task.estimated_minutes_per_document}m (task)`
+                : "Org default"}
+            </p>
+          </div>
+          <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Planning due</p>
             <p className="font-semibold">{task.planning_due_date ?? "—"}</p>
           </div>

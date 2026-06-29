@@ -211,6 +211,7 @@ export default async function ProjectDetailPage({
             qaReviews={store.qaReviews}
             activity={store.activity}
             canEdit={hasPermission(user.role, "projects:edit")}
+            forecastSettings={store.forecastSettings}
           />
         </WorkspaceContainer>
       }
