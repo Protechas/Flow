@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { ArrowDownAZ, ArrowUpAZ, Plus, Settings2 } from "lucide-react";
-import { updateWorkPackageAction } from "@/app/actions/crud";
+import { useRouter } from "next/navigation";
+import { ArrowDownAZ, ArrowUpAZ, Plus, Settings2, Trash2 } from "lucide-react";
+import { deleteProjectAction, deleteWorkPackageAction, updateWorkPackageAction } from "@/app/actions/crud";
 import {
   addWorkspaceSectionAction,
   createWorkspaceTaskAction,
@@ -84,6 +85,8 @@ export function EnterpriseProjectWorkspace({
   qaReviews,
   activity,
   canEdit,
+  canDeleteProject,
+  canDeleteTask,
   forecastSettings,
 }: {
   project: Project;
@@ -96,8 +99,11 @@ export function EnterpriseProjectWorkspace({
   qaReviews: QaReview[];
   activity: ActivityEvent[];
   canEdit: boolean;
+  canDeleteProject: boolean;
+  canDeleteTask: boolean;
   forecastSettings: ForecastSettings;
 }) {
+  const router = useRouter();
   const sections = useMemo(
     () => manufacturers.filter((m) => m.project_id === project.id),
     [manufacturers, project.id]
@@ -183,6 +189,30 @@ export function EnterpriseProjectWorkspace({
         filesRequired: config.tracking.fileUploads,
       });
       setNewTaskTitle("");
+    });
+  }
+
+  function deleteProject() {
+    if (
+      !confirm(
+        `Delete "${project.name}" and all sections, tasks, and related data? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      await deleteProjectAction(project.id);
+      router.push("/projects");
+      router.refresh();
+    });
+  }
+
+  function deleteTask(task: WorkPackage) {
+    if (!confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+    startTransition(async () => {
+      await deleteWorkPackageAction(task.id);
+      if (selectedTaskId === task.id) setSelectedTaskId(null);
+      router.refresh();
     });
   }
 
@@ -300,6 +330,18 @@ export function EnterpriseProjectWorkspace({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canDeleteProject && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={pending}
+                onClick={deleteProject}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete project
+              </Button>
+            )}
             {(["tasks", "forecast", "qa", "activity"] as const).map((tab) => (
               <Button
                 key={tab}
@@ -495,6 +537,9 @@ export function EnterpriseProjectWorkspace({
                           )}
                         </th>
                       ))}
+                      {canDeleteTask && (
+                        <th className="px-3 py-2 w-10" aria-label="Actions" />
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -509,12 +554,30 @@ export function EnterpriseProjectWorkspace({
                             {renderCell(task, col)}
                           </td>
                         ))}
+                        {canDeleteTask && (
+                          <td className="px-2 py-2 align-middle">
+                            <Button
+                              type="button"
+                              size="icon-sm"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-destructive"
+                              disabled={pending}
+                              title={`Delete ${task.title}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTask(task);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {sortedSectionTasks.length === 0 && (
                       <tr>
                         <td
-                          colSpan={visibleColumns.length}
+                          colSpan={visibleColumns.length + (canDeleteTask ? 1 : 0)}
                           className="px-3 py-10 text-center text-muted-foreground"
                         >
                           No tasks yet. Add your first task above.
@@ -541,11 +604,19 @@ export function EnterpriseProjectWorkspace({
         analysts={analysts}
         managers={managers}
         canEdit={canEdit}
+        canDelete={canDeleteTask}
         columns={config.columns}
         forecastSettings={forecastSettings}
         showForecastFields={config.tracking.forecasting || config.tracking.fileUploads}
         onClose={() => setSelectedTaskId(null)}
-        onUpdated={() => startTransition(async () => {})}
+        onUpdated={() => {
+          startTransition(async () => {});
+          router.refresh();
+        }}
+        onDeleted={() => {
+          setSelectedTaskId(null);
+          router.refresh();
+        }}
       />
     </div>
   );

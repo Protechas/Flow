@@ -13,7 +13,7 @@ import {
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
-import { hasPermission } from "@/lib/auth/permissions";
+import { canDeleteProjects, hasPermission } from "@/lib/auth/permissions";
 import { enrichPackages, getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { isActiveProject } from "@/lib/data/entity-filters";
 import { parseDepartmentFilter } from "@/lib/departments/filters";
@@ -211,6 +211,8 @@ export default async function ProjectDetailPage({
             qaReviews={store.qaReviews}
             activity={store.activity}
             canEdit={hasPermission(user.role, "projects:edit")}
+            canDeleteProject={canDeleteProjects(user.role)}
+            canDeleteTask={hasPermission(user.role, "work:delete")}
             forecastSettings={store.forecastSettings}
           />
         </WorkspaceContainer>

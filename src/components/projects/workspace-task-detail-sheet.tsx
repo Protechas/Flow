@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { updateWorkPackageAction } from "@/app/actions/crud";
+import { updateWorkPackageAction, deleteWorkPackageAction } from "@/app/actions/crud";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { Trash2 } from "lucide-react";
 import {
   TaskForecastMetricsEditor,
   formatTaskMinutesPerFile,
@@ -26,22 +27,26 @@ export function WorkspaceTaskDetailSheet({
   analysts,
   managers,
   canEdit,
+  canDelete = false,
   columns,
   forecastSettings,
   showForecastFields = true,
   onClose,
   onUpdated,
+  onDeleted,
 }: {
   task: WorkPackage | null;
   analysts: User[];
   managers: User[];
   canEdit: boolean;
+  canDelete?: boolean;
   columns: WorkspaceColumnDef[];
   forecastSettings: ForecastSettings;
   /** When true, show estimated documents/files for due-date forecasting. */
   showForecastFields?: boolean;
   onClose: () => void;
   onUpdated: () => void;
+  onDeleted?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState("");
@@ -101,6 +106,16 @@ export function WorkspaceTaskDetailSheet({
         description: mergeTaskCustomFields(task.description, customFields),
       });
       onUpdated();
+      onClose();
+    });
+  }
+
+  function removeTask() {
+    if (!task) return;
+    if (!confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+    startTransition(async () => {
+      await deleteWorkPackageAction(task.id);
+      onDeleted?.();
       onClose();
     });
   }
@@ -246,6 +261,19 @@ export function WorkspaceTaskDetailSheet({
               {canEdit && (
                 <Button className="w-full" disabled={pending} onClick={save}>
                   Save task
+                </Button>
+              )}
+
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full text-destructive hover:text-destructive"
+                  disabled={pending}
+                  onClick={removeTask}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete task
                 </Button>
               )}
             </div>
