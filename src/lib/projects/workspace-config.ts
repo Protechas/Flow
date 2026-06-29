@@ -6,7 +6,7 @@ const CF_MARKER = "[[FLOW_CF:v1]]";
 
 export const DEFAULT_WORKSPACE_COLUMNS: WorkspaceColumnDef[] = [
   { id: "title", label: "Task", type: "text", builtIn: "title", visible: true, width: 280 },
-  { id: "owner", label: "Owner", type: "person", builtIn: "assigned_to", visible: true, width: 140 },
+  { id: "owner", label: "Assign", type: "person", builtIn: "assigned_to", visible: true, width: 140 },
   { id: "status", label: "Status", type: "status", builtIn: "status", visible: true, width: 130 },
   { id: "priority", label: "Priority", type: "dropdown", builtIn: "priority", visible: true, width: 110 },
   { id: "due", label: "Due Date", type: "date", builtIn: "due_date", visible: true, width: 120 },
@@ -89,8 +89,13 @@ export function getProjectWorkspaceConfig(
     config.columns = config.columns.map((c) => {
       if (c.id === "docs") return { ...c, visible: true };
       if (c.id === "complexity" && config.tracking.forecasting) return { ...c, visible: true };
+      if (c.id === "owner" && c.label === "Owner") return { ...c, label: "Assign" };
       return c;
     });
+  } else {
+    config.columns = config.columns.map((c) =>
+      c.id === "owner" && c.label === "Owner" ? { ...c, label: "Assign" } : c
+    );
   }
 
   return config;

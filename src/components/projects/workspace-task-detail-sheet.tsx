@@ -144,7 +144,7 @@ export function WorkspaceTaskDetailSheet({
               </div>
 
               <div className="space-y-2">
-                <Label>Owner</Label>
+                <Label>Assign</Label>
                 <select
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                   value={assignedTo}

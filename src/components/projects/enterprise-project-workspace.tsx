@@ -142,6 +142,15 @@ export function EnterpriseProjectWorkspace({
 
   const owner = managers.find((m) => m.id === project.project_owner_id);
   const dept = departments.find((d) => d.id === project.department_id);
+  const assignablePeople = useMemo(() => {
+    const byId = new Map<string, User>();
+    for (const p of [...managers, ...analysts]) {
+      if (!byId.has(p.id)) byId.set(p.id, p);
+    }
+    return [...byId.values()].sort((a, b) =>
+      a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" })
+    );
+  }, [managers, analysts]);
   const visibleColumns = config.columns.filter((c) => c.visible);
   const selectedTask = workPackages.find((t) => t.id === selectedTaskId) ?? null;
 
@@ -239,8 +248,22 @@ export function EnterpriseProjectWorkspace({
     const custom = parseCustomFields(task.description);
     if (col.builtIn === "title") return <span className="font-medium">{task.title}</span>;
     if (col.builtIn === "assigned_to") {
-      const person = analysts.find((a) => a.id === task.assigned_to) ?? managers.find((m) => m.id === task.assigned_to);
-      return person?.full_name ?? "—";
+      return (
+        <select
+          className="h-8 min-w-[120px] max-w-[160px] rounded-md border bg-background px-2 text-xs truncate"
+          value={task.assigned_to ?? ""}
+          disabled={!canEdit}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => updateTaskField(task.id, "assigned_to", e.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {assignablePeople.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.full_name}
+            </option>
+          ))}
+        </select>
+      );
     }
     if (col.builtIn === "status") {
       return (
