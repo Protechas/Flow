@@ -8,6 +8,8 @@ export const PROJECT_TYPES = [
   { value: "adas", label: "ADAS" },
   { value: "si_corrections", label: "SI Corrections" },
   { value: "research", label: "Research" },
+  { value: "id3_validation", label: "ID³ Validation" },
+  { value: "training", label: "Training" },
   { value: "custom", label: "Custom" },
 ];
 

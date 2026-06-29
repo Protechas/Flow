@@ -91,12 +91,30 @@ export interface CreationDefaults {
   manufacturerFallback: string;
 }
 
+export interface CreationScopeOverride {
+  departmentId?: string;
+  teamId?: string;
+}
+
 /** Client-safe defaults — uses passed departments/teams only (no flow-store). */
 export function buildCreationDefaults(
   user: User,
   departments: Department[],
-  teams: Team[]
+  teams: Team[],
+  scope?: CreationScopeOverride
 ): CreationDefaults {
+  if (scope?.departmentId) {
+    const departmentId = scope.departmentId;
+    return {
+      departmentId,
+      teamId: scope.teamId ?? teamIdForDepartment(departmentId, teams),
+      complexity: "standard",
+      priority: "medium",
+      year: String(new Date().getFullYear()),
+      manufacturerFallback: "General",
+    };
+  }
+
   const teamDept = user.team_id
     ? teams.find((t) => t.id === user.team_id)?.department_id
     : undefined;
@@ -105,7 +123,7 @@ export function buildCreationDefaults(
 
   return {
     departmentId,
-    teamId: teamIdForDepartment(departmentId, teams),
+    teamId: scope?.teamId ?? teamIdForDepartment(departmentId, teams),
     complexity: "standard",
     priority: "medium",
     year: String(new Date().getFullYear()),

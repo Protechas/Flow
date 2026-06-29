@@ -236,6 +236,49 @@ export function ExecutiveDashboardView({
         </KpiPriorityZone>
       )}
 
+      {data.validationSummary && linkHref(role, "/validation") && (
+        <KpiPriorityZone
+          title="Validation Center"
+          description="Library audit compliance and open correction workload"
+          variant="overview"
+        >
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <EnterpriseKpi
+              label="Library accuracy"
+              value={
+                data.validationSummary.libraryAccuracyPct != null
+                  ? `${data.validationSummary.libraryAccuracyPct}%`
+                  : "—"
+              }
+              sublabel={`${data.validationSummary.completedRuns} completed runs`}
+              href="/validation"
+            />
+            <EnterpriseKpi
+              label="Open findings"
+              value={data.validationSummary.openFindings}
+              sublabel={
+                data.validationSummary.criticalFindingsOpen > 0
+                  ? `${data.validationSummary.criticalFindingsOpen} critical/high`
+                  : "Across all engines"
+              }
+              href="/validation/findings"
+              warn={data.validationSummary.openFindings > 0}
+              critical={data.validationSummary.criticalFindingsOpen > 0}
+            />
+            <EnterpriseKpi
+              label="Revalidation improvement"
+              value={
+                data.validationSummary.revalidationImprovementPct != null
+                  ? `${data.validationSummary.revalidationImprovementPct >= 0 ? "+" : ""}${data.validationSummary.revalidationImprovementPct}%`
+                  : "—"
+              }
+              sublabel="Avg compliance delta on linked reruns"
+              href="/validation/history"
+            />
+          </section>
+        </KpiPriorityZone>
+      )}
+
       <KpiPriorityZone
         title={OPS_COPY.requiresAttention}
         description="Signals that may need manager action today"

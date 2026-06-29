@@ -89,6 +89,16 @@ innovation_hub:submit innovation_hub:manage
 | `/settings/forecasting` | — | Hub link only |
 | `/settings/workload-alerts` | — | Hub link only |
 | `/settings/work-visibility` | — | Hub link only |
+| `/settings/help-flags` | — | Hub link only |
+| `/settings/team-dashboards` | Team dashboards | Administration |
+| `/settings/team-dashboards/new` | — | Create dashboard pack |
+| `/settings/team-dashboards/[slug]` | — | Edit dashboard pack |
+| `/settings/operating-models` | Operating models | Administration |
+| `/settings/operating-models/new` | — | Create operating model |
+| `/settings/operating-models/[slug]` | — | Edit operating model |
+| `/teams/[slug]` | Team dashboard (dynamic) | Operations / Reporting |
+| `/docs` | Help & Docs | Reporting |
+| `/docs/[slug]` | — | Documentation article |
 | `/system-health` | System Health | Administration |
 | `/innovation-hub` | Innovation Hub | Administration |
 
@@ -149,7 +159,10 @@ innovation_hub:submit innovation_hub:manage
 | System Health | `/system-health` | Integrity report |
 | Innovation Hub | `/innovation-hub` | Feedback triage |
 | Templates | `/operations/templates` | Enterprise template library |
+| Team dashboards | `/teams/[slug]`, `/settings/team-dashboards` | `team-dashboard-view.tsx`, builder admin |
+| Operating models | `/settings/operating-models` | Per-team labels, KPIs, tracking config |
 | Custom Metrics | Embedded in projects/reports | `project-metrics-panel.tsx` |
+| Help & Docs | `/docs`, `/docs/[slug]` | In-app markdown documentation |
 
 ---
 
@@ -157,9 +170,10 @@ innovation_hub:submit innovation_hub:manage
 
 | Workflow | Trigger | End State |
 |----------|---------|-----------|
-| Project creation (7-step) | New Work → New Project | Project + seeded hierarchy |
-| Board creation | New Work → New Board | `project_type: board` |
-| Quick task | New Work → New Task | WorkPackage (+ optional auto hierarchy) |
+| Project creation (program builder) | New Program | Project + structure/matrix from blueprint |
+| Board creation | New Work → Board or New Board | `project_type: board` |
+| Quick task | New Work → Task | WorkPackage (+ optional auto hierarchy) |
+| Team dashboard work creation | `/teams/[slug]` header | Program/task scoped to team operating model |
 | Task assignment | Set assigned_to | Status assigned |
 | Task production | Start timer, upload files | Working on it |
 | QA submit | Employee/manager submit | ready_for_qa |
@@ -197,7 +211,7 @@ pass | minor_correction | major_correction | rejected
 
 | Type | Source Engine | Config Page |
 |------|---------------|-------------|
-| Help flags | `help-flags/engine.ts` | None (defaults hardcoded) |
+| Help flags | `help-flags/engine.ts` | `/settings/help-flags` |
 | Workload alerts | `workload-alerts/engine.ts` | `/settings/workload-alerts` |
 | Activity gaps | `work-visibility/engine.ts` | `/settings/work-visibility` |
 | Wrap-up gaps | `wrap-up/compliance.ts` | `/settings/work-visibility` (clock-out gate) |
@@ -224,6 +238,9 @@ pass | minor_correction | major_correction | rejected
 | `/settings/forecasting` | minutes_per_document, productive_hours_per_day, working_days |
 | `/settings/workload-alerts` | enabled, threshold_hours, snooze_hours, dept/team scope |
 | `/settings/work-visibility` | tracking enabled, alerts enabled, gap threshold, compliance target, capacity threshold, wrap-up required |
+| `/settings/help-flags` | idle escalation thresholds, enable toggles |
+| `/settings/team-dashboards` | Dashboard packs — scope, KPIs, nav, access (JSONB) |
+| `/settings/operating-models` | Per-team labels, KPIs, tracking, forecast rules |
 | `/settings/users` | User IAM (not platform toggles) |
 | `/settings/departments` | Org structure |
 
@@ -254,6 +271,9 @@ src/components/
   forecast/       — Planning UI
   qa-center/      — QA review
   reports/        — Reporting panels
+  team-dashboards/ — Team dashboard views and builder
+  operating-models/ — Operating model admin and wizard
+  docs/             — In-app Help & Docs rendering
   performance/    — Scorecards
   files/          — Document management
 ```
@@ -279,6 +299,8 @@ src/components/
 | `help-flags.ts` | Help flag lifecycle |
 | `wrap-up-review.ts` | Manager wrap-up review |
 | `project-metrics.ts` | Custom metric definitions/values |
+| `team-dashboard-packs.ts` | Team dashboard CRUD |
+| `operating-models.ts` | Operating model CRUD |
 | `notifications.ts` | runWorkflowChecksAction |
 
 ---

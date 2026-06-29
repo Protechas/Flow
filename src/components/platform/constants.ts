@@ -14,4 +14,5 @@ export const PLATFORM_EYEBROWS = {
   planning: "Planning & Forecasting",
   projectHealth: "Project Health",
   files: "Document Library",
+  validation: "Validation Center",
 } as const;

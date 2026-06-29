@@ -54,6 +54,7 @@ import type {
   User,
   YearWorkItem,
 } from "@/types/flow";
+import type { OperatingContext } from "@/lib/operating-models/types";
 import { Kanban, ListTodo, Plus } from "lucide-react";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,8 @@ export function ManagerWorkSetup({
   analysts,
   forecastSettings,
   defaultProjectId,
+  creationScope,
+  operatingContext,
 }: {
   user: User;
   departments: Department[];
@@ -97,10 +100,13 @@ export function ManagerWorkSetup({
   forecastSettings: ForecastSettings;
   /** Pre-select project when creating a task (e.g. program detail page). */
   defaultProjectId?: string;
+  /** Pre-fill department/team when creating from a team dashboard. */
+  creationScope?: { departmentId?: string; teamId?: string };
+  operatingContext?: OperatingContext;
 }) {
   const { toast } = useFlowToast();
   const router = useRouter();
-  const defaults = buildCreationDefaults(user, departments, teams);
+  const defaults = buildCreationDefaults(user, departments, teams, creationScope);
   const modes = getAllowedCreationModes(user.role);
   const canBoard = modes.includes("board");
   const canTask = modes.includes("task");
@@ -490,6 +496,7 @@ export function ManagerWorkSetup({
           analysts={analysts}
           forecastSettings={forecastSettings}
           defaultProjectId={defaultTaskProjectId}
+          operatingContext={operatingContext}
           redirectToOperationsOnCreate
           open={taskComposerOpen}
           onOpenChange={setTaskComposerOpen}

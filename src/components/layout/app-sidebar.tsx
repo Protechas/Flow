@@ -9,6 +9,7 @@ import {
   BookOpen,
   Building2,
   ChevronDown,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Factory,
@@ -49,6 +50,7 @@ import {
   NAV_PRIMARY_ITEM_IDS,
   type NavGroupId,
 } from "@/lib/auth/permissions";
+import type { TeamDashboardNavItem } from "@/lib/team-dashboards/nav";
 import { userDisplayInitials } from "@/lib/users/format";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types/flow";
@@ -62,6 +64,7 @@ const ICONS = {
   LineChart,
   Clock,
   ShieldCheck,
+  ClipboardCheck,
   BarChart3,
   ClipboardList,
   Settings,
@@ -81,17 +84,48 @@ const SIDEBAR_SECTIONS_STORAGE_KEY = "flow-sidebar-sections";
 
 const PRIORITY_GROUPS: NavGroupId[] = ["dashboard", "attention", "operations"];
 
-interface AppSidebarProps {
-  user: User;
-}
-
 function isNavItemActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppSidebar({ user }: AppSidebarProps) {
+interface AppSidebarProps {
+  user: User;
+  teamDashboardNav?: TeamDashboardNavItem[];
+}
+
+function mergeTeamDashboardNav(
+  groups: ReturnType<typeof getNavGroupsForRole>,
+  teamDashboardNav: TeamDashboardNavItem[]
+) {
+  if (!teamDashboardNav.length) return groups;
+
+  return groups.map((group) => {
+    const extras = teamDashboardNav.filter((item) => item.group === group.group);
+    if (!extras.length) return group;
+
+    const items = [
+      ...group.items,
+      ...extras.map((item) => ({
+        id: `team-${item.slug}`,
+        href: item.href,
+        label: item.label,
+        icon: item.icon,
+        group: item.group,
+        permissions: "dashboard:view" as const,
+        roles: [] as User["role"][],
+      })),
+    ];
+
+    return { ...group, items };
+  });
+}
+
+export function AppSidebar({ user, teamDashboardNav = [] }: AppSidebarProps) {
   const pathname = usePathname();
-  const navGroups = getNavGroupsForRole(getEffectivePermissionRole(user));
+  const navGroups = mergeTeamDashboardNav(
+    getNavGroupsForRole(getEffectivePermissionRole(user)),
+    teamDashboardNav
+  );
   const homeHref = navGroups[0]?.items[0]?.href ?? "/operations";
 
   const [collapsedSections, setCollapsedSections] = useState<Partial<Record<NavGroupId, boolean>>>({});
@@ -182,7 +216,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     {group.items.map((item) => {
                       const Icon = ICONS[item.icon as keyof typeof ICONS] ?? LayoutDashboard;
                       const active = isNavItemActive(pathname, item.href);
-                      const isPrimary = primaryItemIds.has(item.id);
+                      const isPrimary =
+                        typeof item.id === "string" &&
+                        primaryItemIds.has(item.id as (typeof NAV_PRIMARY_ITEM_IDS)[number]);
 
                       return (
                         <SidebarMenuItem key={`${group.group}-${item.id}`}>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { ProgramBuilder } from "@/components/work-creation/program-builder";
+import { EnterpriseProjectWorkspace } from "@/components/projects/enterprise-project-workspace";
+import { ProjectSetupWizard } from "@/components/projects/project-setup-wizard";
 import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
 import { CreateBoardWizard } from "@/components/work-creation/create-board-wizard";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
@@ -13,7 +13,7 @@ import {
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
-import { canDeleteProjects, hasPermission } from "@/lib/auth/permissions";
+import { hasPermission } from "@/lib/auth/permissions";
 import { enrichPackages, getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { isActiveProject } from "@/lib/data/entity-filters";
 import { parseDepartmentFilter } from "@/lib/departments/filters";
@@ -32,7 +32,6 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
 import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
-import { getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
 import { ChevronLeft } from "lucide-react";
 
 export default async function ProjectDetailPage({
@@ -126,7 +125,6 @@ export default async function ProjectDetailPage({
   const allowedModes = getAllowedCreationModes(user.role);
   const managerWorkHub = usesManagerWorkHub(user.role);
   const activeProjects = scopedProjects.filter(isActiveProject);
-  const labels = getProjectHierarchyLabels(project);
 
   return (
     <FlowPageShell
@@ -136,7 +134,7 @@ export default async function ProjectDetailPage({
         { label: "Projects", href: "/projects" },
         { label: project.name },
       ]}
-      description={`Program workspace — ${labels.workPackagePlural.toLowerCase()}, ${labels.phasePlural.toLowerCase()}, and ${labels.taskPlural.toLowerCase()}`}
+      description="Project workspace — sections, tasks, KPIs, and live operations"
       headerActions={
         <FilterToolbar>
           <Link
@@ -149,12 +147,11 @@ export default async function ProjectDetailPage({
           {allowedModes.length > 0 && (
             <>
               {allowedModes.includes("project") && (
-                <ProgramBuilder
+                <ProjectSetupWizard
                   user={user}
                   departments={departments}
                   teams={listTeamsStore()}
                   managers={projectOwners}
-                  forecastSettings={store.forecastSettings}
                 />
               )}
               {managerWorkHub && (
@@ -203,24 +200,17 @@ export default async function ProjectDetailPage({
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
-          <ProjectWorkspace
-            projects={[project]}
-            archivedProjects={project.status === "archived" ? [project] : []}
+          <EnterpriseProjectWorkspace
+            project={project}
             manufacturers={scopedManufacturers}
             yearItems={scopedYearItems}
             workPackages={workPackages}
-            managers={projectOwners}
             analysts={analysts}
-            forecastSettings={store.forecastSettings}
-            canEdit={hasPermission(user.role, "projects:edit")}
-            canDelete={canDeleteProjects(user.role)}
-            user={user}
+            managers={projectOwners}
             departments={departments}
-            teams={listTeamsStore()}
             qaReviews={store.qaReviews}
             activity={store.activity}
-            initialProjectId={projectId}
-            singleProjectMode
+            canEdit={hasPermission(user.role, "projects:edit")}
           />
         </WorkspaceContainer>
       }

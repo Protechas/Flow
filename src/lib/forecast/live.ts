@@ -1,3 +1,4 @@
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import {
   addWorkDays,
   calculateTaskForecast,
@@ -153,9 +154,10 @@ export function applyTaskLiveForecast(
   const remainingMinutes = Math.round(remaining * productionRate);
   const remainingHours =
     Math.round((remainingMinutes / 60) * 100) / 100;
+  const capacityHours = productiveDayCapacityHours(settings);
   const remainingDays =
-    settings.productive_hours_per_day > 0
-      ? Math.round((remainingHours / settings.productive_hours_per_day) * 100) / 100
+    capacityHours > 0
+      ? Math.round((remainingHours / capacityHours) * 100) / 100
       : 0;
 
   const startAnchor = anchorDate(

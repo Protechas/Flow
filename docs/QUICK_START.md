@@ -82,8 +82,10 @@ Everything the Team Lead does, plus:
 4. **Reports** (`/reports`) — team productivity and QA metrics.
 5. **Org Chart** (`/org-chart`) — seat assignments and live ops status.
 
-**Create new work:** Click **New Work** → choose **New Project** (standard programs) or **New Task** (quick assignment).  
+**Create new work:** Click **New Program** for full programs, or **New Work** for boards and quick tasks.  
 **Full walkthrough:** [Creating Projects & Tasks](/docs/creating-work) in Help & Docs.
+
+**Team dashboard:** If your team has one (sidebar), use it for KPIs and scoped creation — [Team Dashboards](/docs/team-dashboards).
 
 ---
 
@@ -93,9 +95,11 @@ Start with the [Administrator Guide](./ADMINISTRATOR_GUIDE.md). Day-one prioriti
 
 1. **Users** (`/settings/users`) — create accounts, assign departments/teams/seats.
 2. **Departments** (`/settings/departments`) — build org structure.
-3. **Forecasting** (`/settings/forecasting`) — set company defaults.
-4. **System Health** (`/system-health`) — resolve integrity issues.
-5. **Workload Alerts** and **Work Visibility** — configure operational thresholds.
+3. **Operating models** (`/settings/operating-models`) — per-team labels, KPIs, tracking.
+4. **Team dashboards** (`/settings/team-dashboards`) — custom team views and sidebar links.
+5. **Forecasting** (`/settings/forecasting`) — set company defaults.
+6. **System Health** (`/system-health`) — resolve integrity issues.
+7. **Workload Alerts**, **Work Visibility**, **Help Flags** — configure operational thresholds.
 
 ---
 
@@ -111,13 +115,24 @@ Start with the [Administrator Guide](./ADMINISTRATOR_GUIDE.md). Day-one prioriti
 
 ### Hierarchy
 
+Labels vary by team operating model. The backend structure is always:
+
 ```
-Project → Workstream → Year/Phase → Task
+Project → Work package → Phase → Task
 ```
 
+Examples of what you see in the UI:
+
+| Team | Work package label | Phase label |
+|------|-------------------|-------------|
+| Service Information | Manufacturer | Year |
+| Advanced Projects | Workstream | Milestone |
+| ID³ Validation | Dataset | Validation Batch |
+| Default | Work Package | Phase |
+
 - **Project** — The program (e.g., a client engagement).
-- **Workstream** — Subdivision (labeled "Workstream" in UI; stored as Manufacturer).
-- **Year/Phase** — Time or phase slice.
+- **Work package** — Subdivision (stored as manufacturer/workstream in data).
+- **Phase** — Time or phase slice (stored as year/phase).
 - **Task** — Individual assignable work package.
 
 ### Task Statuses (Simplified)
@@ -182,6 +197,7 @@ Side paths: `Stuck`, `Correction Needed`, `Waiting`
 
 **Full reference:** [OPERATIONS_MANUAL.md](./OPERATIONS_MANUAL.md)  
 **Employee detail:** [EMPLOYEE_GUIDE.md](./EMPLOYEE_GUIDE.md)  
+**Team dashboards:** [TEAM_DASHBOARDS.md](./TEAM_DASHBOARDS.md)  
 **Troubleshooting:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 ---
@@ -202,11 +218,14 @@ Side paths: `Stuck`, `Correction Needed`, `Waiting`
 ### Leads / Managers
 - [ ] Create or assign one task
 - [ ] Process one QA review
+- [ ] Open your team dashboard if configured (`/teams/...`)
+- [ ] Review one daily wrap-up from your team
 - [ ] Review one wrap-up
 - [ ] Resolve one alert
 
 ### Admins
 - [ ] Verify all users have department + team
+- [ ] Configure operating models and team dashboards for each team
 - [ ] Run System Health and fix critical issues
 - [ ] Confirm forecasting settings match production rates
 

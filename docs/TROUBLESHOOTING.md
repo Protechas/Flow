@@ -205,6 +205,28 @@ Expected — demo audit is in-memory only.
 | Demo mode restart | Server restart clears in-memory demo data |
 | Dual storage desync | Admin checks Supabase vs flow-store paths |
 
+### Team dashboard shows no programs
+
+| Cause | Resolution |
+|-------|------------|
+| Scope too narrow | Admin checks project types, team ID, and explicit project IDs in pack |
+| Projects not on team | Assign `team_id` on projects or add types to scope |
+| No access | Verify your role is in dashboard access list |
+
+### Wrong labels (Manufacturer vs Workstream)
+
+| Cause | Resolution |
+|-------|------------|
+| Operating model not assigned | Admin assigns model to team at `/settings/operating-models` |
+| Legacy project type | Model inferred from `project_type` — update team assignment if needed |
+
+### Demo mode not using sample data
+
+| Cause | Resolution |
+|-------|------------|
+| `NEXT_PUBLIC_FLOW_DEMO_MODE` not `true` | Set in `.env.local` and restart dev server |
+| Supabase mode active | Demo flag must be `true` even if Supabase keys are present |
+
 ### Files won't upload
 
 | Cause | Resolution |
@@ -222,6 +244,7 @@ Expected — demo audit is in-memory only.
 | Senior manager blocked on `/people` | Use `/org-chart` or `/people/[id]` direct links |
 | Super admin blocked on `/qa-center` | Use admin role switch or fix allowlist in code |
 | No `/projects/[id]` URL | Use Projects page + click project row |
+| Team dashboard missing from sidebar | Admin configures pack nav + access at `/settings/team-dashboards` |
 | Work visibility settings not shared | Document settings in runbook; admin sets on each browser until fixed |
 | Help flag thresholds not configurable | Defaults: 30/60 min critical idle |
 | Performance page hidden | Navigate from Reports or People links |

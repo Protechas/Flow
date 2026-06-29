@@ -64,6 +64,8 @@ export type Permission =
 
   | "settings:manage"
 
+  | "settings:metrics"
+
   | "departments:manage"
 
   | "departments:view"
@@ -72,7 +74,23 @@ export type Permission =
 
   | "innovation_hub:submit"
 
-  | "innovation_hub:manage";
+  | "innovation_hub:manage"
+
+  | "validation:view"
+
+  | "validation:create"
+
+  | "validation:run"
+
+  | "validation:review"
+
+  | "validation:create_tasks"
+
+  | "validation:manage_settings"
+
+  | "validation:export"
+
+  | "validation:admin";
 
 
 
@@ -124,6 +142,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "settings:manage",
 
+    "settings:metrics",
+
     "departments:manage",
 
     "departments:view",
@@ -133,6 +153,22 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "innovation_hub:submit",
 
     "innovation_hub:manage",
+
+    "validation:view",
+
+    "validation:create",
+
+    "validation:run",
+
+    "validation:review",
+
+    "validation:create_tasks",
+
+    "validation:manage_settings",
+
+    "validation:export",
+
+    "validation:admin",
 
   ],
 
@@ -182,6 +218,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "settings:manage",
 
+    "settings:metrics",
+
     "departments:manage",
 
     "departments:view",
@@ -191,6 +229,22 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "innovation_hub:submit",
 
     "innovation_hub:manage",
+
+    "validation:view",
+
+    "validation:create",
+
+    "validation:run",
+
+    "validation:review",
+
+    "validation:create_tasks",
+
+    "validation:manage_settings",
+
+    "validation:export",
+
+    "validation:admin",
 
   ],
 
@@ -234,9 +288,23 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "dashboard:view",
 
+    "settings:metrics",
+
     "innovation_hub:submit",
 
     "innovation_hub:manage",
+
+    "validation:view",
+
+    "validation:create",
+
+    "validation:run",
+
+    "validation:review",
+
+    "validation:create_tasks",
+
+    "validation:export",
 
   ],
 
@@ -284,6 +352,20 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "dashboard:view",
 
+    "settings:metrics",
+
+    "validation:view",
+
+    "validation:create",
+
+    "validation:run",
+
+    "validation:review",
+
+    "validation:create_tasks",
+
+    "validation:export",
+
   ],
 
   teamlead: [
@@ -322,7 +404,13 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "dashboard:view",
 
+    "settings:metrics",
+
     "innovation_hub:submit",
+
+    "validation:view",
+
+    "validation:review",
 
   ],
 
@@ -398,16 +486,26 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/dashboard": "dashboard:view",
 
-  "/settings": "settings:manage",
+  "/settings": ["settings:manage", "settings:metrics"],
 
   "/settings/users": "users:manage",
   "/settings/departments": "departments:manage",
 
-  "/settings/forecasting": "settings:manage",
+  "/settings/forecasting": ["settings:manage", "settings:metrics"],
 
   "/settings/workload-alerts": "settings:manage",
 
   "/settings/work-visibility": "settings:manage",
+
+  "/settings/team-dashboards": "settings:manage",
+
+  "/settings/operating-models": "settings:manage",
+
+  "/settings/operating-models/new": "settings:manage",
+
+  "/settings/operating-models/[slug]": "settings:manage",
+
+  "/teams": ["dashboard:view", "reports:view_team", "people:view_team"],
 
   "/system-health": "settings:manage",
 
@@ -420,6 +518,26 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
   "/scorecard": "people:view_own",
 
   "/innovation-hub": "innovation_hub:manage",
+
+  "/validation": "validation:view",
+
+  "/validation/new": "validation:create",
+
+  "/validation/runs": "validation:view",
+
+  "/validation/runs/[id]": "validation:view",
+
+  "/validation/findings": "validation:view",
+
+  "/validation/corrections": "validation:view",
+
+  "/validation/history": "validation:view",
+
+  "/validation/reports": "validation:export",
+
+  "/validation/analytics": "validation:view",
+
+  "/validation/settings": "validation:manage_settings",
 
   "/docs": ["dashboard:view", "work:view_own", "work:view_team", "reports:view_team"],
 
@@ -473,23 +591,53 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/dashboard": ["admin", "super_admin", "senior_manager", "manager", "viewer"],
 
-  "/settings": ["admin", "super_admin"],
+  "/settings": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/settings/users": ["admin", "super_admin"],
   "/settings/departments": ["admin", "super_admin"],
 
-  "/settings/forecasting": ["admin", "super_admin"],
+  "/settings/forecasting": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/settings/workload-alerts": ["admin", "super_admin"],
 
   "/settings/work-visibility": ["admin", "super_admin"],
   "/settings/help-flags": ["admin", "super_admin"],
 
+  "/settings/team-dashboards": ["admin", "super_admin"],
+
+  "/settings/operating-models": ["admin", "super_admin"],
+
+  "/settings/operating-models/new": ["admin", "super_admin"],
+
+  "/settings/operating-models/[slug]": ["admin", "super_admin"],
+
+  "/teams": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
+
   "/system-health": ["admin", "super_admin"],
 
   "/reports/work-visibility": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/innovation-hub": ["admin", "super_admin", "senior_manager", "manager"],
+
+  "/validation": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/new": ["admin", "super_admin", "senior_manager", "manager"],
+
+  "/validation/runs": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/runs/[id]": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/findings": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/corrections": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/history": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/reports": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/analytics": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/validation/settings": ["admin", "super_admin"],
 
   "/docs": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"],
 
@@ -540,6 +688,8 @@ export type NavItemId =
   | "files"
 
   | "innovation-hub"
+
+  | "validation-center"
 
   | "settings"
 
@@ -603,7 +753,7 @@ export const NAV_ITEM_ORDER: Record<NavGroupId, NavItemId[]> = {
 
   attention: ["alert-center", "qa-center", "wrap-ups"],
 
-  operations: ["operations", "projects", "production", "project-health", "files"],
+  operations: ["operations", "validation-center", "projects", "production", "project-health", "files"],
 
   workforce: ["people", "time-clock", "org-chart"],
 
@@ -653,6 +803,8 @@ export const NAV_CONFIG: {
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
+  { id: "validation-center", href: "/validation", label: "Validation Center", icon: "ClipboardCheck", group: "operations", permissions: "validation:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+
   { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "production", href: "/production", label: "Production", icon: "Factory", group: "operations", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
@@ -687,7 +839,7 @@ export const NAV_CONFIG: {
 
   { id: "innovation-hub", href: "/innovation-hub", label: "Innovation Hub", icon: "Lightbulb", group: "administration", permissions: "innovation_hub:manage", roles: ["admin", "super_admin", "senior_manager", "manager"] },
 
-  { id: "settings", href: "/settings", label: "Settings", icon: "Settings", group: "administration", permissions: "settings:manage", roles: ["admin", "super_admin"] },
+  { id: "settings", href: "/settings", label: "Settings", icon: "Settings", group: "administration", permissions: ["settings:manage", "settings:metrics"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "docs", href: "/docs", label: "Help & Docs", icon: "BookOpen", group: "reporting", permissions: ["dashboard:view", "work:view_own", "work:view_team", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"] },
 
@@ -790,6 +942,15 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
     return true;
   }
 
+  if (pathname.startsWith("/teams/")) {
+    return (
+      hasPermission(r, "dashboard:view") ||
+      hasPermission(r, "reports:view_team") ||
+      hasPermission(r, "people:view_team") ||
+      hasPermission(r, "work:view_own")
+    );
+  }
+
 
 
   if (r === "employee") {
@@ -843,6 +1004,10 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
       "/time-clock",
 
       "/wrap-ups",
+
+      "/teams",
+
+      "/settings",
 
       "/notifications",
 

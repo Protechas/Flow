@@ -10,6 +10,10 @@ import { ensureWrapUpsHydrated } from "@/lib/data/wrap-ups-db";
 const hydrateApp = cache(async (): Promise<void> => {
   if (!isSupabaseConfigured()) {
     initFlowStore();
+    const { hydrateTeamDashboardPacks } = await import("@/lib/team-dashboards/hydrate");
+    await hydrateTeamDashboardPacks();
+    const { hydrateOperatingModels } = await import("@/lib/operating-models/hydrate");
+    await hydrateOperatingModels();
     return;
   }
   await hydrateAppStore();
@@ -17,6 +21,10 @@ const hydrateApp = cache(async (): Promise<void> => {
   await ensureWorkStructureHydrated();
   await ensureProductionTrackingHydrated();
   await ensureWrapUpsHydrated();
+  const { hydrateTeamDashboardPacks } = await import("@/lib/team-dashboards/hydrate");
+  await hydrateTeamDashboardPacks();
+  const { hydrateOperatingModels } = await import("@/lib/operating-models/hydrate");
+  await hydrateOperatingModels();
 });
 
 /**

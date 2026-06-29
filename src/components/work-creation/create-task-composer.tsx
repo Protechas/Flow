@@ -43,6 +43,7 @@ import {
   yearsForWorkstream,
 } from "@/lib/work-creation/task-placement";
 import { getProjectHierarchyLabels } from "@/lib/projects/hierarchy-labels";
+import { taskPlacementVisible } from "@/lib/operating-models/context";
 import { getHierarchyLabels } from "@/lib/work-packages/smart-labels";
 import { userDisplayName } from "@/lib/users/display-name";
 import type {
@@ -77,6 +78,8 @@ export interface CreateTaskComposerProps {
   trigger?: React.ReactElement | null;
   /** After create, navigate to Operations filtered to the task's project. */
   redirectToOperationsOnCreate?: boolean;
+  /** Team operating model — controls visible fields and defaults. */
+  operatingContext?: import("@/lib/operating-models/types").OperatingContext;
 }
 
 export function CreateTaskComposer({
@@ -96,6 +99,7 @@ export function CreateTaskComposer({
   hideTrigger = false,
   trigger,
   redirectToOperationsOnCreate = false,
+  operatingContext,
 }: CreateTaskComposerProps) {
   const { toast } = useFlowToast();
   const router = useRouter();
@@ -132,6 +136,24 @@ export function CreateTaskComposer({
 
   const project = activeProjects.find((p) => p.id === projectId) ?? null;
   const labels = project ? getProjectHierarchyLabels(project) : getProjectHierarchyLabels({});
+  const placementVisibility = useMemo(
+    () =>
+      operatingContext
+        ? taskPlacementVisible(operatingContext)
+        : { showWorkstream: true, showYear: true },
+    [operatingContext]
+  );
+  const tracksDocuments =
+    !operatingContext || operatingContext.model.trackingFields.includes("documents");
+  const tracksRecords =
+    !operatingContext || operatingContext.model.trackingFields.includes("records");
+  const estimateLabel = tracksDocuments
+    ? "Work estimate (documents)"
+    : tracksRecords
+      ? "Work estimate (records)"
+      : "Work estimate (units)";
+  const showPlacementSection =
+    placementVisibility.showWorkstream || placementVisibility.showYear;
 
   const inferred = useMemo(
     () =>
@@ -154,8 +176,11 @@ export function CreateTaskComposer({
   }, [inferred, open, placementTouched]);
 
   useEffect(() => {
-    if (presetWorkstream || presetYear) setShowPlacement(true);
-  }, [presetWorkstream, presetYear]);
+    if (!open || !operatingContext) return;
+    const td = operatingContext.model.taskDefaults;
+    if (td?.qaRequired != null) setQaRequired(td.qaRequired);
+    if (td?.filesRequired != null) setFilesRequired(td.filesRequired);
+  }, [open, operatingContext]);
 
   useEffect(() => {
     if (!open || !project) return;
@@ -389,16 +414,18 @@ export function CreateTaskComposer({
                 <Label>Due date</Label>
                 <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
               </div>
-              <div className="space-y-2 min-w-0">
-                <Label>Work estimate (documents)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={estimatedDocs}
-                  onChange={(e) => setEstimatedDocs(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
+              {(tracksDocuments || tracksRecords || !operatingContext) && (
+                <div className="space-y-2 min-w-0">
+                  <Label>{estimateLabel}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={estimatedDocs}
+                    onChange={(e) => setEstimatedDocs(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm">
@@ -420,6 +447,7 @@ export function CreateTaskComposer({
               </p>
             </div>
 
+            {showPlacementSection && (
             <div>
               <button
                 type="button"
@@ -431,13 +459,15 @@ export function CreateTaskComposer({
                 ) : (
                   <ChevronDown className="h-3.5 w-3.5" />
                 )}
-                Placement — {labels.workPackageShort} & {labels.phaseShort}
+                Placement — {labels.workPackageShort}
+                {placementVisibility.showYear ? ` & ${labels.phaseShort}` : ""}
                 {!placementTouched && inferred.source !== "fallback" && (
                   <span className="text-primary ml-1">(auto)</span>
                 )}
               </button>
               {showPlacement && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 p-3 rounded-md border bg-muted/10">
+                  {placementVisibility.showWorkstream && (
                   <div className="space-y-2 min-w-0">
                     <Label className="text-xs">{labels.workPackage}</Label>
                     {workstreamOptions.length > 1 ? (
@@ -471,6 +501,8 @@ export function CreateTaskComposer({
                       placeholder={labels.workPackageShort}
                     />
                   </div>
+                  )}
+                  {placementVisibility.showYear && (
                   <div className="space-y-2 min-w-0">
                     <Label className="text-xs">{labels.phase}</Label>
                     <Select
@@ -494,9 +526,11 @@ export function CreateTaskComposer({
                       </SelectContent>
                     </Select>
                   </div>
+                  )}
                 </div>
               )}
             </div>
+            )}
 
             <div>
               <button

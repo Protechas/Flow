@@ -12,6 +12,7 @@ import {
   isOverdue,
   isStuck,
 } from "@/lib/scoring/flow-score";
+import { hasPermission } from "@/lib/auth/permissions";
 import type { CommandCenterMetrics, EmployeeRanking, EmployeeScorecard, User } from "@/types/flow";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import {
@@ -384,6 +385,16 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
   await ensureProjectMetricsHydrated();
   const outcomeMetrics = buildExecutiveOutcomeMetrics();
 
+  let validationSummary: CommandCenterMetrics["validationSummary"];
+  if (viewer && hasPermission(viewer.role, "validation:view")) {
+    try {
+      const { getValidationCenterKpis } = await import("@/lib/validation-center/runs");
+      validationSummary = await getValidationCenterKpis();
+    } catch {
+      validationSummary = undefined;
+    }
+  }
+
   return {
     teamHealth: {
       flowScore: acc.departmentAvgFlowScore,
@@ -501,5 +512,6 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
     helpFlags,
     helpFlagSummary,
     outcomeMetrics,
+    validationSummary,
   };
 }

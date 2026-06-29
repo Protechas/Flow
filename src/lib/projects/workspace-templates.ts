@@ -1,0 +1,161 @@
+import { DEFAULT_WORKSPACE_COLUMNS } from "@/lib/projects/workspace-config";
+import type { ProjectTrackingFlags, WorkspaceTemplate } from "@/lib/projects/workspace-types";
+
+const SI_TRACKING: ProjectTrackingFlags = {
+  qaRequired: true,
+  fileUploads: true,
+  dailyReports: true,
+  forecasting: true,
+  productionTracking: true,
+  timeTracking: true,
+  wrapUps: true,
+  customMetrics: true,
+};
+
+export const PROJECT_WORKSPACE_TEMPLATES: WorkspaceTemplate[] = [
+  {
+    id: "service-information",
+    label: "Service Information",
+    description: "Library work, documents, QA, and corrections.",
+    projectType: "special_functions",
+    sections: ["Corrections", "Library", "Backlog"],
+    tracking: SI_TRACKING,
+    columns: DEFAULT_WORKSPACE_COLUMNS.map((c) => ({
+      ...c,
+      visible: ["title", "owner", "status", "priority", "due", "docs", "files", "qa", "progress"].includes(c.id),
+    })),
+  },
+  {
+    id: "validation",
+    label: "Validation",
+    description: "Audit runs, findings, and correction tasks.",
+    projectType: "custom",
+    sections: ["Validation", "Corrections", "Backlog"],
+    tracking: { ...SI_TRACKING, customMetrics: true },
+    columns: DEFAULT_WORKSPACE_COLUMNS.map((c) => ({
+      ...c,
+      visible: ["title", "owner", "status", "priority", "due", "qa", "progress"].includes(c.id),
+    })),
+  },
+  {
+    id: "adas",
+    label: "ADAS",
+    description: "Program workstreams with engineering-style tracking.",
+    projectType: "adas",
+    sections: ["Engineering", "Documentation", "Testing", "Backlog"],
+    tracking: {
+      qaRequired: true,
+      fileUploads: true,
+      dailyReports: false,
+      forecasting: true,
+      productionTracking: true,
+      timeTracking: true,
+      wrapUps: false,
+      customMetrics: true,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS.map((c) => ({
+      ...c,
+      visible: ["title", "owner", "status", "priority", "due", "hours", "progress"].includes(c.id),
+    })),
+  },
+  {
+    id: "engineering",
+    label: "Engineering",
+    description: "Sprints, hours, and delivery tracking.",
+    projectType: "research",
+    sections: ["Sprint 1", "Backlog"],
+    tracking: {
+      qaRequired: false,
+      fileUploads: true,
+      dailyReports: false,
+      forecasting: true,
+      productionTracking: false,
+      timeTracking: true,
+      wrapUps: false,
+      customMetrics: false,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS.map((c) => ({
+      ...c,
+      visible: ["title", "owner", "status", "priority", "due", "hours", "progress"].includes(c.id),
+    })),
+  },
+  {
+    id: "documentation",
+    label: "Documentation",
+    description: "Content sections with file and review tracking.",
+    projectType: "custom",
+    sections: ["Drafts", "Review", "Published"],
+    tracking: {
+      qaRequired: true,
+      fileUploads: true,
+      dailyReports: false,
+      forecasting: true,
+      productionTracking: false,
+      timeTracking: true,
+      wrapUps: false,
+      customMetrics: false,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS,
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    description: "General ops queue with assignments and due dates.",
+    projectType: "board",
+    sections: ["Queue", "In Progress", "Done"],
+    tracking: {
+      qaRequired: false,
+      fileUploads: false,
+      dailyReports: true,
+      forecasting: false,
+      productionTracking: true,
+      timeTracking: true,
+      wrapUps: true,
+      customMetrics: false,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS.map((c) => ({
+      ...c,
+      visible: ["title", "owner", "status", "priority", "due", "progress"].includes(c.id),
+    })),
+  },
+  {
+    id: "general",
+    label: "General",
+    description: "Flexible workspace with standard task columns.",
+    projectType: "custom",
+    sections: ["General"],
+    tracking: {
+      qaRequired: true,
+      fileUploads: false,
+      dailyReports: false,
+      forecasting: true,
+      productionTracking: true,
+      timeTracking: true,
+      wrapUps: true,
+      customMetrics: false,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS,
+  },
+  {
+    id: "blank",
+    label: "Blank",
+    description: "Start empty — add sections and tasks as you go.",
+    projectType: "custom",
+    sections: [],
+    tracking: {
+      qaRequired: true,
+      fileUploads: false,
+      dailyReports: false,
+      forecasting: true,
+      productionTracking: true,
+      timeTracking: true,
+      wrapUps: true,
+      customMetrics: false,
+    },
+    columns: DEFAULT_WORKSPACE_COLUMNS,
+  },
+];
+
+export function getWorkspaceTemplate(id: string): WorkspaceTemplate {
+  return PROJECT_WORKSPACE_TEMPLATES.find((t) => t.id === id) ?? PROJECT_WORKSPACE_TEMPLATES.find((t) => t.id === "general")!;
+}

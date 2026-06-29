@@ -270,15 +270,22 @@ export function OrgChartPositionCard({
   }
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       data-tier={tier}
       data-selected={selected}
       data-attention={needsAttention}
-      className={cardClass}
+      className={cn(cardClass, "cursor-pointer")}
     >
       {inner}
-    </button>
+    </div>
   );
 }

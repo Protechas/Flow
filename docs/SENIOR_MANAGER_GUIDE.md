@@ -34,8 +34,9 @@ You create and steer **projects**, monitor **portfolio risk**, use **org-wide re
 | Files | `/files` | View + manage company docs |
 | Innovation Hub | `/innovation-hub` | Triage submissions |
 | Templates | `/operations/templates` | Template library |
+| Team dashboards | `/teams/[slug]` | Team KPIs when granted access |
 
-**Not accessible:** `/settings/*`, `/settings/users`, `/system-health`
+**Not accessible:** `/settings/*`, `/settings/users`, `/system-health`, operating model configuration
 
 **Known issue:** `/people` appears in navigation but **senior_manager is excluded from route allowlist** — you may get unauthorized when visiting People directly. Use **Org Chart** (`/org-chart`) or ask an admin to fix allowlist alignment.
 

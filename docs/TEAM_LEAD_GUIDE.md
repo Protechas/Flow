@@ -32,6 +32,7 @@ You do **not** have Executive Dashboard, Project Health, Settings, or org-wide r
 | Reports | `/reports` | Nav labeled "Team Reports" |
 | Analytics | `/analytics` | Nav labeled "Analytics" (team) |
 | Work Visibility | `/reports/work-visibility` | Compliance |
+| Team dashboard | `/teams/[slug]` | When granted access |
 | Files | `/files` | Company docs (view) |
 
 **Not accessible:** Executive Dashboard, Project Health, Settings, Innovation Hub manage, Performance page, Files upload (no `company_documents:manage`)
@@ -55,6 +56,7 @@ You do **not** have Executive Dashboard, Project Health, Settings, or org-wide r
 ## Your Daily Checklist
 
 - [ ] Open **Operations** — clear stuck/unassigned items
+- [ ] Check team **dashboard** if your team has one (sidebar link)
 - [ ] Check **Alert Center** — help flags first, then workload alerts
 - [ ] Process **QA Center** queue
 - [ ] Verify team **clocked in** on Time Clock
@@ -67,7 +69,9 @@ You do **not** have Executive Dashboard, Project Health, Settings, or org-wide r
 
 ### Board Structure
 
-Tree: **Project → Workstream → Year/Phase → Task cards**
+Tree: **Project → Work package → Phase → Task cards**
+
+Labels vary by team (Manufacturer/Year, Workstream/Milestone, etc.) — see [Creating Work](/docs/creating-work).
 
 ### Filters
 - Department dropdown

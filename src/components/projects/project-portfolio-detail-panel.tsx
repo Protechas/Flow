@@ -223,9 +223,10 @@ export function ProjectPortfolioDetailPanel({
                 <DetailRow label="Due Date" value={task.due_date ?? "—"} />
                 <DetailRow label="Estimated Hours" value={formatForecastHours(task.estimated_hours)} />
                 <DetailRow
-                  label="Documents"
-                  value={task.estimated_document_count ?? task.file_count ?? "—"}
+                  label="Est. files"
+                  value={task.estimated_document_count ?? "—"}
                 />
+                <DetailRow label="Uploaded files" value={task.file_count ?? 0} />
                 <DetailRow label="QA Status" value={task.qa_status ?? "—"} />
               </div>
               <Button

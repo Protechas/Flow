@@ -206,6 +206,9 @@ export const FORECAST_COMPLEXITY_MULTIPLIERS: Record<ForecastComplexityLevel, nu
 export interface ForecastSettings {
   id: string;
   minutes_per_document: number;
+  /** Percent of a nominal 8h workday available for production (flexible schedules). */
+  productive_day_percent: number;
+  /** Derived from productive_day_percent — used internally for forecast math. */
   productive_hours_per_day: number;
   /** 0=Sunday … 6=Saturday */
   working_days: number[];
@@ -778,7 +781,8 @@ export type NotificationType =
   | "qa_rejected"
   | "assignment_changed"
   | "department_alert"
-  | "activity_gap";
+  | "activity_gap"
+  | "validation_run_complete";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =
@@ -1494,6 +1498,8 @@ export interface CommandCenterMetrics {
   };
   /** Aggregated custom project outcome metrics across active projects */
   outcomeMetrics: ExecutiveOutcomeMetric[];
+  /** Validation Center KPIs — present when viewer can access validation */
+  validationSummary?: import("@/lib/validation-center/types").ValidationCenterKpis;
 }
 
 export interface DailyWrapUp {

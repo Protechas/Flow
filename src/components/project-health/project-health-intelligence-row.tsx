@@ -4,12 +4,11 @@ import Link from "next/link";
 import { ProgramHealthBadge } from "@/components/projects/program-health-badge";
 import { IntelligenceHealthBreakdown } from "@/components/projects/intelligence-health-breakdown";
 import { ProgramIntelligenceTrendChart } from "@/components/projects/program-intelligence-trend-chart";
-import { getProgramTrend } from "@/lib/projects/intelligence-snapshots";
+import { useProgramTrend } from "@/hooks/use-intelligence-trend";
 import { useIntelligenceSnapshots } from "@/hooks/use-intelligence-snapshots";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import type { ProgramIntelligence } from "@/lib/projects/project-intelligence";
 import { Activity, BrainCircuit } from "lucide-react";
-import { useMemo } from "react";
 
 export function ProjectHealthIntelligenceRow({
   projectId,
@@ -22,10 +21,7 @@ export function ProjectHealthIntelligenceRow({
 }) {
   useIntelligenceSnapshots({ programs: [intelligence] });
 
-  const trend = useMemo(
-    () => getProgramTrend(projectId, 14),
-    [projectId, intelligence.healthScore]
-  );
+  const trend = useProgramTrend(projectId, 14, intelligence.healthScore);
 
   return (
     <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">

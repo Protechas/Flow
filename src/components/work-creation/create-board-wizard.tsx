@@ -51,15 +51,17 @@ export function CreateBoardWizard({
   departments,
   teams,
   analysts = [],
+  creationScope,
 }: {
   user: User;
   departments: Department[];
   teams: Team[];
   analysts?: User[];
+  creationScope?: { departmentId?: string; teamId?: string };
 }) {
   const { toast } = useFlowToast();
   const router = useRouter();
-  const defaults = buildCreationDefaults(_user, departments, teams);
+  const defaults = buildCreationDefaults(_user, departments, teams, creationScope);
 
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();

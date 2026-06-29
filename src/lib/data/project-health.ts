@@ -2,6 +2,7 @@ import { projectRollup } from "@/lib/hierarchy/rollups";
 import { getMockStore } from "@/lib/data/mock-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { resolveProjectMetrics } from "@/lib/metrics/project-metrics-resolver";
@@ -35,7 +36,7 @@ export async function getProjectHealthList(): Promise<ProjectHealth[]> {
 
     const hoursLogged = rollup.hoursLogged;
     const estimatedRemaining = Math.max(0, rollup.estimatedHours - hoursLogged);
-    const hoursPerDay = forecastSettings.productive_hours_per_day ?? 6.5;
+    const hoursPerDay = productiveDayCapacityHours(forecastSettings);
     const projectedDays =
       estimatedRemaining > 0 ? Math.ceil(estimatedRemaining / hoursPerDay) : 0;
 

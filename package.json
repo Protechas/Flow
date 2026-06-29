@@ -15,7 +15,8 @@
     "audit:production-data": "node --env-file=.env.local scripts/audit-production-data.mjs",
     "setup:supabase": "node --env-file=.env.local scripts/setup-supabase.mjs",
     "migrate:all": "node --env-file=.env.local scripts/run-all-migrations.mjs",
-    "migrate:pending": "node --env-file=.env.local scripts/run-migration-files.mjs 031_program_structure_mode.sql 032_work_package_tracking_flags.sql 033_platform_persistence.sql",
+    "setup:validation-engine": "pip install -e ../packages/protech-validation-engine",
+    "migrate:pending": "node --env-file=.env.local scripts/run-migration-files.mjs 042_forecast_productive_day_percent.sql",
     "test:e2e": "playwright test",
     "enable:signup": "node --env-file=.env.local scripts/enable-employee-signup.mjs",
     "reset:admin": "node --env-file=.env.local scripts/reset-admin-password.mjs"

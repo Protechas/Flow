@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { useSecureCookies } from "@/lib/auth/cookie-options";
 import { MOCK_FORECAST_SETTINGS } from "@/lib/data/mock-data";
+import { normalizeForecastSettings } from "@/lib/forecast/capacity";
 import type { ForecastSettings } from "@/types/flow";
 
 export const FORECAST_SETTINGS_COOKIE = "flow_forecast_settings";
@@ -9,7 +10,12 @@ const GLOBAL_KEY = "__flow_forecast_settings__";
 
 type ForecastSettingsSnapshot = Pick<
   ForecastSettings,
-  "minutes_per_document" | "productive_hours_per_day" | "working_days" | "updated_at" | "updated_by"
+  | "minutes_per_document"
+  | "productive_day_percent"
+  | "productive_hours_per_day"
+  | "working_days"
+  | "updated_at"
+  | "updated_by"
 >;
 
 function globalScope(): Record<string, unknown> {
@@ -27,7 +33,7 @@ export function writeGlobalForecastSettings(settings: ForecastSettings): void {
 }
 
 export function defaultForecastSettings(): ForecastSettings {
-  return { ...MOCK_FORECAST_SETTINGS };
+  return normalizeForecastSettings({ ...MOCK_FORECAST_SETTINGS });
 }
 
 export async function readForecastSettingsCookie(): Promise<ForecastSettingsSnapshot | null> {
@@ -38,7 +44,8 @@ export async function readForecastSettingsCookie(): Promise<ForecastSettingsSnap
     const parsed = JSON.parse(raw) as ForecastSettingsSnapshot;
     if (
       typeof parsed.minutes_per_document !== "number" ||
-      typeof parsed.productive_hours_per_day !== "number" ||
+      (typeof parsed.productive_day_percent !== "number" &&
+        typeof parsed.productive_hours_per_day !== "number") ||
       !Array.isArray(parsed.working_days)
     ) {
       return null;
@@ -53,6 +60,7 @@ export async function writeForecastSettingsCookie(settings: ForecastSettings): P
   const store = await cookies();
   const snapshot: ForecastSettingsSnapshot = {
     minutes_per_document: settings.minutes_per_document,
+    productive_day_percent: settings.productive_day_percent,
     productive_hours_per_day: settings.productive_hours_per_day,
     working_days: settings.working_days,
     updated_at: settings.updated_at,
@@ -76,14 +84,15 @@ export function mergeForecastSettings(
   base: ForecastSettings,
   snapshot: ForecastSettingsSnapshot
 ): ForecastSettings {
-  return {
+  return normalizeForecastSettings({
     ...base,
     minutes_per_document: snapshot.minutes_per_document,
+    productive_day_percent: snapshot.productive_day_percent,
     productive_hours_per_day: snapshot.productive_hours_per_day,
     working_days: [...snapshot.working_days].sort((a, b) => a - b),
     updated_at: snapshot.updated_at,
     updated_by: snapshot.updated_by ?? null,
-  };
+  });
 }
 
 export function isForecastSettingsStale(
@@ -92,6 +101,7 @@ export function isForecastSettingsStale(
 ): boolean {
   return (
     current.minutes_per_document !== snapshot.minutes_per_document ||
+    current.productive_day_percent !== snapshot.productive_day_percent ||
     current.productive_hours_per_day !== snapshot.productive_hours_per_day ||
     current.updated_at !== snapshot.updated_at ||
     JSON.stringify([...current.working_days].sort()) !==

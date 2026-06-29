@@ -1,4 +1,9 @@
 import {
+  DEFAULT_PRODUCTIVE_DAY_PERCENT,
+  percentToProductiveHours,
+  productiveDayCapacityHours,
+} from "@/lib/forecast/capacity";
+import {
   FORECAST_COMPLEXITY_MULTIPLIERS,
   type DueDateStatus,
   type ForecastComplexityLevel,
@@ -20,7 +25,8 @@ import {
 
 export const DEFAULT_FORECAST_SETTINGS: Omit<ForecastSettings, "id" | "updated_at"> = {
   minutes_per_document: 7,
-  productive_hours_per_day: 6.5,
+  productive_day_percent: DEFAULT_PRODUCTIVE_DAY_PERCENT,
+  productive_hours_per_day: percentToProductiveHours(DEFAULT_PRODUCTIVE_DAY_PERCENT),
   working_days: [1, 2, 3, 4, 5],
   updated_by: null,
 };
@@ -114,10 +120,9 @@ export function calculateTaskForecast(
 
   const workMinutes = Math.round(docCount * minutesPerDoc * multiplier);
   const workHours = Math.round((workMinutes / 60) * 100) / 100;
+  const capacityHours = productiveDayCapacityHours(settings);
   const workDays =
-    settings.productive_hours_per_day > 0
-      ? Math.round((workHours / settings.productive_hours_per_day) * 100) / 100
-      : 0;
+    capacityHours > 0 ? Math.round((workHours / capacityHours) * 100) / 100 : 0;
 
   const startDate =
     input.start_date ?? format(startOfDay(now), "yyyy-MM-dd");

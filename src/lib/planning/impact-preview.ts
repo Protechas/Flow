@@ -1,3 +1,4 @@
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import {
   aggregateProjectForecast,
   calculateTaskForecast,
@@ -111,12 +112,13 @@ export function previewTaskImpact(
   const empCount = deptEmployeeCount(deptId, users, teams);
   const beforeHours = deptAssignedHours(deptId, packages, settings);
   const afterHours = beforeHours + addedHours;
-  const currentPct = capacityPct(beforeHours, empCount, settings.productive_hours_per_day);
-  const afterPct = capacityPct(afterHours, empCount, settings.productive_hours_per_day);
+  const capacityHours = productiveDayCapacityHours(settings);
+  const currentPct = capacityPct(beforeHours, empCount, capacityHours);
+  const afterPct = capacityPct(afterHours, empCount, capacityHours);
 
   const businessDaysDelayed =
     addedHours > 0
-      ? Math.ceil(addedHours / Math.max(settings.productive_hours_per_day, 0.5))
+      ? Math.ceil(addedHours / Math.max(productiveDayCapacityHours(settings), 0.5))
       : 0;
 
   const deptDelayLevel = delayLevel(businessDaysDelayed);

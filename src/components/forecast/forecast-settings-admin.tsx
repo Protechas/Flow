@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NOMINAL_HOURS_PER_WORK_DAY } from "@/lib/forecast/capacity";
 import { WORKING_DAY_LABELS } from "@/lib/forecast/constants";
 import type { ForecastSettings } from "@/types/flow";
 
@@ -39,7 +40,7 @@ export function ForecastSettingsAdmin({ settings }: { settings: ForecastSettings
         setSaved(false);
         void updateForecastSettingsAction({
           minutes_per_document: Number(fd.get("minutes_per_document")),
-          productive_hours_per_day: Number(fd.get("productive_hours_per_day")),
+          productive_day_percent: Number(fd.get("productive_day_percent")),
           working_days: days,
         })
           .then((next) => {
@@ -54,7 +55,7 @@ export function ForecastSettingsAdmin({ settings }: { settings: ForecastSettings
       }}
     >
       <div className="space-y-2">
-        <Label htmlFor="minutes_per_document">Default minutes per document</Label>
+        <Label htmlFor="minutes_per_document">Minutes per file</Label>
         <Input
           id="minutes_per_document"
           name="minutes_per_document"
@@ -66,17 +67,22 @@ export function ForecastSettingsAdmin({ settings }: { settings: ForecastSettings
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="productive_hours_per_day">Productive hours per day</Label>
+        <Label htmlFor="productive_day_percent">Productive day capacity (%)</Label>
         <Input
-          id="productive_hours_per_day"
-          name="productive_hours_per_day"
+          id="productive_day_percent"
+          name="productive_day_percent"
           type="number"
-          step="0.25"
-          min={1}
-          max={24}
-          defaultValue={live.productive_hours_per_day}
+          step={5}
+          min={10}
+          max={100}
+          defaultValue={live.productive_day_percent}
           required
         />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Percent of a full workday used for forecasting — fits flexible schedules not tied to
+          clock hours. {live.productive_day_percent}% ≈ {live.productive_hours_per_day}h of a{" "}
+          {NOMINAL_HOURS_PER_WORK_DAY}h reference day.
+        </p>
       </div>
       <div className="space-y-2">
         <Label>Working days</Label>

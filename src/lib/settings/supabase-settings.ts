@@ -1,3 +1,4 @@
+import { hoursToProductivePercent } from "@/lib/forecast/capacity";
 import { applyForecastSettingsSnapshot, getForecastSettings } from "@/lib/data/flow-store";
 import {
   defaultHelpFlagSettings,
@@ -23,17 +24,26 @@ export async function hydrateForecastSettingsFromSupabase(): Promise<ForecastSet
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("forecast_settings")
-    .select("id, minutes_per_document, productive_hours_per_day, working_days, updated_at, updated_by")
+    .select(
+      "id, minutes_per_document, productive_day_percent, productive_hours_per_day, working_days, updated_at, updated_by"
+    )
     .limit(1)
     .maybeSingle();
 
   if (error || !data) return null;
 
+  const hours = Number(data.productive_hours_per_day);
+  const percent =
+    data.productive_day_percent != null
+      ? Number(data.productive_day_percent)
+      : hoursToProductivePercent(hours);
+
   return applyForecastSettingsSnapshot({
     ...getForecastSettings(),
     id: data.id ?? getForecastSettings().id,
     minutes_per_document: Number(data.minutes_per_document),
-    productive_hours_per_day: Number(data.productive_hours_per_day),
+    productive_day_percent: percent,
+    productive_hours_per_day: hours,
     working_days: (data.working_days as number[]) ?? [1, 2, 3, 4, 5],
     updated_at: data.updated_at ?? new Date().toISOString(),
     updated_by: data.updated_by ?? null,
@@ -55,6 +65,7 @@ export async function persistForecastSettingsToSupabase(
 
   const row = {
     minutes_per_document: settings.minutes_per_document,
+    productive_day_percent: settings.productive_day_percent,
     productive_hours_per_day: settings.productive_hours_per_day,
     working_days: settings.working_days,
     updated_at: new Date().toISOString(),

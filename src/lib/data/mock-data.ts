@@ -499,6 +499,7 @@ export const MOCK_DAILY_WRAP_UPS: DailyWrapUp[] = [
 export const MOCK_FORECAST_SETTINGS: ForecastSettings = {
   id: "forecast-settings-1",
   minutes_per_document: 7,
+  productive_day_percent: 81.25,
   productive_hours_per_day: 6.5,
   working_days: [1, 2, 3, 4, 5],
   updated_at: now.toISOString(),

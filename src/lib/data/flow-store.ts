@@ -37,6 +37,7 @@ import {
   calculateProjectPlanningForecast,
 } from "@/lib/forecast/engine";
 import { applyTaskLiveForecast } from "@/lib/forecast/live";
+import { normalizeForecastSettings } from "@/lib/forecast/capacity";
 import {
   defaultForecastSettings,
   readGlobalForecastSettings,
@@ -299,7 +300,7 @@ export function initFlowStore() {
 
 export function applyForecastSettingsSnapshot(snapshot: ForecastSettings): ForecastSettings {
   initFlowStore();
-  forecastSettings = { ...forecastSettings, ...snapshot };
+  forecastSettings = normalizeForecastSettings({ ...forecastSettings, ...snapshot });
   writeGlobalForecastSettings(forecastSettings);
   recalculateAllForecasts();
   return forecastSettings;
@@ -311,16 +312,21 @@ export function getForecastSettings(): ForecastSettings {
 }
 
 export function updateForecastSettings(
-  updates: Partial<Pick<ForecastSettings, "minutes_per_document" | "productive_hours_per_day" | "working_days">>,
+  updates: Partial<
+    Pick<
+      ForecastSettings,
+      "minutes_per_document" | "productive_day_percent" | "productive_hours_per_day" | "working_days"
+    >
+  >,
   userId: string
 ): ForecastSettings {
   initFlowStore();
-  forecastSettings = {
+  forecastSettings = normalizeForecastSettings({
     ...forecastSettings,
     ...updates,
     updated_at: ts(),
     updated_by: userId,
-  };
+  });
   writeGlobalForecastSettings(forecastSettings);
   recalculateAllForecasts();
   return forecastSettings;

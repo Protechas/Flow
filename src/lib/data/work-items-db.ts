@@ -386,6 +386,31 @@ export async function persistWorkStructureForProject(projectId: string): Promise
   }
 }
 
+/** After global forecast settings change, persist recalculated task and project forecast fields. */
+export async function persistRecalculatedForecastsDb(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const store = getFlowStore();
+  const { updateProjectDb } = await import("@/lib/data/projects-db");
+
+  for (const pkg of store.workPackages) {
+    await persistWorkPackageDb(pkg);
+  }
+  for (const project of store.projects) {
+    await updateProjectDb(project.id, {
+      estimated_total_documents: project.estimated_total_documents,
+      estimated_total_hours: project.estimated_total_hours,
+      estimated_total_work_days: project.estimated_total_work_days,
+      suggested_project_due_date: project.suggested_project_due_date,
+      planning_project_due_date: project.planning_project_due_date,
+      active_project_due_date: project.active_project_due_date,
+      project_due_date_status: project.project_due_date_status,
+      forecast_confidence: project.forecast_confidence,
+      due_date: project.due_date,
+    });
+  }
+}
+
 export async function persistManufacturerChange(mfr: Manufacturer): Promise<void> {
   if (!isSupabaseConfigured()) return;
   await syncManufacturersForProject(mfr.project_id);

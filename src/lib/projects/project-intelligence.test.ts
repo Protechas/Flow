@@ -9,6 +9,7 @@ import type { Department, ForecastSettings } from "@/types/flow";
 const forecastSettings: ForecastSettings = {
   id: "default",
   minutes_per_document: 15,
+  productive_day_percent: 81.25,
   productive_hours_per_day: 6.5,
   working_days: [1, 2, 3, 4, 5],
   updated_at: "",

@@ -172,11 +172,12 @@ function mergeLabels(
 
 export function getHierarchyLabels(
   projectType?: string | null,
-  structureMode?: WorkStructureMode | null
+  structureMode?: WorkStructureMode | null,
+  operatingModelLabels?: Partial<SmartHierarchyLabels> | null
 ): SmartHierarchyLabels {
   const typeLayer = projectType ? PROJECT_TYPE_LABELS[projectType] : undefined;
   const modeLayer = structureMode ? STRUCTURE_MODE_LABELS[structureMode] : undefined;
-  return mergeLabels(typeLayer, modeLayer);
+  return mergeLabels(typeLayer, modeLayer, operatingModelLabels ?? undefined);
 }
 
 export function defaultStructureModeForProjectType(

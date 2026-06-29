@@ -44,6 +44,8 @@ import {
   emptyBulkMatrixDraft,
   type BulkMatrixDraft,
 } from "@/lib/work-creation/bulk-matrix-types";
+import { applyOperatingModelToCreationDefaults } from "@/lib/operating-models/context";
+import type { OperatingContext } from "@/lib/operating-models/types";
 import {
   buildCreationDefaults,
   defaultProjectOwnerId,
@@ -137,16 +139,27 @@ export function ProgramBuilder({
   teams,
   managers,
   forecastSettings,
+  creationScope,
+  operatingContext,
 }: {
   user: User;
   departments: Department[];
   teams: Team[];
   managers: User[];
   forecastSettings: ForecastSettings;
+  /** Pre-fill department/team when creating from a team dashboard. */
+  creationScope?: { departmentId?: string; teamId?: string };
+  /** Team operating model — shapes defaults, labels, and project type. */
+  operatingContext?: OperatingContext;
 }) {
   const { toast } = useFlowToast();
   const router = useRouter();
-  const defaults = buildCreationDefaults(user, departments, teams);
+  const defaults = useMemo(() => {
+    const base = buildCreationDefaults(user, departments, teams, creationScope);
+    return operatingContext
+      ? applyOperatingModelToCreationDefaults(base, operatingContext)
+      : base;
+  }, [user, departments, teams, creationScope, operatingContext]);
   const ownerCandidates = useMemo(
     () => projectOwnerCandidates(managers, user),
     [managers, user]
@@ -217,7 +230,19 @@ export function ProgramBuilder({
     setBulkCustomNames([]);
     setCustomMakes([]);
     setCustomYears([]);
-    setStructureDraft(structureFromBlueprint(getProgramBlueprintOrDefault("custom_program"), defaults, defaultOwnerId));
+    const baseStructure = structureFromBlueprint(
+      getProgramBlueprintOrDefault("custom_program"),
+      defaults,
+      defaultOwnerId
+    );
+    const model = operatingContext?.model;
+    setStructureDraft({
+      ...baseStructure,
+      projectType: model?.defaultProjectType ?? model?.projectTypes[0] ?? baseStructure.projectType,
+      structureMode: model?.structureMode ?? baseStructure.structureMode,
+      departmentId: defaults.departmentId,
+      teamId: defaults.teamId,
+    });
     setMatrixDraft(
       matrixFromBlueprint(getProgramBlueprintOrDefault("make_year_model_matrix"), defaults, defaultOwnerId)
     );

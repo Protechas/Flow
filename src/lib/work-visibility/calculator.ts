@@ -7,6 +7,7 @@ import {
   getTaskMinutesToday,
   initProductionTracking,
 } from "@/lib/data/production-tracking";
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import { isWrapUpRequiredForDate } from "@/lib/wrap-up/eligibility";
@@ -88,7 +89,7 @@ export function buildEmployeeWorkVisibilityMetrics(
   );
 
   const workload = evaluateEmployeeWorkload(user, packages, store.forecastSettings);
-  const threshold = store.forecastSettings.productive_hours_per_day * 2 || 16;
+  const threshold = productiveDayCapacityHours(store.forecastSettings) * 2 || 16;
   const remaining = workload.remainingHours ?? 0;
   const workloadCoveragePct =
     remaining >= threshold

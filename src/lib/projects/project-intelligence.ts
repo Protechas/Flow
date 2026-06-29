@@ -1,3 +1,4 @@
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import { projectRollup } from "@/lib/hierarchy/rollups";
 import {
   getProjectNextAction,
@@ -96,7 +97,7 @@ function computeCapacityLoad(
     0
   );
   const assignees = new Set(open.map((p) => p.assigned_to).filter(Boolean));
-  const hoursPerDay = forecastSettings.productive_hours_per_day ?? 6.5;
+  const hoursPerDay = productiveDayCapacityHours(forecastSettings);
   const teamWindow =
     Math.max(assignees.size, 1) * hoursPerDay * 10;
   return Math.min(100, Math.round((remainingHours / teamWindow) * 100));

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
   assertCanAssignWorkPackage,
@@ -545,9 +546,15 @@ export async function updateWorkPackageAction(id: string, updates: Partial<WorkP
 export async function deleteWorkPackageAction(id: string) {
   await requirePermission("work:delete");
   const existing = getFlowStore().workPackages.find((p) => p.id === id);
+  const { syncValidationFindingFromWorkPackage } = await import(
+    "@/lib/validation-center/task-bridge"
+  );
+  await syncValidationFindingFromWorkPackage(id, "cancelled");
   deleteWorkPackage(id);
   await deleteWorkPackageDb(id);
   revalidateAll(existing?.project_id);
+  revalidatePath("/validation/corrections");
+  revalidatePath("/validation/findings");
 }
 
 export async function submitWorkPackageToQaAction(id: string) {
@@ -568,7 +575,13 @@ export async function submitWorkPackageToQaAction(id: string) {
     entityId: id,
     summary: "Submitted work package to QA",
   });
+  const { syncValidationFindingFromWorkPackage } = await import(
+    "@/lib/validation-center/task-bridge"
+  );
+  await syncValidationFindingFromWorkPackage(id, "ready_for_qa");
   revalidateAll();
+  revalidatePath("/validation/corrections");
+  revalidatePath("/validation/findings");
 }
 
 export async function completeWorkPackageAction(id: string) {

@@ -91,7 +91,7 @@ export function buildBulkMatrixPreview(
     "Project dashboard & reporting",
     "Forecast tracking",
     `${settings.minutes_per_document} min/doc rate (org default)`,
-    `${settings.productive_hours_per_day}h productive day`,
+    `${settings.productive_day_percent}% productive day`,
   ];
   if (draft.qaRequired) enabled.push(`QA on ${rows.length} tasks`);
   if (draft.filesRequired) enabled.push(`Files required on ${rows.length} tasks`);

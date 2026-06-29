@@ -7,6 +7,7 @@ import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getProjectHealthList } from "@/lib/data/project-health";
 import { initProductionTracking, getProductionStore } from "@/lib/data/production-tracking";
 import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
+import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import { getForecastSettings } from "@/lib/data/flow-store";
 import { listHelpFlagsForViewer } from "@/lib/help-flags/engine";
 import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
@@ -223,7 +224,8 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
   const scopedEmployees = memberIds
     ? store.users.filter((u) => memberIds.includes(u.id) && isProductionEmployee(u))
     : store.users.filter(isProductionEmployee);
-  const dailyCapacity = Math.max(scopedEmployees.length, 1) * settings.productive_hours_per_day;
+  const dailyCapacity =
+    Math.max(scopedEmployees.length, 1) * productiveDayCapacityHours(settings);
   const capacityUtilizationPct = Math.min(
     100,
     Math.round((totalRemainingHours / dailyCapacity) * 100)
@@ -421,7 +423,7 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
       return sum + (rem.remainingHours ?? 0);
     }, 0);
     const empCount = Math.max(deptUserIds.length, 1);
-    const dailyCap = empCount * settings.productive_hours_per_day;
+    const dailyCap = empCount * productiveDayCapacityHours(settings);
     const currentPct = Math.min(100, Math.round((assignedHours / dailyCap) * 100));
     const status = capacityPctToStatus(currentPct);
 

@@ -35,8 +35,9 @@ You have broader project permissions than team leads (including **project delete
 | Files | `/files` | Company docs |
 | Templates | `/operations/templates` | Template library |
 | Work Visibility Report | `/reports/work-visibility` | Team compliance |
+| Team dashboard | `/teams/[slug]` | Team-scoped KPIs, programs, work creation |
 
-**Not accessible:** Settings, Users, System Health, Innovation Hub manage
+**Not accessible:** Settings, Users, System Health, Innovation Hub manage (unless granted)
 
 ---
 
@@ -171,6 +172,21 @@ For org changes (promotions, team moves), request admin action.
 | Accountability | Coaching candidates |
 
 **Analytics** combines cross-module trends for weekly team meetings.
+
+---
+
+## Team Dashboards
+
+If your team has a custom dashboard (sidebar link or `/teams/{slug}`):
+
+1. **Morning** — scan team KPIs (health, at-risk, open tasks).
+2. **Create work** from the dashboard header — New Program and New Work are pre-scoped to your team.
+3. **Drill into programs** — portfolio cards link to Ops, Health, and quick **Add task**.
+4. Labels and fields follow your team's **operating model** (e.g. Workstream/Milestone instead of Manufacturer/Year).
+
+Ask an admin to configure dashboards at **Settings → Team dashboards** and operating models at **Settings → Operating models**.
+
+**Guide:** [Team Dashboards](/docs/team-dashboards)
 
 ---
 

@@ -18,6 +18,7 @@ import { HelpFlagStatusList } from "@/components/help-flags/help-flag-status";
 import { TaskFileUploadZone } from "@/components/employee/task-file-upload-zone";
 import { TaskSubmitChecklistPanel } from "@/components/employee/task-submit-checklist";
 import { TaskLiveForecastPanel } from "@/components/forecast/task-live-forecast-panel";
+import { primaryDueDate } from "@/lib/forecast/live";
 import { ProductionMetricsPanel } from "@/components/production/production-metrics-panel";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -402,11 +403,11 @@ function EmployeeTaskWorkspaceContent({
             </div>
             <div>
               <dt className="text-muted-foreground text-[10px] uppercase">Due</dt>
-              <dd className="font-medium">{task.due_date ?? "—"}</dd>
+              <dd className="font-medium">{primaryDueDate(task) ?? task.due_date ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground text-[10px] uppercase">Expected completion</dt>
-              <dd className="font-medium">{task.suggested_due_date ?? "—"}</dd>
+              <dd className="font-medium">{primaryDueDate(task) ?? "—"}</dd>
             </div>
           </dl>
         </div>

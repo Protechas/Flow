@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { ProgramBuilder } from "@/components/work-creation/program-builder";
+import { ProjectSetupWizard } from "@/components/projects/project-setup-wizard";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
 import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
 import { CreateBoardWizard } from "@/components/work-creation/create-board-wizard";
@@ -139,12 +139,11 @@ export default async function ProjectsPage({
           {allowedModes.length > 0 && (
             <>
               {allowedModes.includes("project") && (
-                <ProgramBuilder
+                <ProjectSetupWizard
                   user={user}
                   departments={departments}
                   teams={listTeamsStore()}
                   managers={projectOwners}
-                  forecastSettings={store.forecastSettings}
                 />
               )}
               {managerWorkHub && (

@@ -28,6 +28,9 @@ Administrators own:
 | `/settings/forecasting` | `settings:manage` | Not in sidebar — via Settings hub |
 | `/settings/workload-alerts` | `settings:manage` | Via Settings hub |
 | `/settings/work-visibility` | `settings:manage` | Via Settings hub |
+| `/settings/help-flags` | `settings:manage` | Via Settings hub |
+| `/settings/team-dashboards` | `settings:manage` | Team dashboard builder |
+| `/settings/operating-models` | `settings:manage` | Team operating model wizard |
 | `/system-health` | `settings:manage` | Sidebar + Settings hub |
 
 Non-admins are redirected to `/unauthorized` for all `/settings/*` routes.
@@ -144,9 +147,58 @@ Panel to assign users with no `department_id`.
 
 **Persistence:** Cookie only — **not shared org-wide in Supabase production.** Multi-admin environments should treat this as a known limitation until Supabase persistence is added.
 
-### Help Flag Settings (Not Yet in UI)
+### Help Flag Settings (`/settings/help-flags`)
 
-Database table `help_flag_settings` exists. Escalation thresholds (30/60 min critical idle) are hardcoded defaults. No admin page exists — see SYSTEM_HEALTH_AUDIT.
+| Setting | Purpose |
+|---------|---------|
+| Enable help flags | Master toggle for employee escalation alerts |
+| Idle thresholds | Minutes before warning / critical idle escalation |
+
+**Persistence:** Supabase `help_flag_settings` when configured; defaults otherwise.
+
+---
+
+## Team Operating Models (`/settings/operating-models`)
+
+Configure how each department or team works — without forcing one workflow on everyone.
+
+**8-step wizard:**
+
+1. Team / department assignment  
+2. Work structure labels (e.g. Manufacturer/Year vs Workstream/Milestone)  
+3. Default project types  
+4. Task types  
+5. Required tracking fields  
+6. KPI selection  
+7. Forecasting and task defaults  
+8. Review & save  
+
+**Seeded presets:** General Operations (fallback), Service Information, Advanced Projects, ID³ Validation, Training.
+
+**Runtime effect:** Project and task creation adapt labels and visible fields; team dashboards show model KPIs. Existing projects inherit a model from `project_type` + team — nothing breaks.
+
+**Full guide:** [TEAM_OPERATING_MODELS.md](./TEAM_OPERATING_MODELS.md)
+
+---
+
+## Team Dashboards (`/settings/team-dashboards`)
+
+Build custom operating views per team without code changes.
+
+| Config area | Purpose |
+|-------------|---------|
+| Project scope | Team, project types, explicit project IDs |
+| KPIs | Select from catalog for dashboard cards |
+| Navigation | Sidebar link label and group |
+| Access | Roles, team members, team leads |
+
+**Runtime route:** `/teams/{slug}` (e.g. `/teams/advanced-projects`)
+
+Dashboards include portfolio intelligence, program cards, and **in-dashboard work creation** (New Program, New Work, Operations).
+
+**Full guide:** [TEAM_DASHBOARDS.md](./TEAM_DASHBOARDS.md)
+
+Pair operating models (how the team works) with dashboards (what they see).
 
 ---
 
@@ -203,12 +255,19 @@ Triage employee-submitted ideas, bugs, and feature requests. Requires `innovatio
 
 ## Demo Mode Administration
 
-When Supabase is not configured:
+Demo mode is enabled when `NEXT_PUBLIC_FLOW_DEMO_MODE=true` in `.env.local` (or when Supabase keys are omitted).
 
-- Data source badge shows "Demo in-memory"
-- **Role switcher** on Settings page tests permissions without separate accounts
-- Audit log is ephemeral
+When active:
+
+- Data source badge on Settings shows **Demo (in-memory)**
+- **Login picker** — choose any demo user to sign in (role switch testing)
+- **Role switcher** on Settings page for quick permission testing
+- Full sample data — projects, tasks, users, departments
+- Audit log is ephemeral (lost on server restart)
 - Forecast/workload settings persist in cookies per browser
+- Operating models and team dashboards use in-memory store (seeded presets)
+
+To return to production data locally: set `NEXT_PUBLIC_FLOW_DEMO_MODE=false` and restart the dev server.
 
 ---
 
@@ -225,6 +284,8 @@ npm run migrate:pending
 Key migrations:
 - `026_user_profile_fields.sql` — extended user profile
 - `027_project_custom_metrics.sql` — custom project metrics
+- `034_team_dashboard_packs.sql` — team dashboard configuration
+- `035_team_operating_models.sql` — team operating models
 
 ---
 

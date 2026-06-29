@@ -13,7 +13,7 @@ const vercelUploadCapBytes = 4 * 1024 * 1024;
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: process.env.VERCEL ? "4mb" : "25mb",
+      bodySizeLimit: process.env.VERCEL ? "4mb" : "50mb",
     },
   },
   env: {

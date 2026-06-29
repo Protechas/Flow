@@ -19,6 +19,8 @@ const PATHS = [
   "/reports",
   "/production",
   "/work",
+  "/validation/findings",
+  "/validation/corrections",
 ];
 
 export async function submitQaReviewAction(params: {
@@ -47,5 +49,15 @@ export async function submitQaReviewAction(params: {
     summary: `QA ${params.result} on package`,
     metadata: { result: params.result, analyst_id: params.analystId },
   });
+
+  const { syncValidationFindingFromWorkPackage } = await import(
+    "@/lib/validation-center/task-bridge"
+  );
+  await syncValidationFindingFromWorkPackage(
+    params.workPackageId,
+    params.result === "pass" ? "qa_pass" : "qa_fail",
+    params.result
+  );
+
   PATHS.forEach((p) => revalidatePath(p));
 }
