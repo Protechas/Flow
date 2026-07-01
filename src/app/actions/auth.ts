@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/supabase/site-url";
 import { formatSignupError } from "@/lib/auth/signup-errors";
 import { requirePermission } from "@/lib/auth/session";
+import { withTimeout } from "@/lib/server/with-timeout";
 import { MOCK_USERS } from "@/lib/data/mock-data";
 import type { UserRole } from "@/types/flow";
 
@@ -61,7 +62,11 @@ export async function supabaseLoginAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await withTimeout(
+    supabase.auth.signInWithPassword({ email, password }),
+    15_000,
+    "Sign-in timed out. Supabase may be busy — wait 30 seconds and try again, or visit /auth/clear first."
+  );
   if (error) throw new Error(error.message);
 
   const profile = data.user ? await getUserProfileByAuthId(data.user.id) : null;

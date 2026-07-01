@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 import {
   getDemoRoleFromUserId,
   isSupabaseConfigured,
@@ -7,10 +6,15 @@ import {
   roleCanAccessPath,
   shouldProtectRoute,
 } from "@/lib/auth/route-guard";
+import {
+  hasSupabaseAuthCookies,
+  isPublicAuthPath,
+} from "@/lib/supabase/proxy-auth";
 
 const DEMO_USER_COOKIE = "flow_demo_user_id";
 
-export async function middleware(request: NextRequest) {
+/** Instant cookie gate — zero Supabase calls at the edge. */
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!isSupabaseConfigured()) {
@@ -42,11 +46,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return updateSession(request);
+  if (!hasSupabaseAuthCookies(request) && !isPublicAuthPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

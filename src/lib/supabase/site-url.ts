@@ -20,6 +20,7 @@ export function getSiteUrl(): string {
     if (deployHost) {
       return `https://${deployHost.replace(/^https?:\/\//, "")}`;
     }
+    return "https://flowproduction.space";
   }
 
   if (configured) return configured;
