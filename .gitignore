@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
 
 # next.js
 /.next/
@@ -45,5 +48,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# QA Center reference documents (sync with npm run sync:qa-knowledge)
+/data/knowledge-library/*
+!/data/knowledge-library/.gitkeep
 
 .vercel

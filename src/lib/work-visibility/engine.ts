@@ -8,8 +8,7 @@ import {
   initProductionTracking,
 } from "@/lib/data/production-tracking";
 import {
-  createNotificationSync,
-  hasRecentNotification,
+  deliverNotification,
 } from "@/lib/notifications/notifications";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import {
@@ -43,16 +42,18 @@ function notifyActivityGap(employee: User, users: User[]) {
     includeAdminFallback: true,
   });
   for (const leader of leaders) {
-    if (hasRecentNotification(leader.id, "activity_gap", "user", employee.id, 4)) continue;
-    createNotificationSync({
-      user_id: leader.id,
-      type: "activity_gap",
-      title: "Activity gap",
-      message: `${employee.full_name}: ${GAP_MESSAGE}`,
-      related_entity_type: "user",
-      related_entity_id: employee.id,
-      link: `/reports/work-visibility?userId=${employee.id}`,
-    });
+    deliverNotification(
+      {
+        user_id: leader.id,
+        type: "activity_gap",
+        title: "Activity gap",
+        message: `${employee.full_name}: ${GAP_MESSAGE}`,
+        related_entity_type: "user",
+        related_entity_id: employee.id,
+        link: `/reports/work-visibility?userId=${employee.id}`,
+      },
+      4
+    );
   }
 }
 

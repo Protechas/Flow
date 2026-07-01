@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrgStructure } from "@/lib/data/revalidate-flow";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission, requireUser } from "@/lib/auth/session";
 import { hasAdminAccess } from "@/lib/auth/access-level";
@@ -32,7 +32,7 @@ import { syncDepartmentTeamFromPosition, clearDepartmentTeamSeat } from "@/lib/p
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function revalidateAll() {
-  revalidatePath("/", "layout");
+  revalidateOrgStructure();
 }
 
 async function persistPosition(
@@ -49,7 +49,7 @@ async function requirePositionManage() {
 }
 
 export async function listOrgPositionsAction() {
-  await requireUser();
+  await requirePermission("users:manage");
   initFlowStore();
   return ensureOrgPositionsLoaded();
 }

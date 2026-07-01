@@ -460,7 +460,33 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/people": ["people:view_all", "people:view_team", "people:view_own"],
 
-  "/qa-center": ["qa:review", "qa:view"],
+  "/qa-center": ["validation:view", "qa:review", "qa:view"],
+
+  "/qa-center/upload": ["validation:create", "validation:view"],
+
+  "/qa-center/validation": "validation:view",
+
+  "/qa-center/validation/new": "validation:create",
+
+  "/qa-center/validation/runs": "validation:view",
+
+  "/qa-center/validation/findings": "validation:view",
+
+  "/qa-center/validation/corrections": "validation:view",
+
+  "/qa-center/validation/history": "validation:view",
+
+  "/qa-center/review": ["qa:review", "qa:view"],
+
+  "/qa-center/knowledge": "validation:view",
+
+  "/qa-center/rules": "validation:manage_settings",
+
+  "/qa-center/reports": ["validation:export", "validation:view"],
+
+  "/qa-center/analytics": "validation:view",
+
+  "/qa-center/settings": "validation:manage_settings",
 
   "/reports": ["reports:view_all", "reports:view_team", "reports:view_qa", "reports:view_own"],
 
@@ -489,6 +515,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
   "/settings": ["settings:manage", "settings:metrics"],
 
   "/settings/users": "users:manage",
+  "/settings/permissions": "users:manage",
   "/settings/departments": "departments:manage",
 
   "/settings/forecasting": ["settings:manage", "settings:metrics"],
@@ -569,6 +596,32 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/qa-center": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
+  "/qa-center/upload": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/validation": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/validation/new": ["admin", "super_admin", "senior_manager", "manager"],
+
+  "/qa-center/validation/runs": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/validation/findings": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/validation/corrections": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/validation/history": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/review": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
+
+  "/qa-center/knowledge": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/rules": ["admin", "super_admin"],
+
+  "/qa-center/reports": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/analytics": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/settings": ["admin", "super_admin"],
+
   "/reports": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer", "employee"],
 
   "/planning": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
@@ -594,6 +647,7 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
   "/settings": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/settings/users": ["admin", "super_admin"],
+  "/settings/permissions": ["admin", "super_admin"],
   "/settings/departments": ["admin", "super_admin"],
 
   "/settings/forecasting": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
@@ -753,7 +807,7 @@ export const NAV_ITEM_ORDER: Record<NavGroupId, NavItemId[]> = {
 
   attention: ["alert-center", "qa-center", "wrap-ups"],
 
-  operations: ["operations", "validation-center", "projects", "production", "project-health", "files"],
+  operations: ["operations", "projects", "production", "project-health", "files"],
 
   workforce: ["people", "time-clock", "org-chart"],
 
@@ -797,13 +851,11 @@ export const NAV_CONFIG: {
 
   { id: "alert-center", href: "/alert-center", label: "Alert Center", icon: "BellRing", group: "attention", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
-  { id: "qa-center", href: "/qa-center", label: "QA Review", icon: "ShieldCheck", group: "attention", permissions: ["qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+  { id: "qa-center", href: "/qa-center", label: "QA Center", icon: "Brain", group: "attention", permissions: ["validation:view", "qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
   { id: "wrap-ups", href: "/wrap-ups", label: "Daily Reports", icon: "ClipboardList", group: "attention", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
-
-  { id: "validation-center", href: "/validation", label: "Validation Center", icon: "ClipboardCheck", group: "operations", permissions: "validation:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 

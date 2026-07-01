@@ -75,6 +75,60 @@ export async function createNotification(input: CreateNotificationInput): Promis
   return mapRow(data as Record<string, unknown>);
 }
 
+/** Dedupe + create — async, for server actions and awaited paths. */
+export async function maybeCreateNotification(
+  input: CreateNotificationInput,
+  withinHours = 24,
+  skipDedupe = false
+): Promise<Notification | null> {
+  if (
+    !skipDedupe &&
+    (await hasRecentNotificationAsync(
+      input.user_id,
+      input.type,
+      input.related_entity_type,
+      input.related_entity_id,
+      withinHours
+    ))
+  ) {
+    return null;
+  }
+  if (!isSupabaseConfigured()) {
+    return createNotificationSync(input);
+  }
+  return createNotification(input);
+}
+
+/**
+ * Deliver a notification from sync workflow code.
+ * Demo: in-memory. Production: async Supabase insert (deduped).
+ */
+export function deliverNotification(
+  input: CreateNotificationInput,
+  withinHours = 24,
+  skipDedupe = false
+): void {
+  if (!isSupabaseConfigured()) {
+    if (
+      !skipDedupe &&
+      hasRecentNotification(
+        input.user_id,
+        input.type,
+        input.related_entity_type,
+        input.related_entity_id,
+        withinHours
+      )
+    ) {
+      return;
+    }
+    createNotificationSync(input);
+    return;
+  }
+  void maybeCreateNotification(input, withinHours, skipDedupe).catch((err) =>
+    console.error("[notifications] deliver failed", err)
+  );
+}
+
 export function hasRecentNotification(
   userId: string,
   type: NotificationType,

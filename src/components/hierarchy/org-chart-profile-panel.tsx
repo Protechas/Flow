@@ -178,11 +178,17 @@ export function OrgChartProfilePanel({
           <div className="p-4 text-sm text-muted-foreground">Loading profile details…</div>
         ) : (
           <div className="p-4 space-y-5">
-            <PanelSection title="Active tasks">
+            <PanelSection
+              title={
+                profile.activeTasks.length > 0
+                  ? `Active tasks (${profile.activeTasks.length})`
+                  : "Active tasks"
+              }
+            >
               {profile.activeTasks.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No active tasks assigned.</p>
               ) : (
-                <ul className="space-y-1.5">
+                <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                   {profile.activeTasks.map((task) => (
                     <li key={task.id}>
                       <Link

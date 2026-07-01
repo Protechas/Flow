@@ -1,10 +1,11 @@
 import { SignUpForm } from "@/components/auth/signup-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { isSelfSignupAllowed } from "@/lib/auth/signup-policy";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { redirect } from "next/navigation";
 
 export default function SignUpPage() {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isSelfSignupAllowed()) {
     redirect("/login");
   }
 

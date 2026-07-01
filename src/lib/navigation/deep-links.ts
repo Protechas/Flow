@@ -50,7 +50,8 @@ export function projectsHref(opts?: {
 }
 
 export function qaCenterHref(opts?: { department?: string; package?: string }): string {
-  return withQuery("/qa-center", {
+  const base = opts?.package?.trim() ? "/qa-center/review" : "/qa-center";
+  return withQuery(base, {
     department: opts?.department,
     package: opts?.package,
   });

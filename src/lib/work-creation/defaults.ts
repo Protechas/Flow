@@ -1,4 +1,5 @@
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
+import { resolveTeamIdForDepartment } from "@/lib/departments/structure-defaults";
 import {
   teamIdForDepartment,
   filterBoardProjects,
@@ -11,7 +12,7 @@ import type { Team } from "@/types/flow";
 export { getAllowedCreationModes } from "@/lib/work-creation/permissions";
 export { filterBoardProjects, filterProgramProjects, teamIdForDepartment, type CreationDefaults };
 
-export function resolveDefaultDepartmentId(userId: string): string {
+export function resolveDefaultDepartmentId(userId: string): string | null {
   return getUserPrimaryDepartmentId(userId);
 }
 
@@ -21,10 +22,12 @@ export function buildCreationDefaults(
   departments: Department[],
   teams: Team[]
 ): CreationDefaults {
+  const primaryDept = resolveDefaultDepartmentId(user.id);
   const departmentId =
-    departments.find((d) => d.id === resolveDefaultDepartmentId(user.id))?.id ??
+    departments.find((d) => d.id === primaryDept)?.id ??
     departments[0]?.id ??
-    resolveDefaultDepartmentId(user.id);
+    primaryDept ??
+    "";
 
   return {
     departmentId,
@@ -38,14 +41,20 @@ export function buildCreationDefaults(
 
 export function boardContextFromProject(
   board: Project | undefined,
-  departments: Department[]
+  departments: Department[],
+  teams: Team[] = []
 ): { departmentId: string; teamId: string; descriptionPrefix: string } {
   if (!board) {
-    return { departmentId: departments[0]?.id ?? "", teamId: "team-1", descriptionPrefix: "" };
+    return {
+      departmentId: departments[0]?.id ?? "",
+      teamId: resolveTeamIdForDepartment(departments[0]?.id ?? "", teams),
+      descriptionPrefix: "",
+    };
   }
+  const departmentId = board.department_id ?? departments[0]?.id ?? "";
   return {
-    departmentId: board.department_id ?? departments[0]?.id ?? "",
-    teamId: board.team_id ?? "team-1",
+    departmentId,
+    teamId: board.team_id ?? resolveTeamIdForDepartment(departmentId, teams),
     descriptionPrefix: `Board: ${board.name}`,
   };
 }

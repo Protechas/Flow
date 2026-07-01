@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 import { MOCK_FORECAST_SETTINGS } from "@/lib/data/mock-data";
 import { normalizeForecastSettings } from "@/lib/forecast/capacity";
 import type { ForecastSettings } from "@/types/flow";
@@ -68,7 +68,7 @@ export async function writeForecastSettingsCookie(settings: ForecastSettings): P
   };
   store.set(FORECAST_SETTINGS_COOKIE, JSON.stringify(snapshot), {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,

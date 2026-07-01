@@ -1,4 +1,5 @@
 import { normalizeRole } from "@/lib/auth/permissions";
+import { resolveTeamIdForDepartment } from "@/lib/departments/structure-defaults";
 import {
   resolveDepartmentLabel,
   resolveEntityLabel,
@@ -51,7 +52,7 @@ export function resolveOwnerLabel(
 }
 
 export function teamIdForDepartment(departmentId: string, teams: Team[]): string {
-  return teams.find((t) => t.department_id === departmentId)?.id ?? teams[0]?.id ?? "team-1";
+  return resolveTeamIdForDepartment(departmentId, teams);
 }
 
 export function filterBoardProjects(projects: Project[]): Project[] {

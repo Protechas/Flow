@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 import type { HelpFlagSettings } from "@/types/flow";
 
 export const HELP_FLAG_SETTINGS_COOKIE = "flow_help_flag_settings";
@@ -60,7 +60,7 @@ export async function writeHelpFlagSettingsCookie(
   };
   store.set(HELP_FLAG_SETTINGS_COOKIE, JSON.stringify(snapshot), {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,

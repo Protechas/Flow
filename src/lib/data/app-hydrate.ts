@@ -6,6 +6,8 @@ import { ensureWorkStructureHydrated } from "@/lib/data/work-items-db";
 import { hydrateAppStore } from "@/lib/data/users";
 import { ensureProductionTrackingHydrated } from "@/lib/data/production-tracking-db";
 import { ensureWrapUpsHydrated } from "@/lib/data/wrap-ups-db";
+import { ensureHelpFlagsHydrated } from "@/lib/data/help-flags-db";
+import { ensureWorkloadAlertsHydrated } from "@/lib/data/workload-alerts-db";
 
 const hydrateApp = cache(async (): Promise<void> => {
   if (!isSupabaseConfigured()) {
@@ -21,6 +23,8 @@ const hydrateApp = cache(async (): Promise<void> => {
   await ensureWorkStructureHydrated();
   await ensureProductionTrackingHydrated();
   await ensureWrapUpsHydrated();
+  await ensureHelpFlagsHydrated();
+  await ensureWorkloadAlertsHydrated();
   const { hydrateTeamDashboardPacks } = await import("@/lib/team-dashboards/hydrate");
   await hydrateTeamDashboardPacks();
   const { hydrateOperatingModels } = await import("@/lib/operating-models/hydrate");

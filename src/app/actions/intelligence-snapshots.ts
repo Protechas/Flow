@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { requireUser } from "@/lib/auth/session";
+import { hasAnyPermission } from "@/lib/auth/permissions";
 import type {
   PortfolioIntelligenceSummary,
   ProgramIntelligence,
@@ -14,7 +16,22 @@ function isUnavailable(error: { code?: string; message?: string }): boolean {
   return (error.message ?? "").includes("does not exist");
 }
 
+async function requireIntelligenceAccess() {
+  const user = await requireUser();
+  if (
+    !hasAnyPermission(user.role, [
+      "reports:view_all",
+      "reports:view_team",
+      "reports:view_qa",
+    ])
+  ) {
+    throw new Error("FORBIDDEN");
+  }
+  return user;
+}
+
 export async function recordProgramSnapshotAction(intel: ProgramIntelligence): Promise<void> {
+  await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return;
   const supabase = await createClient();
   const date = format(new Date(), "yyyy-MM-dd");
@@ -40,6 +57,7 @@ export async function recordProgramSnapshotAction(intel: ProgramIntelligence): P
 export async function recordPortfolioSnapshotAction(
   summary: PortfolioIntelligenceSummary
 ): Promise<void> {
+  await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return;
   const supabase = await createClient();
   const date = format(new Date(), "yyyy-MM-dd");
@@ -74,6 +92,7 @@ export async function getProgramTrendAction(
     riskTier: ProgramRiskTier;
   }[]
 > {
+  await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return [];
   const supabase = await createClient();
   const cutoff = format(subDays(new Date(), days - 1), "yyyy-MM-dd");
@@ -97,6 +116,7 @@ export async function getProgramTrendAction(
 }
 
 export async function getPortfolioTrendAction(days = 14) {
+  await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return [];
   const supabase = await createClient();
   const cutoff = format(subDays(new Date(), days - 1), "yyyy-MM-dd");

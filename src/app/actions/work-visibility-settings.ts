@@ -23,6 +23,7 @@ const PATHS = [
 ];
 
 export async function getWorkVisibilitySettingsAction(): Promise<WorkVisibilitySettings> {
+  await requirePermission("settings:manage");
   await hydrateWorkVisibilitySettings();
   return getWorkVisibilitySettings();
 }

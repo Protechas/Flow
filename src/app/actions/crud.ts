@@ -683,7 +683,17 @@ export async function createCommentAction(
 }
 
 export async function deleteCommentAction(id: string) {
-  await requirePermission("work:delete");
+  const user = await requireUser();
+  initFlowStore();
+  const comment = getFlowStore().comments.find((c) => c.id === id);
+  if (!comment) throw new Error("Comment not found");
+
+  const isOwner = comment.user_id === user.id;
+  if (!isOwner) {
+    if (!hasPermission(user.role, "work:delete")) throw new Error("FORBIDDEN");
+    await assertCanEditWorkPackage(user, comment.work_package_id);
+  }
+
   deleteComment(id);
   revalidateAll();
 }
@@ -715,7 +725,19 @@ export async function createFileAction(input: {
 }
 
 export async function deleteFileAction(id: string) {
-  await requirePermission("work:delete");
+  const user = await requireUser();
+  initFlowStore();
+  const file = getFlowStore().files.find((f) => f.id === id);
+  if (!file) throw new Error("File not found");
+
+  const isOwner = file.uploaded_by === user.id;
+  if (!isOwner) {
+    if (!hasPermission(user.role, "work:delete")) throw new Error("FORBIDDEN");
+    if (file.work_package_id) {
+      await assertCanEditWorkPackage(user, file.work_package_id);
+    }
+  }
+
   deleteFile(id);
   revalidateAll();
 }

@@ -16,7 +16,7 @@ import { isTimeClockMember } from "@/lib/time-clock/members";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import type { User } from "@/types/flow";
-import { format } from "date-fns";
+import { appTodayDate, formatAppTime } from "@/lib/datetime/timezone";
 
 const STATUS_ORDER: Record<string, number> = {
   on_shift: 0,
@@ -28,7 +28,7 @@ const STATUS_ORDER: Record<string, number> = {
 export function getTeamAvailability(users: User[]): TeamMemberAvailability[] {
   initFlowStore();
   const store = getFlowStore();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
 
   return users
     .filter(isTimeClockMember)
@@ -50,12 +50,7 @@ export function getTeamAvailability(users: User[]): TeamMemberAvailability[] {
           requiresShiftClock: false,
           status: onTask ? ("on_shift" as const) : ("exempt" as const),
           statusLabel: onTask ? "On task" : "Available",
-          since: onTask
-            ? new Date(activeTask!.started_at).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })
-            : null,
+          since: onTask ? formatAppTime(activeTask!.started_at) : null,
           shiftMinutesToday: 0,
           taskMinutesToday: getTaskMinutesToday(user.id),
           lastPunchAt: null,
@@ -76,12 +71,7 @@ export function getTeamAvailability(users: User[]): TeamMemberAvailability[] {
         wrapUpStatus: getWrapUpComplianceStatus(user.id, today),
         status,
         statusLabel: clockStatusLabel(activeEntry, todayEntries),
-        since: activeEntry
-          ? new Date(activeEntry.clock_in_at).toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })
-          : null,
+        since: activeEntry ? formatAppTime(activeEntry.clock_in_at) : null,
         shiftMinutesToday: getShiftMinutesToday(user.id),
         taskMinutesToday: getTaskMinutesToday(user.id),
         lastPunchAt: lastEntry?.clock_out_at ?? activeEntry?.clock_in_at ?? null,

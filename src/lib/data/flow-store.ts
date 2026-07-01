@@ -37,6 +37,8 @@ import {
   calculateProjectPlanningForecast,
 } from "@/lib/forecast/engine";
 import { applyTaskLiveForecast } from "@/lib/forecast/live";
+import { computeAssigneeQueueForecasts } from "@/lib/forecast/assignee-queue";
+import { resolveProjectStructureDefaults } from "@/lib/departments/structure-defaults";
 import { normalizeForecastSettings } from "@/lib/forecast/capacity";
 import {
   defaultForecastSettings,
@@ -334,11 +336,13 @@ export function updateForecastSettings(
 
 function buildForecastFields(
   pkg: WorkPackage,
-  taskActiveMinutes?: number
+  taskActiveMinutes?: number,
+  now?: Date
 ): Partial<WorkPackage> {
   return applyTaskLiveForecast(pkg, {
     settings: forecastSettings,
     taskActiveMinutes,
+    now: now ?? new Date(),
   });
 }
 
@@ -349,6 +353,14 @@ export function refreshTaskLiveForecast(
   initFlowStore();
   const idx = workPackages.findIndex((p) => p.id === taskId);
   if (idx < 0) return null;
+  const assignee = workPackages[idx].assigned_to;
+  if (assignee) {
+    recalculateAssigneeForecast(assignee, {
+      activeTaskId: taskId,
+      taskMinutesById: { [taskId]: taskActiveMinutes ?? 0 },
+    });
+    return workPackages.find((p) => p.id === taskId) ?? null;
+  }
   const updated = {
     ...workPackages[idx],
     ...buildForecastFields(workPackages[idx], taskActiveMinutes),
@@ -381,13 +393,24 @@ export function activateTaskLiveForecast(
   }
   const updated = {
     ...base,
-    ...buildForecastFields(base, 0),
     updated_at: ts(),
   };
   workPackages[idx] = updated;
+  if (base.assigned_to) {
+    recalculateAssigneeForecast(base.assigned_to, {
+      activeTaskId: taskId,
+      taskMinutesById: { [taskId]: 0 },
+    });
+    syncYearFromPackages(updated.year_work_item_id);
+    return workPackages.find((p) => p.id === taskId) ?? null;
+  }
+  workPackages[idx] = {
+    ...updated,
+    ...buildForecastFields(base, 0),
+  };
   syncYearFromPackages(updated.year_work_item_id);
   recalculateProjectForecast(updated.project_id);
-  return updated;
+  return workPackages[idx];
 }
 
 export function recalculateProjectForecast(projectId: string) {
@@ -457,18 +480,123 @@ export function recalculateProjectForecast(projectId: string) {
   };
 }
 
-function recalculateAllForecasts() {
-  workPackages = workPackages.map((pkg) => applyForecastToPackage(pkg));
+function resolveActiveTaskIdForForecast(userId: string): string | null {
+  try {
+    // Lazy import avoids flow-store ↔ production-tracking cycle at module load.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pt = require("./production-tracking") as typeof import("./production-tracking");
+    pt.initProductionTracking();
+    const active = pt.getActiveTaskTimeEntry(userId);
+    if (active?.task_id) return active.task_id;
+  } catch {
+    /* production tracking unavailable */
+  }
+
+  const inProgress = workPackages.filter(
+    (p) =>
+      p.assigned_to === userId &&
+      p.status === "working_on_it" &&
+      p.forecast_mode === "active" &&
+      !!p.started_at
+  );
+  if (inProgress.length === 1) return inProgress[0].id;
+  return null;
+}
+
+function buildTaskMinutesForActive(
+  userId: string,
+  activeTaskId: string | null
+): Record<string, number> | undefined {
+  if (!activeTaskId) return undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pt = require("./production-tracking") as typeof import("./production-tracking");
+    pt.initProductionTracking();
+    return { [activeTaskId]: pt.getTotalTaskMinutes(activeTaskId) };
+  } catch {
+    return undefined;
+  }
+}
+
+export function recalculateAssigneeForecast(
+  userId: string,
+  options?: {
+    activeTaskId?: string | null;
+    taskMinutesById?: Record<string, number>;
+    now?: Date;
+  }
+) {
+  initFlowStore();
+  const activeTaskId =
+    options?.activeTaskId !== undefined
+      ? options.activeTaskId
+      : resolveActiveTaskIdForForecast(userId);
+  const taskMinutesById =
+    options?.taskMinutesById ?? buildTaskMinutesForActive(userId, activeTaskId);
+
+  const forecasts = computeAssigneeQueueForecasts({
+    assigneeId: userId,
+    packages: workPackages,
+    settings: forecastSettings,
+    activeTaskId,
+    taskMinutesById,
+    now: options?.now,
+  });
+
+  const projectIds = new Set<string>();
+  for (let i = 0; i < workPackages.length; i++) {
+    const fields = forecasts.get(workPackages[i].id);
+    if (!fields) continue;
+    workPackages[i] = { ...workPackages[i], ...fields, updated_at: ts() };
+    projectIds.add(workPackages[i].project_id);
+  }
+  for (const pid of projectIds) {
+    recalculateProjectForecast(pid);
+  }
+}
+
+function recalculateUnassignedForecasts(now?: Date) {
+  workPackages = workPackages.map((pkg) =>
+    pkg.assigned_to ? pkg : applyForecastToPackage(pkg, undefined, now)
+  );
+}
+
+/** Recalculate assignee queues, unassigned tasks, and project rollups using live timer data. */
+export function refreshAllLiveForecasts(options?: { now?: Date }): void {
+  const now = options?.now ?? new Date();
+  initFlowStore();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pt = require("./production-tracking") as typeof import("./production-tracking");
+    pt.initProductionTracking();
+  } catch {
+    /* production tracking unavailable */
+  }
+
+  const assignees = new Set<string>();
+  for (const pkg of workPackages) {
+    if (pkg.assigned_to) assignees.add(pkg.assigned_to);
+  }
+  for (const uid of assignees) {
+    recalculateAssigneeForecast(uid, { now });
+  }
+  recalculateUnassignedForecasts(now);
   for (const p of projects) {
     recalculateProjectForecast(p.id);
   }
+  persistTaskStore();
+}
+
+function recalculateAllForecasts() {
+  refreshAllLiveForecasts();
 }
 
 function applyForecastToPackage(
   pkg: WorkPackage,
-  taskActiveMinutes?: number
+  taskActiveMinutes?: number,
+  now?: Date
 ): WorkPackage {
-  const fields = buildForecastFields(pkg, taskActiveMinutes);
+  const fields = buildForecastFields(pkg, taskActiveMinutes, now);
   return { ...pkg, ...fields };
 }
 
@@ -537,8 +665,12 @@ function applyProjectPlanning(input: ProjectInput): Partial<Project> {
 
 export function createProject(input: ProjectInput, templateId?: ProjectTemplateId): Project {
   initFlowStore();
-  const teamId = input.team_id ?? "team-1";
-  const team = teams.find((t) => t.id === teamId);
+  const structure = resolveProjectStructureDefaults({
+    department_id: input.department_id,
+    team_id: input.team_id,
+    departments,
+    teams,
+  });
   const planningFields = applyProjectPlanning(input);
   const project: Project = {
     id: uid("proj"),
@@ -546,8 +678,8 @@ export function createProject(input: ProjectInput, templateId?: ProjectTemplateI
     description: input.description ?? null,
     project_type: input.project_type,
     structure_mode: input.structure_mode ?? null,
-    department_id: input.department_id ?? team?.department_id ?? DEFAULT_DEPARTMENT_ID,
-    team_id: teamId,
+    department_id: structure.department_id,
+    team_id: structure.team_id,
     is_cross_department: input.is_cross_department ?? false,
     status: input.status,
     priority: input.priority,
@@ -861,8 +993,15 @@ export function createWorkPackage(input: WorkPackageInput): WorkPackage {
     created_at: ts(),
     updated_at: ts(),
   };
-  const forecasted = applyForecastToPackage(pkg);
-  workPackages = [forecasted, ...workPackages];
+  workPackages = [pkg, ...workPackages];
+  let forecasted = pkg;
+  if (pkg.assigned_to) {
+    recalculateAssigneeForecast(pkg.assigned_to);
+    forecasted = workPackages.find((p) => p.id === pkg.id) ?? pkg;
+  } else {
+    forecasted = applyForecastToPackage(pkg);
+    workPackages[0] = forecasted;
+  }
   syncYearFromPackages(forecasted.year_work_item_id);
   recalculateProjectForecast(forecasted.project_id);
   logActivity(forecasted.assigned_to ?? "user-manager", "status_change", `Created task ${forecasted.title}`, forecasted.id);
@@ -930,11 +1069,19 @@ export function updateWorkPackage(id: string, updates: Partial<WorkPackage>) {
     "status",
   ] as const;
   const needsForecast = forecastFields.some((k) => updates[k] !== undefined);
-  if (needsForecast) {
-    updated = applyForecastToPackage(updated);
-  }
-
   workPackages[idx] = updated;
+  if (needsForecast) {
+    const assignees = new Set<string>();
+    if (prev.assigned_to) assignees.add(prev.assigned_to);
+    if (updated.assigned_to) assignees.add(updated.assigned_to);
+    if (assignees.size > 0) {
+      for (const uid of assignees) recalculateAssigneeForecast(uid);
+      updated = workPackages[idx];
+    } else {
+      updated = applyForecastToPackage(updated);
+      workPackages[idx] = updated;
+    }
+  }
   syncYearFromPackages(updated.year_work_item_id);
   if (needsForecast || updates.status !== undefined) {
     recalculateProjectForecast(updated.project_id);

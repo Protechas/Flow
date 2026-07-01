@@ -1,54 +1,62 @@
 import type { ValidationNavItem } from "@/lib/validation-center/types";
 
+export const VALIDATION_BASE = "/qa-center/validation";
+
+export function validationPath(suffix = ""): string {
+  if (!suffix) return VALIDATION_BASE;
+  const normalized = suffix.startsWith("/") ? suffix : `/${suffix}`;
+  return `${VALIDATION_BASE}${normalized}`;
+}
+
 export const VALIDATION_CENTER_NAV: ValidationNavItem[] = [
   {
-    href: "/validation",
+    href: validationPath(),
     label: "Dashboard",
     description: "Validation KPIs and quick actions",
   },
   {
-    href: "/validation/new",
+    href: validationPath("/new"),
     label: "New Audit",
     description: "Start a validation run",
   },
   {
-    href: "/validation/runs",
+    href: validationPath("/runs"),
     label: "Audit Runs",
     description: "Past and in-progress runs",
   },
   {
-    href: "/validation/findings",
+    href: validationPath("/findings"),
     label: "Findings",
     description: "Search and review validation findings",
   },
   {
-    href: "/validation/corrections",
+    href: validationPath("/corrections"),
     label: "Corrections",
     description: "Track correction progress",
   },
   {
-    href: "/validation/history",
+    href: validationPath("/history"),
     label: "Validation History",
     description: "Revalidation and comparisons",
   },
   {
-    href: "/validation/reports",
+    href: "/qa-center/reports",
     label: "Reports",
     description: "Exports and trend reports",
   },
   {
-    href: "/validation/analytics",
+    href: "/qa-center/analytics",
     label: "Analytics",
     description: "Root cause and accuracy analytics",
   },
   {
-    href: "/validation/settings",
+    href: "/qa-center/settings",
     label: "Settings",
     description: "Engine rules and configuration",
   },
 ];
 
 export function isValidationNavActive(href: string, pathname: string): boolean {
-  if (href === "/validation") return pathname === "/validation";
+  if (href === VALIDATION_BASE) return pathname === VALIDATION_BASE;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

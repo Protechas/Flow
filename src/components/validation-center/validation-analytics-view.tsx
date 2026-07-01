@@ -14,6 +14,7 @@ import {
   VALIDATION_ROOT_CAUSE_LABELS,
 } from "@/lib/validation-center/types";
 import type { ValidationCenterKpis } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 
 export function ValidationAnalyticsView({ kpis }: { kpis: ValidationCenterKpis }) {
   const maxRootCause = Math.max(1, ...kpis.rootCauseBreakdown.map((r) => r.count));
@@ -65,7 +66,7 @@ export function ValidationAnalyticsView({ kpis }: { kpis: ValidationCenterKpis }
                   <TableCell className="text-right tabular-nums">
                     {row.openFindings > 0 ? (
                       <Link
-                        href={`/validation/findings?manufacturer=${encodeURIComponent(row.manufacturer)}`}
+                        href={`${validationPath("/findings")}?manufacturer=${encodeURIComponent(row.manufacturer)}`}
                         className="text-primary hover:underline"
                       >
                         {row.openFindings}

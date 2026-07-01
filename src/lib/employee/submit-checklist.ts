@@ -1,8 +1,8 @@
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   getActiveTaskTimeEntry,
+  getPendingSessionTaskMinutes,
   getTaskFileCount,
-  getTotalTaskMinutes,
 } from "@/lib/data/production-tracking";
 import { getWorkEligibility } from "@/lib/work-eligibility";
 import type { User } from "@/types/flow";
@@ -28,7 +28,7 @@ export function buildTaskSubmitChecklist(
   const pkg = getFlowStore().workPackages.find((p) => p.id === taskId);
   const eligibility = getWorkEligibility(user);
   const fileCount = getTaskFileCount(taskId);
-  const totalMinutes = getTotalTaskMinutes(taskId);
+  const totalMinutes = getPendingSessionTaskMinutes(taskId, user.id);
   const activeTimer = getActiveTaskTimeEntry(user.id);
   const hasActivity = totalMinutes > 0 || activeTimer?.task_id === taskId;
 

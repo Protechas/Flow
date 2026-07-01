@@ -18,7 +18,7 @@ export function getUserDepartmentMemberships(userId: string): DepartmentUser[] {
 }
 
 /** Primary department for wrap-ups and default scoping. */
-export function getUserPrimaryDepartmentId(userId: string): string {
+export function getUserPrimaryDepartmentId(userId: string): string | null {
   initFlowStore();
   const store = getFlowStore();
   const primary = store.departmentUsers.find((du) => du.user_id === userId && du.is_primary);
@@ -29,31 +29,39 @@ export function getUserPrimaryDepartmentId(userId: string): string {
     const team = store.teams.find((t) => t.id === user.team_id);
     if (team?.department_id) return team.department_id;
   }
-  return DEFAULT_DEPARTMENT_ID;
+  return demoDepartmentFallback();
 }
 
-export function resolveDepartmentForProject(project: Pick<Project, "department_id" | "team_id">): string {
+function demoDepartmentFallback(): string | null {
+  initFlowStore();
+  const hasDemoDefault = getFlowStore().departments.some((d) => d.id === DEFAULT_DEPARTMENT_ID);
+  return hasDemoDefault ? DEFAULT_DEPARTMENT_ID : null;
+}
+
+export function resolveDepartmentForProject(
+  project: Pick<Project, "department_id" | "team_id">
+): string | null {
   if (project.department_id) return project.department_id;
   initFlowStore();
   if (project.team_id) {
     const team = getFlowStore().teams.find((t) => t.id === project.team_id);
     if (team?.department_id) return team.department_id;
   }
-  return DEFAULT_DEPARTMENT_ID;
+  return demoDepartmentFallback();
 }
 
 export function resolveDepartmentForTask(
   pkg: Pick<WorkPackage, "department_id" | "project_id">,
   project?: Project | null
-): string {
+): string | null {
   if (pkg.department_id) return pkg.department_id;
   if (project) return resolveDepartmentForProject(project);
   initFlowStore();
   const p = getFlowStore().projects.find((x) => x.id === pkg.project_id);
-  return p ? resolveDepartmentForProject(p) : DEFAULT_DEPARTMENT_ID;
+  return p ? resolveDepartmentForProject(p) : demoDepartmentFallback();
 }
 
-export function resolveDepartmentForUser(userId: string): string {
+export function resolveDepartmentForUser(userId: string): string | null {
   return getUserPrimaryDepartmentId(userId);
 }
 

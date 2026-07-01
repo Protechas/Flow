@@ -484,7 +484,7 @@ export function buildEmployeeScorecard(
     metrics,
     monthlyTrends,
     quarterlyTrends,
-    currentWork: mine.filter((p) => p.status !== "done").slice(0, 8),
+    currentWork: mine.filter((p) => p.status !== "done"),
     completedToday: completedToday(mine),
     completedThisWeek: completedThisWeek(mine),
     completedThisMonth: completedThisMonth(mine),

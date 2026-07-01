@@ -41,7 +41,8 @@ export function getViewerDepartmentIds(viewer: User): string[] | null {
   if (viewer.role === "teamlead") {
     const members = getTeamMemberIds(viewer, store.users, store.teams);
     for (const memberId of members) {
-      ids.add(getUserPrimaryDepartmentId(memberId));
+      const memberDept = getUserPrimaryDepartmentId(memberId);
+      if (memberDept) ids.add(memberDept);
     }
   }
 

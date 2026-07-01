@@ -1,7 +1,9 @@
-import { getCurrentUser } from "@/lib/auth/session";
-import { canAccessRoute, getDefaultRoute, type Permission } from "@/lib/auth/permissions";
+import { canAccessPathWithFeatureAccess, hasFeaturePermission } from "@/lib/auth/feature-access";
+import { loadUserFeatureAccess } from "@/lib/auth/feature-access-loader";
 import { getEffectivePermissionRole, hasAdminAccess } from "@/lib/auth/access-level";
-import { hasPermission } from "@/lib/auth/permissions";
+import { canAccessRoute, getDefaultRoute, hasPermission, type Permission } from "@/lib/auth/permissions";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getUserPermissionOverrides } from "@/lib/data/permission-profiles-db";
 import { canViewerSeeUser } from "@/lib/auth/team-scope";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getDailyWrapUpById, getFlowStore } from "@/lib/data/flow-store";
@@ -14,6 +16,10 @@ export async function requirePageAccess(pathname: string): Promise<User> {
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
   if (!canAccessRoute(getEffectivePermissionRole(user), pathname)) redirect("/unauthorized");
+
+  const snapshot = await loadUserFeatureAccess(user);
+  if (!canAccessPathWithFeatureAccess(snapshot, pathname)) redirect("/unauthorized");
+
   await ensureAppDataLoaded();
   return user;
 }
@@ -23,6 +29,23 @@ export async function requirePagePermission(permission: Permission): Promise<Use
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
   if (!hasPermission(getEffectivePermissionRole(user), permission)) redirect("/unauthorized");
+  await ensureAppDataLoaded();
+  return user;
+}
+
+export async function requireFeaturePermission(
+  moduleId: string,
+  permissionKey: string
+): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.is_active) redirect("/login");
+
+  const overrides = await getUserPermissionOverrides(user.id);
+  if (!hasFeaturePermission(user, moduleId, permissionKey, overrides)) {
+    redirect("/unauthorized");
+  }
+
   await ensureAppDataLoaded();
   return user;
 }

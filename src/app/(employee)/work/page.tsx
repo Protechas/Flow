@@ -1,5 +1,6 @@
 import { EmployeeHome } from "@/components/employee/employee-home";
 import { EmployeeNeedsSetupView } from "@/components/setup/employee-needs-setup-view";
+import { LiveRefresh } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { loadAccountSetupSummary } from "@/lib/setup/guard";
 import { isEmployeeRole } from "@/lib/auth/permissions";
@@ -14,8 +15,9 @@ import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import { getWorkEligibility, syncWorkEligibilityMismatchAlert } from "@/lib/work-eligibility";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { listEmployeeHelpFlags } from "@/lib/help-flags/engine";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore } from "@/lib/data/flow-store";
 import { getWorkPackages } from "@/lib/data/work-packages";
+import { initProductionTracking } from "@/lib/data/production-tracking";
 import { getTodayVisibilityForUser } from "@/lib/work-visibility/calculator";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { format } from "date-fns";
@@ -26,11 +28,13 @@ export default async function EmployeeWorkPage() {
   const payType = normalizePayType(user.pay_type, user.role);
   const today = format(new Date(), "yyyy-MM-dd");
   await hydrateHelpFlagSettings();
-  initFlowStore();
+  initProductionTracking();
   const store = getFlowStore();
   const packages = await getWorkPackages();
   const helpFlags = listEmployeeHelpFlags(user.id, packages, store.users);
   syncWorkEligibilityMismatchAlert(user);
+
+  const activeClock = getActiveClockEntry(user.id);
 
   const setup = loadAccountSetupSummary(user);
   if (isEmployeeRole(user.role) && setup.setupStatus === "needs_setup") {
@@ -38,11 +42,13 @@ export default async function EmployeeWorkPage() {
   }
 
   return (
-    <EmployeeHome
-      dashboard={dashboard}
-      userName={user.full_name}
-      payType={payType}
-      activeClock={getActiveClockEntry(user.id)}
+    <>
+      <LiveRefresh intervalMs={activeClock ? 30_000 : 90_000} />
+      <EmployeeHome
+        dashboard={dashboard}
+        userName={user.full_name}
+        payType={payType}
+        activeClock={activeClock}
       todayClockEntries={getTodayClockEntries(user.id)}
       taskMinutesToday={getTaskMinutesToday(user.id)}
       wrapUpStatus={getWrapUpComplianceStatus(user.id, today)}
@@ -51,5 +57,6 @@ export default async function EmployeeWorkPage() {
       visibilityToday={getTodayVisibilityForUser(user.id)}
       pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
     />
+    </>
   );
 }

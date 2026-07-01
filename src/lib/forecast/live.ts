@@ -15,6 +15,7 @@ import type {
   WorkStatus,
 } from "@/types/flow";
 import { format, parseISO, startOfDay } from "date-fns";
+import { appTodayDate } from "@/lib/datetime/timezone";
 
 const PRE_START: WorkStatus[] = ["not_started", "assigned", "waiting"];
 
@@ -53,6 +54,10 @@ export interface LiveForecastOptions {
   settings: ForecastSettings;
   taskActiveMinutes?: number;
   now?: Date;
+  /** Override planning anchor — used for queue-chained waiting tasks. */
+  planningStartDate?: string;
+  /** When set, only this task id runs live/active forecast; others stay planning. */
+  activeTaskId?: string | null;
 }
 
 export function applyTaskLiveForecast(
@@ -62,8 +67,11 @@ export function applyTaskLiveForecast(
   const now = options.now ?? new Date();
   const nowIso = now.toISOString();
   const settings = options.settings;
-  const mode: ForecastMode =
-    pkg.forecast_mode === "active" && pkg.started_at ? "active" : "planning";
+  const isLiveActive =
+    options.activeTaskId != null
+      ? options.activeTaskId === pkg.id
+      : pkg.forecast_mode === "active" && !!pkg.started_at;
+  const mode: ForecastMode = isLiveActive ? "active" : "planning";
 
   if (pkg.status === "done") {
     return {
@@ -92,10 +100,9 @@ export function applyTaskLiveForecast(
     };
   }
 
-  const assignmentAnchor = anchorDate(
-    pkg.assigned_at ?? pkg.created_at,
-    format(startOfDay(now), "yyyy-MM-dd")
-  );
+  const assignmentAnchor =
+    options.planningStartDate ??
+    anchorDate(pkg.assigned_at ?? pkg.created_at, appTodayDate(now));
 
   const planning = calculateTaskForecast(
     {
@@ -111,7 +118,7 @@ export function applyTaskLiveForecast(
 
   const planningDue = planning.suggested_due_date;
 
-  if (mode === "planning" || !pkg.started_at) {
+  if (mode === "planning" || !pkg.started_at || !isLiveActive) {
     const liveStatus = deriveLiveStatus(pkg, "planning", null, planningDue);
     const dueDate = pkg.manual_due_date ?? planningDue ?? pkg.due_date;
     return {

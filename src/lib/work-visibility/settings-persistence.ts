@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 import type { WorkVisibilitySettings } from "@/types/flow";
 
 export const WORK_VISIBILITY_SETTINGS_COOKIE = "flow_work_visibility_settings";
@@ -75,7 +75,7 @@ export async function writeWorkVisibilitySettingsCookie(
   };
   store.set(WORK_VISIBILITY_SETTINGS_COOKIE, JSON.stringify(snapshot), {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,

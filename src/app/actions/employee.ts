@@ -11,9 +11,13 @@ import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
 import { startTaskTimer } from "@/lib/data/production-tracking";
 import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
+import { persistDailyWrapUpSync } from "@/lib/data/wrap-ups-db";
+import { persistTaskTimeEntrySync } from "@/lib/data/production-tracking-db";
+import { persistWorkPackageDb } from "@/lib/data/work-items-db";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { raiseHelpFlag } from "@/lib/help-flags/engine";
-import type { User } from "@/types/flow";
+import type { User, WorkPackage } from "@/types/flow";
 import { format } from "date-fns";
 
 function revalidateWork() {
@@ -35,9 +39,11 @@ async function requireOwnTask(taskId: string) {
   return user;
 }
 
-async function assertTimerStarted(user: User, taskId: string) {
+async function startTimerForTask(user: User, taskId: string): Promise<void> {
+  await ensureServerWriteContext();
   try {
-    startTaskTimer(user.id, taskId);
+    const entry = startTaskTimer(user.id, taskId);
+    await persistTaskTimeEntrySync(entry);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.startsWith("ACTIVE_TASK:")) {
@@ -57,6 +63,16 @@ async function assertTimerStarted(user: User, taskId: string) {
   }
 }
 
+async function persistEmployeeTaskUpdate(
+  taskId: string,
+  updates: Partial<WorkPackage>
+): Promise<void> {
+  await ensureServerWriteContext();
+  const pkg = updateWorkPackage(taskId, updates);
+  if (!pkg) throw new Error("Task not found");
+  await persistWorkPackageDb(pkg);
+}
+
 export async function startQueueTaskAction(taskId: string) {
   const user = await requireEmployee();
   await assertWorkEligible(user, "start_task", { taskId });
@@ -67,7 +83,7 @@ export async function startQueueTaskAction(taskId: string) {
   if (!task) throw new Error("Task not found");
 
   try {
-    await assertTimerStarted(user, taskId);
+    await startTimerForTask(user, taskId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.startsWith("ACTIVE_TASK_CONFLICT:")) {
@@ -83,7 +99,7 @@ export async function startQueueTaskAction(taskId: string) {
   }
 
   if (task.status !== "working_on_it") {
-    updateWorkPackage(taskId, { status: "working_on_it" });
+    await persistEmployeeTaskUpdate(taskId, { status: "working_on_it" });
   }
   revalidateWork();
   return { ok: true as const, taskId };
@@ -100,7 +116,7 @@ export async function startNextTaskAction() {
   }
 
   try {
-    await assertTimerStarted(user, next.id);
+    await startTimerForTask(user, next.id);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.startsWith("ACTIVE_TASK_CONFLICT:")) {
@@ -116,7 +132,7 @@ export async function startNextTaskAction() {
   }
 
   if (next.status !== "working_on_it") {
-    updateWorkPackage(next.id, { status: "working_on_it" });
+    await persistEmployeeTaskUpdate(next.id, { status: "working_on_it" });
   }
   revalidateWork();
 
@@ -125,7 +141,7 @@ export async function startNextTaskAction() {
 
 export async function employeeUpdateNotesAction(taskId: string, notes: string) {
   const user = await requireOwnTask(taskId);
-  updateWorkPackage(taskId, { notes: notes || null });
+  await persistEmployeeTaskUpdate(taskId, { notes: notes || null });
   revalidateWork();
   return user.id;
 }
@@ -133,7 +149,7 @@ export async function employeeUpdateNotesAction(taskId: string, notes: string) {
 export async function employeeReopenTaskAction(taskId: string) {
   const user = await requireOwnTask(taskId);
   await assertWorkEligible(user, "resume_task", { taskId });
-  updateWorkPackage(taskId, { status: "working_on_it" });
+  await persistEmployeeTaskUpdate(taskId, { status: "working_on_it" });
   revalidateWork();
 }
 
@@ -147,6 +163,7 @@ export async function submitDailyWrapUpAction(input: {
 }) {
   const user = await requireEmployee();
   try {
+  await ensureServerWriteContext();
   const { getTodayVisibilityForUser } = await import("@/lib/work-visibility/calculator");
   const visibility = getTodayVisibilityForUser(user.id);
   const wrapUp = createDailyWrapUp({
@@ -169,6 +186,7 @@ export async function submitDailyWrapUpAction(input: {
         ? input.activity_documentation_note
         : null,
   });
+  await persistDailyWrapUpSync(wrapUp);
 
   const hasBlockers = !!input.blockers?.trim();
   if (input.needs_support || hasBlockers) {

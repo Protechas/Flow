@@ -8,6 +8,7 @@ import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getTeamDashboardNavItemsForUser } from "@/lib/team-dashboards/nav";
+import { loadHiddenNavItemIds } from "@/lib/auth/feature-access-loader";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
@@ -44,6 +45,7 @@ export default async function AppLayout({
 
   const store = getFlowStore();
   const teamDashboardNav = getTeamDashboardNavItemsForUser(user, store.teams, store.users);
+  const hiddenNavIds = await loadHiddenNavItemIds(user);
 
   const demoMode = !isSupabaseConfigured();
   const hasDemoCookie = demoMode ? !!(await getDemoUserId()) : false;
@@ -51,7 +53,7 @@ export default async function AppLayout({
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar user={user} teamDashboardNav={teamDashboardNav} />
+        <AppSidebar user={user} teamDashboardNav={teamDashboardNav} hiddenNavIds={hiddenNavIds} />
         <SidebarInset className="flow-layer-content min-h-svh min-w-0 overflow-x-hidden">
           <AppHeader user={user} demoMode={demoMode && hasDemoCookie} />
           <div className="flow-app-content flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full min-w-0 overflow-x-hidden">

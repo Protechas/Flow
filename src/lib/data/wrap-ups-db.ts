@@ -1,3 +1,4 @@
+import { assertPersistRow, normalizePersistRowUuids } from "@/lib/server/persist-row";
 import { cache } from "react";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -104,11 +105,23 @@ function persistLater(fn: () => Promise<void>) {
   void fn().catch((err) => console.error("[wrap-ups-db]", err));
 }
 
-export function persistDailyWrapUp(entry: DailyWrapUp): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
+async function requirePersistClient() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await dbClient();
+  if (!supabase) {
+    throw new Error(
+      "Daily reports could not save. Set SUPABASE_SERVICE_ROLE_KEY in production environment variables."
+    );
+  }
+  return supabase;
+}
+
+/** Await from server actions so wrap-ups survive the next page load. */
+export async function persistDailyWrapUpSync(entry: DailyWrapUp): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
       id: entry.id,
       user_id: entry.user_id,
       department_id: entry.department_id,
@@ -128,29 +141,38 @@ export function persistDailyWrapUp(entry: DailyWrapUp): void {
       internal_notes: entry.internal_notes,
       follow_up_needed: entry.follow_up_needed,
       follow_up_notes: entry.follow_up_notes,
-    };
-    const { error } = await supabase
-      .from("daily_wrap_ups")
-      .upsert(row, { onConflict: "user_id,wrap_date" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+    },
+    ["department_id", "reviewed_by"]
+  );
+  assertPersistRow("daily_wrap_ups", row, ["id", "user_id"], ["department_id", "reviewed_by"]);
+  const { error } = await supabase
+    .from("daily_wrap_ups")
+    .upsert(row, { onConflict: "user_id,wrap_date" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export async function persistWrapUpOverrideSync(entry: DailyWrapUpOverride): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = {
+    id: entry.id,
+    user_id: entry.user_id,
+    wrap_date: entry.wrap_date,
+    reason: entry.reason,
+    overridden_by: entry.overridden_by,
+    overridden_at: entry.overridden_at,
+  };
+  assertPersistRow("daily_wrap_up_overrides", row, ["id", "user_id", "overridden_by"]);
+  const { error } = await supabase
+    .from("daily_wrap_up_overrides")
+    .upsert(row, { onConflict: "user_id,wrap_date" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export function persistDailyWrapUp(entry: DailyWrapUp): void {
+  persistLater(() => persistDailyWrapUpSync(entry));
 }
 
 export function persistWrapUpOverride(entry: DailyWrapUpOverride): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
-      id: entry.id,
-      user_id: entry.user_id,
-      wrap_date: entry.wrap_date,
-      reason: entry.reason,
-      overridden_by: entry.overridden_by,
-      overridden_at: entry.overridden_at,
-    };
-    const { error } = await supabase
-      .from("daily_wrap_up_overrides")
-      .upsert(row, { onConflict: "user_id,wrap_date" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+  persistLater(() => persistWrapUpOverrideSync(entry));
 }

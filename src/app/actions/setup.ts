@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateUserAccessChange } from "@/lib/data/revalidate-flow";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission } from "@/lib/auth/session";
 import { syncHierarchyOnManagerChange } from "@/lib/hierarchy/resolver";
@@ -20,7 +20,7 @@ import { validateDepartmentSetupInput, validateUserSetupInput } from "@/lib/setu
 import type { PayType, UserRole } from "@/types/flow";
 
 function revalidateAll() {
-  revalidatePath("/", "layout");
+  revalidateUserAccessChange();
 }
 
 async function assignUserToDepartmentBranch(

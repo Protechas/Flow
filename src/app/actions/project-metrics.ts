@@ -11,6 +11,7 @@ import {
 import {
   canManageProjectMetrics,
   canUpdateProjectMetricValues,
+  canViewProjectMetrics,
 } from "@/lib/metrics/project-metrics-permissions";
 import { resolveProjectMetrics } from "@/lib/metrics/project-metrics-resolver";
 import {
@@ -34,9 +35,10 @@ async function getProjectOrThrow(projectId: string) {
 }
 
 export async function listProjectMetricsAction(projectId: string) {
-  await requireUser();
+  const user = await requireUser();
   await ensureProjectMetricsHydrated();
   const project = await getProjectOrThrow(projectId);
+  if (!canViewProjectMetrics(user, project)) throw new Error("FORBIDDEN");
   return resolveProjectMetrics(project);
 }
 
@@ -111,13 +113,19 @@ export async function updateProjectMetricValueAction(metricId: string, value: st
 }
 
 export async function listProjectMetricHistoryAction(metricId: string) {
-  await requireUser();
+  const user = await requireUser();
   await ensureProjectMetricsHydrated();
+  const existing = getProjectMetricDefinition(metricId);
+  if (!existing) throw new Error("Metric not found");
+  const project = await getProjectOrThrow(existing.project_id);
+  if (!canViewProjectMetrics(user, project)) throw new Error("FORBIDDEN");
   return listProjectMetricValues(metricId, 30);
 }
 
 export async function listProjectMetricDefinitionsAction(projectId: string) {
-  await requireUser();
+  const user = await requireUser();
   await ensureProjectMetricsHydrated();
+  const project = await getProjectOrThrow(projectId);
+  if (!canViewProjectMetrics(user, project)) throw new Error("FORBIDDEN");
   return listProjectMetricDefinitions(projectId);
 }

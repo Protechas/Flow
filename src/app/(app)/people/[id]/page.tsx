@@ -1,20 +1,31 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { EmployeeScorecardView } from "@/components/performance/employee-scorecard-view";
 import { EmployeeMyQueue } from "@/components/employee/employee-my-queue";
+import { TimeClockAdminView } from "@/components/production/time-clock-admin-view";
 import { buildEmployeeMyQueue } from "@/lib/employee/queue";
 import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { requireHierarchyUserAccess } from "@/lib/auth/guard";
 import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
 import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getWorkPackages, listWorkPackages } from "@/lib/data/work-packages";
-import { getActiveTaskTimeEntry } from "@/lib/data/production-tracking";
+import {
+  getActiveTaskTimeEntry,
+  getClockEntriesForUser,
+  initProductionTracking,
+} from "@/lib/data/production-tracking";
 import { getWorkEligibility } from "@/lib/work-eligibility";
 import { hasPermission } from "@/lib/auth/permissions";
 import { canViewerSeeUser, getTeamMemberIds } from "@/lib/auth/team-scope";
 import { isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getPeopleProfile, getTeamScorecardSummary } from "@/lib/data/people";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { isTimeClockMember } from "@/lib/time-clock/members";
+import {
+  defaultClockRecordDateRange,
+  MAX_CLOCK_RECORD_RANGE_DAYS,
+} from "@/lib/time-clock/record-filters";
 import { notFound } from "next/navigation";
 
 export default async function PersonPage({
@@ -75,6 +86,21 @@ export default async function PersonPage({
       })
     : null;
 
+  const canViewClockHistory =
+    isTimeClockMember(profile.user) &&
+    viewer.id !== id &&
+    (hasPermission(permissionRole, "people:view_all") ||
+      hasPermission(permissionRole, "people:view_team") ||
+      hasPermission(permissionRole, "work:view_team"));
+  const canEditClocks = hasPermission(permissionRole, "work:assign");
+
+  let clockEntries: ReturnType<typeof getClockEntriesForUser> = [];
+  if (canViewClockHistory) {
+    await ensureAppDataLoaded();
+    initProductionTracking();
+    clockEntries = getClockEntriesForUser(id, MAX_CLOCK_RECORD_RANGE_DAYS);
+  }
+
   return (
     <>
       <PageHeader
@@ -88,6 +114,21 @@ export default async function PersonPage({
         backHref={canDrillDown || canViewBranch ? "/people" : undefined}
         canEditPayType={canEditPayType}
       />
+      {canViewClockHistory && (
+        <div className="mt-6">
+          <TimeClockAdminView
+            entries={clockEntries}
+            users={[profile.user]}
+            availability={[]}
+            wrapUpCompliance={[]}
+            canOverrideWrapUp={false}
+            canEdit={canEditClocks}
+            initialDateRange={defaultClockRecordDateRange()}
+            initialUserFilter={id}
+            variant="employee"
+          />
+        </div>
+      )}
       {employeeAlerts.length > 0 && (
         <div className="mt-6">
           <WorkloadAlertsPanel alerts={employeeAlerts} role={viewer.role} compact />

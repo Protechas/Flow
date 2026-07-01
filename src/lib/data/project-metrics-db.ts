@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { assertPersistRow } from "@/lib/server/persist-row";
 import {
   listProjectMetricDefinitions as listStoreDefinitions,
   replaceProjectMetricStore,
@@ -89,6 +90,7 @@ export async function persistMetricDefinition(
     is_archived: definition.is_archived,
     created_at: definition.created_at,
   };
+  assertPersistRow("project_metric_definitions", payload, ["id", "project_id"]);
   const { error } = await client.from("project_metric_definitions").upsert(payload);
   if (error && !isMetricsUnavailable(error)) throw error;
 }
@@ -96,13 +98,15 @@ export async function persistMetricDefinition(
 export async function persistMetricValue(value: ProjectMetricValue): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const client = isAdminConfigured() ? createAdminClient() : await createClient();
-  const { error } = await client.from("project_metric_values").insert({
+  const row = {
     id: value.id,
     metric_definition_id: value.metric_definition_id,
     current_value: value.current_value,
     previous_value: value.previous_value,
     updated_by: value.updated_by,
     updated_at: value.updated_at,
-  });
+  };
+  assertPersistRow("project_metric_values", row, ["id", "metric_definition_id"], ["updated_by"]);
+  const { error } = await client.from("project_metric_values").insert(row);
   if (error && !isMetricsUnavailable(error)) throw error;
 }

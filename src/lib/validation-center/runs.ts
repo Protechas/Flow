@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { initFlowStore } from "@/lib/data/flow-store";
-import { createNotificationSync } from "@/lib/notifications/notifications";
+import { deliverNotification } from "@/lib/notifications/notifications";
 import { isValidationDbEnabled } from "@/lib/validation-center/validation-persistence";
 import { loadDesktopSiLibrarySettings } from "@/lib/validation-center/desktop-settings";
 import { DEFAULT_SI_LIBRARY_AUDIT_SETTINGS } from "@/lib/validation-center/default-settings";
@@ -420,7 +420,7 @@ function notifyRunComplete(
 ) {
   initFlowStore();
   const rateLabel = compliance != null ? `${compliance}%` : "—";
-  createNotificationSync({
+  deliverNotification({
     user_id: userId,
     type: "validation_run_complete",
     title: "Validation run complete",

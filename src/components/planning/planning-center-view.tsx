@@ -163,9 +163,10 @@ export function PlanningCenterView({
       <EnterpriseSection
         title="Forecast Calendar"
         id="calendar"
-        description="Month and week views of task forecasts, committed due dates, project completions, and department workload peaks — linked to Operations and Projects."
+        description="Month and week views of task forecasts, committed due dates, project completions, and department workload peaks — recalculated from live task timers and assignee queues."
       >
         <PlanningCalendarView
+          forecastRefreshedAt={snapshot.forecastRefreshedAt}
           snapshot={snapshot}
           workPackages={workPackages}
           projects={projects}

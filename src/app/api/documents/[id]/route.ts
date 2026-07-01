@@ -1,6 +1,8 @@
 import { getCompanyDocumentById, downloadCompanyDocumentBuffer } from "@/lib/files/company-documents";
 import { inlineFileContentDisposition, attachmentFileContentDisposition } from "@/lib/files/content-disposition";
 import { getCurrentUser } from "@/lib/auth/session";
+import { hasPermission } from "@/lib/auth/permissions";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -10,6 +12,9 @@ export async function GET(
   const user = await getCurrentUser();
   if (!user?.is_active) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!hasPermission(getEffectivePermissionRole(user), "company_documents:view")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await context.params;

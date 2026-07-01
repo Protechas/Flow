@@ -1,4 +1,4 @@
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 
 export type AuthCookieOptions = {
   maxAge?: number;
@@ -27,7 +27,7 @@ export function isRememberMeEnabled(cookies: CookieReader): boolean {
 export function rememberMeCookieOptions(): AuthCookieOptions {
   return {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge: REMEMBER_ME_MAX_AGE,

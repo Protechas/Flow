@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ValidationRunView } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 
 function statusVariant(status: ValidationRunView["status"]) {
   switch (status) {
@@ -28,7 +29,7 @@ export function ValidationRunsTable({ runs }: { runs: ValidationRunView[] }) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
         No validation runs yet.{" "}
-        <Link href="/validation/new" className="text-primary underline-offset-4 hover:underline">
+        <Link href={validationPath("/new")} className="text-primary underline-offset-4 hover:underline">
           Start your first audit
         </Link>
         .
@@ -53,7 +54,7 @@ export function ValidationRunsTable({ runs }: { runs: ValidationRunView[] }) {
           <TableRow key={run.id}>
             <TableCell>
               <Link
-                href={`/validation/runs/${run.id}`}
+                href={validationPath(`/runs/${run.id}`)}
                 className="font-medium text-primary hover:underline"
               >
                 {run.title ?? run.id.slice(0, 8)}

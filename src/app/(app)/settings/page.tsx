@@ -107,6 +107,9 @@ export default async function SettingsPage() {
                 <Button variant="outline" size="sm" render={<Link href="/settings/users" />}>
                   Manage users
                 </Button>
+                <Button variant="outline" size="sm" render={<Link href="/settings/permissions" />}>
+                  Permission management
+                </Button>
                 <Button variant="outline" size="sm" render={<Link href="/system-health" />}>
                   System health
                 </Button>

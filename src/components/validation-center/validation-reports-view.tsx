@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ValidationCenterKpis, ValidationRunView } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import { Download, ExternalLink } from "lucide-react";
 
 export function ValidationReportsView({
@@ -32,7 +33,7 @@ export function ValidationReportsView({
         {kpis.trendPoints.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
             No trend data yet.{" "}
-            <Link href="/validation/new" className="text-primary hover:underline">
+            <Link href={validationPath("/new")} className="text-primary hover:underline">
               Run a validation
             </Link>{" "}
             to start building history.
@@ -57,7 +58,7 @@ export function ValidationReportsView({
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/validation/runs/${point.runId}`}
+                      href={validationPath(`/runs/${point.runId}`)}
                       className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                     >
                       View
@@ -96,7 +97,7 @@ export function ValidationReportsView({
                   <TableRow key={run.id}>
                     <TableCell>
                       <Link
-                        href={`/validation/runs/${run.id}`}
+                        href={validationPath(`/runs/${run.id}`)}
                         className="font-medium text-primary hover:underline truncate block max-w-xs"
                       >
                         {run.title ?? run.id.slice(0, 8)}
@@ -144,8 +145,8 @@ export function ValidationReportsView({
       <section className="grid gap-3 sm:grid-cols-4 text-sm">
         <SummaryCard label="Library accuracy" value={kpis.libraryAccuracyPct != null ? `${kpis.libraryAccuracyPct}%` : "—"} />
         <SummaryCard label="Audit pass rate" value={kpis.auditPassRate != null ? `${kpis.auditPassRate}%` : "—"} />
-        <SummaryCard label="Open findings" value={kpis.openFindings} href="/validation/findings" />
-        <SummaryCard label="Resolved" value={kpis.resolvedFindings} href="/validation/corrections" />
+        <SummaryCard label="Open findings" value={kpis.openFindings} href={validationPath("/findings")} />
+        <SummaryCard label="Resolved" value={kpis.resolvedFindings} href={validationPath("/corrections")} />
       </section>
     </div>
   );

@@ -8,6 +8,8 @@ import {
   getLatestSubmission,
   recordProductionQaReview,
 } from "@/lib/data/production-tracking";
+import { persistQaReviewRecordSync } from "@/lib/data/production-tracking-db";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 import type { QaResult } from "@/types/flow";
 
 const PATHS = [
@@ -31,17 +33,22 @@ export async function submitQaReviewAction(params: {
   notes?: string;
   errorCategory?: string;
 }) {
-  await requirePermission("qa:review");
-  await submitQaReviewApi(params);
+  const actor = await requirePermission("qa:review");
+  await ensureServerWriteContext();
+  await submitQaReviewApi({
+    ...params,
+    reviewerId: actor.id,
+  });
   const submission = getLatestSubmission(params.workPackageId);
-  recordProductionQaReview({
+  const review = recordProductionQaReview({
     task_id: params.workPackageId,
     submission_id: submission?.id ?? null,
-    reviewer_id: params.reviewerId,
+    reviewer_id: actor.id,
     result: params.result,
     notes: params.notes,
     error_category: params.errorCategory,
   });
+  await persistQaReviewRecordSync(review);
   await writeAuditLog({
     action: "qa_decision",
     entityType: "work_package",

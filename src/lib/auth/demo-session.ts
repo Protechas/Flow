@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { MOCK_USERS } from "@/lib/data/mock-data";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 import { normalizeRole } from "@/lib/auth/permissions";
 import type { User, UserRole } from "@/types/flow";
 
@@ -17,14 +17,14 @@ export async function setDemoUserCookie(userId: string, rememberMe = false) {
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
   store.set(DEMO_USER_COOKIE, userId, {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge,
   });
   store.set(DEMO_SESSION_COOKIE, "1", {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge,
@@ -41,7 +41,10 @@ export async function getDemoUser(): Promise<User | null> {
   const id = await getDemoUserId();
   if (!id) return null;
   const user = MOCK_USERS.find((u) => u.id === id);
-  if (!user) return null;
+  if (!user || !user.is_active) {
+    await clearDemoSession();
+    return null;
+  }
   return { ...user, role: normalizeRole(user.role) };
 }
 

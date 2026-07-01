@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProjectValidationMetrics } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import { ClipboardCheck } from "lucide-react";
 
 export function ProjectValidationPanel({
@@ -32,8 +33,8 @@ export function ProjectValidationPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button size="sm" variant="outline" render={<Link href="/validation" />}>
-            Open Validation Center
+          <Button size="sm" variant="outline" render={<Link href="/qa-center" />}>
+            Open QA Center
           </Button>
         </CardContent>
       </Card>
@@ -73,10 +74,10 @@ export function ProjectValidationPanel({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" render={<Link href="/validation/findings" />}>
+          <Button size="sm" variant="outline" render={<Link href={validationPath("/findings")} />}>
             View findings
           </Button>
-          <Button size="sm" variant="outline" render={<Link href="/validation/corrections" />}>
+          <Button size="sm" variant="outline" render={<Link href={validationPath("/corrections")} />}>
             Corrections
           </Button>
         </div>

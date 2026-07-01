@@ -26,6 +26,8 @@ import type {
   TimeClockOutType,
 } from "@/types/flow";
 import { format, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
+import { appTodayDate, formatAppCalendarDate, isAppCalendarDay } from "@/lib/datetime/timezone";
+import { newPersistedId } from "@/lib/server/persisted-id";
 
 let timeClockEntries: TimeClockEntry[] = [];
 let taskTimeEntries: TaskTimeEntry[] = [];
@@ -66,7 +68,7 @@ function persistQaReview(record: QaReviewRecord) {
 }
 
 function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return newPersistedId(prefix);
 }
 
 function ts() {
@@ -74,7 +76,7 @@ function ts() {
 }
 
 function todayDate() {
-  return format(new Date(), "yyyy-MM-dd");
+  return appTodayDate();
 }
 
 export function initProductionTracking() {
@@ -130,7 +132,7 @@ export function clockIn(userId: string): TimeClockEntry {
     (e) =>
       e.user_id === userId &&
       e.id !== entry.id &&
-      e.clock_in_at.startsWith(today) &&
+      isAppCalendarDay(e.clock_in_at, today) &&
       e.clock_out_type === "lunch"
   );
   logActivityBridge(
@@ -168,7 +170,12 @@ export function clockOut(userId: string, outType: TimeClockOutType): TimeClockEn
 export function editClockEntry(
   entryId: string,
   editorId: string,
-  input: { clock_in_at?: string; clock_out_at?: string | null; edit_reason: string }
+  input: {
+    clock_in_at?: string;
+    clock_out_at?: string | null;
+    clock_out_type?: TimeClockOutType | null;
+    edit_reason: string;
+  }
 ) {
   initProductionTracking();
   const idx = timeClockEntries.findIndex((e) => e.id === entryId);
@@ -177,15 +184,27 @@ export function editClockEntry(
   const cur = timeClockEntries[idx];
   const clockIn = input.clock_in_at ?? cur.clock_in_at;
   const clockOut = input.clock_out_at !== undefined ? input.clock_out_at : cur.clock_out_at;
-  const total =
-    clockOut != null ? minutesBetween(clockIn, clockOut) : cur.total_minutes;
+  const stillActive = clockOut == null;
+
+  if (clockOut != null && parseISO(clockOut) <= parseISO(clockIn)) {
+    throw new Error("Clock out must be after clock in");
+  }
+
+  const total = stillActive ? null : minutesBetween(clockIn, clockOut);
+  const clockOutType =
+    input.clock_out_type !== undefined
+      ? input.clock_out_type
+      : stillActive
+        ? null
+        : cur.clock_out_type ?? "out";
 
   const updated: TimeClockEntry = {
     ...cur,
     clock_in_at: clockIn,
     clock_out_at: clockOut,
     total_minutes: total,
-    status: "edited",
+    clock_out_type: clockOutType,
+    status: stillActive ? "active" : "edited",
     edited_by: editorId,
     edit_reason: input.edit_reason,
     updated_at: ts(),
@@ -193,6 +212,68 @@ export function editClockEntry(
   timeClockEntries[idx] = updated;
   persistClock(updated);
   return updated;
+}
+
+export function createClockEntry(input: {
+  userId: string;
+  clock_in_at: string;
+  clock_out_at?: string | null;
+  clock_out_type?: TimeClockOutType | null;
+  editorId: string;
+  edit_reason: string;
+}): TimeClockEntry {
+  initProductionTracking();
+
+  const stillActive = input.clock_out_at == null;
+  if (stillActive && getActiveClockEntry(input.userId)) {
+    throw new Error("Employee already has an active clock punch — edit or close it first");
+  }
+
+  if (
+    input.clock_out_at != null &&
+    parseISO(input.clock_out_at) <= parseISO(input.clock_in_at)
+  ) {
+    throw new Error("Clock out must be after clock in");
+  }
+
+  const entry: TimeClockEntry = {
+    id: uid("clk"),
+    user_id: input.userId,
+    department_id: resolveDepartmentForUser(input.userId),
+    clock_in_at: input.clock_in_at,
+    clock_out_at: input.clock_out_at ?? null,
+    total_minutes:
+      input.clock_out_at != null
+        ? minutesBetween(input.clock_in_at, input.clock_out_at)
+        : null,
+    clock_out_type: stillActive ? null : input.clock_out_type ?? "out",
+    status: stillActive ? "active" : "edited",
+    edited_by: input.editorId,
+    edit_reason: input.edit_reason,
+    created_at: ts(),
+    updated_at: ts(),
+  };
+  timeClockEntries = [entry, ...timeClockEntries];
+  persistClock(entry);
+  logActivityBridge(
+    input.userId,
+    "time_log",
+    stillActive
+      ? "Manager added active clock punch"
+      : `Manager added clock punch (${entry.total_minutes ?? 0}m)`
+  );
+  return entry;
+}
+
+export function deleteClockEntry(entryId: string): TimeClockEntry {
+  initProductionTracking();
+  const idx = timeClockEntries.findIndex((e) => e.id === entryId);
+  if (idx < 0) throw new Error("Clock entry not found");
+  const [removed] = timeClockEntries.splice(idx, 1);
+  void import("@/lib/data/production-tracking-db").then((m) =>
+    m.deleteTimeClockEntrySync(entryId)
+  );
+  return removed;
 }
 
 export function getClockEntriesForUser(userId: string, days = 14): TimeClockEntry[] {
@@ -207,7 +288,7 @@ export function getTodayClockEntries(userId: string): TimeClockEntry[] {
   initProductionTracking();
   const today = todayDate();
   return timeClockEntries
-    .filter((e) => e.user_id === userId && e.clock_in_at.startsWith(today))
+    .filter((e) => e.user_id === userId && isAppCalendarDay(e.clock_in_at, today))
     .sort((a, b) => a.clock_in_at.localeCompare(b.clock_in_at));
 }
 
@@ -215,16 +296,24 @@ export function getAllClockEntries(filters?: {
   userId?: string;
   userIds?: string[];
   days?: number;
+  from?: string;
+  to?: string;
 }): TimeClockEntry[] {
   initProductionTracking();
-  const days = filters?.days ?? 7;
-  const since = startOfDay(subDays(new Date(), days));
   const userSet = filters?.userIds?.length ? new Set(filters.userIds) : null;
+  const toDay = filters?.to ?? appTodayDate();
+  const fromDay =
+    filters?.from ??
+    formatAppCalendarDate(
+      startOfDay(subDays(parseISO(`${toDay}T12:00:00`), (filters?.days ?? 14) - 1))
+    );
+
   return timeClockEntries
     .filter((e) => {
       if (filters?.userId && e.user_id !== filters.userId) return false;
       if (userSet && !userSet.has(e.user_id)) return false;
-      return parseISO(e.clock_in_at) >= since;
+      const day = formatAppCalendarDate(e.clock_in_at);
+      return day >= fromDay && day <= toDay;
     })
     .sort((a, b) => b.clock_in_at.localeCompare(a.clock_in_at));
 }
@@ -237,7 +326,7 @@ export function getShiftMinutesToday(userId: string): number {
   const completed = timeClockEntries.filter(
     (e) =>
       e.user_id === userId &&
-      e.clock_in_at.startsWith(today) &&
+      isAppCalendarDay(e.clock_in_at, today) &&
       e.total_minutes != null
   );
   return completed.reduce((s, e) => s + (e.total_minutes ?? 0), 0);
@@ -248,7 +337,7 @@ export function getTaskMinutesToday(userId: string): number {
   const today = todayDate();
   let total = 0;
   for (const entry of taskTimeEntries) {
-    if (entry.user_id !== userId || !entry.started_at.startsWith(today)) continue;
+    if (entry.user_id !== userId || !isAppCalendarDay(entry.started_at, today)) continue;
     if (entry.status === "active") {
       total += minutesBetween(entry.started_at, ts());
     } else {
@@ -474,7 +563,54 @@ export function getTaskFileById(fileId: string): TaskFileUpload | null {
   return taskFileUploads.find((f) => f.id === fileId) ?? null;
 }
 
+/** ISO timestamp after which the current work session counts (last submission, if any). */
+export function getPendingSessionSince(taskId: string): string | null {
+  return getLatestSubmission(taskId)?.submitted_at ?? null;
+}
+
+/** Files uploaded for the current pending session — excludes prior submissions. */
+export function getTaskFilesForPendingSession(taskId: string): TaskFileUpload[] {
+  initProductionTracking();
+  const since = getPendingSessionSince(taskId);
+  const files = taskFileUploads.filter((f) => f.task_id === taskId);
+  if (!since) return files;
+  return files.filter((f) => f.uploaded_at > since);
+}
+
+/** Task minutes for the current pending session (active timer or entries after last submission). */
+export function getPendingSessionTaskMinutes(taskId: string, userId: string): number {
+  initProductionTracking();
+  const active = getActiveTaskTimeEntry(userId);
+  if (active?.task_id === taskId) return calcActiveMinutes(active);
+
+  const since = getPendingSessionSince(taskId);
+  const entries = getTaskTimeEntriesForTask(taskId).filter(
+    (e) => !since || e.started_at > since
+  );
+  return entries.reduce((s, e) => {
+    if (e.status === "active" || e.status === "paused") return s + calcActiveMinutes(e);
+    return s + e.total_active_minutes;
+  }, 0);
+}
+
+/** Files in the current pending session — used for live metrics and submission. */
 export function getTaskFileCount(taskId: string): number {
+  initProductionTracking();
+  const sessionFiles = getTaskFilesForPendingSession(taskId);
+  const prodNames = new Set(sessionFiles.map((f) => f.file_name.toLowerCase()));
+  const store = getFlowStore();
+  const since = getPendingSessionSince(taskId);
+  const legacyOnly = store.files.filter((f) => {
+    if (f.work_package_id !== taskId) return false;
+    if (prodNames.has(f.file_name.toLowerCase())) return false;
+    if (since && f.created_at <= since) return false;
+    return true;
+  });
+  return sessionFiles.length + legacyOnly.length;
+}
+
+/** All files ever attached to a task (including prior submissions). */
+export function getTotalTaskFileCount(taskId: string): number {
   initProductionTracking();
   const productionFiles = taskFileUploads.filter((f) => f.task_id === taskId);
   const prodNames = new Set(productionFiles.map((f) => f.file_name.toLowerCase()));
@@ -513,7 +649,7 @@ export function submitTaskForReview(input: {
     stopTaskTimer(input.user_id);
   }
 
-  const totalMinutes = getTotalTaskMinutes(input.task_id);
+  const totalMinutes = getPendingSessionTaskMinutes(input.task_id, input.user_id);
   const metrics = computeProductionMetrics(totalMinutes, fileCount);
 
   const priorSubmissions = taskSubmissions.filter((s) => s.task_id === input.task_id);
@@ -810,6 +946,6 @@ export function getDocumentsUploadedToday(userId: string): number {
   initProductionTracking();
   const today = todayDate();
   return taskFileUploads.filter(
-    (f) => f.user_id === userId && f.uploaded_at.startsWith(today)
+    (f) => f.user_id === userId && isAppCalendarDay(f.uploaded_at, today)
   ).length;
 }

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BatchImportRow } from "@/lib/validation-center/batch-import-engine";
 import { getValidationEngine } from "@/lib/validation-center/engines/registry";
 import type { ValidationEngineId } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import { cn } from "@/lib/utils";
 
 type UploadMode = "single" | "batch";
@@ -64,7 +65,7 @@ export function NewAuditWizard({ engineId }: { engineId: ValidationEngineId }) {
         setError(result.message);
         return;
       }
-      router.push(`/validation/runs/${result.runId}`);
+      router.push(validationPath(`/runs/${result.runId}`));
       router.refresh();
     });
   }
@@ -115,7 +116,9 @@ export function NewAuditWizard({ engineId }: { engineId: ValidationEngineId }) {
         );
       }
 
-      router.push(started.length === 1 ? `/validation/runs/${started[0]}` : "/validation/runs");
+      router.push(
+        started.length === 1 ? validationPath(`/runs/${started[0]}`) : validationPath("/runs")
+      );
       router.refresh();
     });
   }

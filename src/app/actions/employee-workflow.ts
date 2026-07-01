@@ -9,7 +9,7 @@ import { initFlowStore, getFlowStore } from "@/lib/data/flow-store";
 import { getEmployeeTasks } from "@/lib/employee/tasks";
 import { buildTaskSubmitChecklist } from "@/lib/employee/submit-checklist";
 import { resolveLeadersForEmployee } from "@/lib/hierarchy/resolver";
-import { createNotificationSync, hasRecentNotification } from "@/lib/notifications/notifications";
+import { deliverNotification } from "@/lib/notifications/notifications";
 import { upsertWorkloadAlertRecord } from "@/lib/workload-alerts/store";
 
 const PATHS = ["/work", "/operations", "/alert-center", "/executive", "/people", "/reports"];
@@ -64,18 +64,20 @@ export async function requestWorkAction(notes?: string) {
   });
 
   for (const leader of leaders) {
-    if (hasRecentNotification(leader.id, "workload_empty", "user", user.id, 8)) continue;
-    createNotificationSync({
-      user_id: leader.id,
-      type: "workload_empty",
-      title: "Work requested",
-      message: `${user.full_name} requested additional work assignment.${
-        notes?.trim() ? ` Note: ${notes.trim()}` : ""
-      }`,
-      related_entity_type: "user",
-      related_entity_id: user.id,
-      link: `/people/${user.id}`,
-    });
+    deliverNotification(
+      {
+        user_id: leader.id,
+        type: "workload_empty",
+        title: "Work requested",
+        message: `${user.full_name} requested additional work assignment.${
+          notes?.trim() ? ` Note: ${notes.trim()}` : ""
+        }`,
+        related_entity_type: "user",
+        related_entity_id: user.id,
+        link: `/people/${user.id}`,
+      },
+      8
+    );
   }
 
   await writeAuditLog({

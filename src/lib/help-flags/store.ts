@@ -1,4 +1,5 @@
 import type { HelpFlagRecord, HelpFlagStatus } from "@/types/flow";
+import { newPersistedId } from "@/lib/server/persisted-id";
 
 const GLOBAL_KEY = "__flow_help_flags__";
 
@@ -6,8 +7,30 @@ function globalScope(): Record<string, unknown> {
   return globalThis as typeof globalThis & Record<string, unknown>;
 }
 
+export function replaceHelpFlagStore(records: HelpFlagRecord[]): void {
+  writeStore(records);
+}
+
 function uid() {
-  return `hf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return newPersistedId("hf");
+}
+
+const pendingById = new Map<string, HelpFlagRecord>();
+let flushScheduled = false;
+
+function flushPendingPersists(): void {
+  flushScheduled = false;
+  const records = [...pendingById.values()];
+  pendingById.clear();
+  if (!records.length) return;
+  void import("@/lib/data/help-flags-db").then(({ persistHelpFlags }) => persistHelpFlags(records));
+}
+
+function schedulePersist(record: HelpFlagRecord): void {
+  pendingById.set(record.id, record);
+  if (flushScheduled) return;
+  flushScheduled = true;
+  queueMicrotask(flushPendingPersists);
 }
 
 function readStore(): HelpFlagRecord[] {
@@ -39,6 +62,7 @@ export function createHelpFlagRecord(
     updated_at: now,
   };
   writeStore([record, ...readStore()]);
+  schedulePersist(record);
   return record;
 }
 
@@ -56,6 +80,7 @@ export function updateHelpFlagRecord(
   };
   records[idx] = updated;
   writeStore(records);
+  schedulePersist(updated);
   return updated;
 }
 

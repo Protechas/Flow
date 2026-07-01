@@ -9,8 +9,7 @@ import {
   initProductionTracking,
 } from "@/lib/data/production-tracking";
 import {
-  createNotificationSync,
-  hasRecentNotification,
+  deliverNotification,
 } from "@/lib/notifications/notifications";
 import {
   deriveWorkloadAlerts,
@@ -45,7 +44,7 @@ function employeeInScope(
 function passesSettingsFilter(employee: User, settings: ReturnType<typeof getWorkloadAlertSettings>): boolean {
   const deptId = getUserPrimaryDepartmentId(employee.id);
   if (settings.department_ids.length > 0) {
-    if (!settings.department_ids.includes(deptId)) {
+    if (!deptId || !settings.department_ids.includes(deptId)) {
       return false;
     }
   }
@@ -76,20 +75,18 @@ function notifyLeaders(
 ) {
   const recipients = getNotificationRecipients(employee, users);
   for (const leader of recipients) {
-    if (
-      hasRecentNotification(leader.id, type, "user", employee.id, 8)
-    ) {
-      continue;
-    }
-    createNotificationSync({
-      user_id: leader.id,
-      type,
-      title,
-      message,
-      related_entity_type: "user",
-      related_entity_id: employee.id,
-      link: `/people/${employee.id}`,
-    });
+    deliverNotification(
+      {
+        user_id: leader.id,
+        type,
+        title,
+        message,
+        related_entity_type: "user",
+        related_entity_id: employee.id,
+        link: `/people/${employee.id}`,
+      },
+      8
+    );
   }
 }
 

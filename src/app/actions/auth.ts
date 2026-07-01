@@ -10,17 +10,22 @@ import {
   rememberMeCookieOptions,
 } from "@/lib/auth/remember-me";
 import { getDefaultRoute, normalizeRole } from "@/lib/auth/permissions";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import {
   createUserRecord,
-  getUserProfileByAuthId,
+  getUserProfileByAuthIdWithClient,
   recordLastLogin,
 } from "@/lib/data/users";
 import { formatFullName } from "@/lib/users/format";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getSiteUrl } from "@/lib/supabase/site-url";
+import { buildAuthEmailRedirect } from "@/lib/supabase/auth-redirect";
 import { formatSignupError } from "@/lib/auth/signup-errors";
+import { isSelfSignupAllowed } from "@/lib/auth/signup-policy";
+import { formatActionError } from "@/lib/errors/action-messages";
+import { logActionInfo, logActionWarn } from "@/lib/logging/action-log";
+import { rethrowNextNavigation } from "@/lib/navigation/rethrow-server-navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { withTimeout } from "@/lib/server/with-timeout";
 import { MOCK_USERS } from "@/lib/data/mock-data";
@@ -54,33 +59,87 @@ export async function supabaseLoginAction(
     throw new Error("Supabase is not configured");
   }
 
+  const supabase = await createClient();
+  const { data, error } = await withTimeout(
+    supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    }),
+    15_000,
+    "Sign-in timed out. Supabase may be busy — wait 30 seconds and try again, or visit /auth/clear first."
+  );
+  if (error) {
+    logActionWarn("Login rejected", {
+      action: "login",
+      metadata: { email: email.trim().toLowerCase(), reason: error.message },
+    });
+    throw new Error("Could not sign in. Please check your email and password.");
+  }
+  if (!data.user) {
+    throw new Error("Could not sign in. Please check your email and password.");
+  }
+
+  const profile = await getUserProfileByAuthIdWithClient(supabase, data.user.id);
+
   const store = await cookies();
+  if (!profile) {
+    await supabase.auth.signOut();
+    store.delete(REMEMBER_ME_COOKIE);
+    logActionWarn("Login blocked — missing profile", {
+      action: "login",
+      userId: data.user.id,
+      metadata: { email: email.trim().toLowerCase() },
+    });
+    throw new Error(
+      "No Flow profile found for this account. Contact an administrator to finish setup."
+    );
+  }
+
+  if (!profile.is_active) {
+    await supabase.auth.signOut();
+    store.delete(REMEMBER_ME_COOKIE);
+    throw new Error("Your account is inactive. Contact an administrator.");
+  }
+
   if (rememberMe) {
     store.set(REMEMBER_ME_COOKIE, "1", rememberMeCookieOptions());
   } else {
     store.delete(REMEMBER_ME_COOKIE);
   }
 
-  const supabase = await createClient();
-  const { data, error } = await withTimeout(
-    supabase.auth.signInWithPassword({ email, password }),
-    15_000,
-    "Sign-in timed out. Supabase may be busy — wait 30 seconds and try again, or visit /auth/clear first."
-  );
-  if (error) throw new Error(error.message);
-
-  const profile = data.user ? await getUserProfileByAuthId(data.user.id) : null;
-
-  if (!profile?.is_active) {
-    await supabase.auth.signOut();
-    store.delete(REMEMBER_ME_COOKIE);
-    throw new Error("Your account is inactive. Contact an administrator.");
+  try {
+    await recordLastLogin(profile.id);
+  } catch {
+    // Do not block login if last_login_at cannot be updated.
   }
 
-  if (profile) await recordLastLogin(profile.id);
+  logActionInfo("Login succeeded", {
+    action: "login",
+    userId: profile.id,
+    metadata: { role: profile.role },
+  });
 
-  revalidatePath("/", "layout");
-  redirect(getDefaultRoute(profile?.role ?? "employee"));
+  redirect(getDefaultRoute(getEffectivePermissionRole(profile)));
+}
+
+export async function supabaseLoginFormAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const rememberMe = formData.get("rememberMe") === "true";
+  await supabaseLoginAction(email, password, rememberMe);
+}
+
+export async function supabaseLoginStateAction(
+  _prev: string | null,
+  formData: FormData
+): Promise<string | null> {
+  try {
+    await supabaseLoginFormAction(formData);
+    return null;
+  } catch (error) {
+    rethrowNextNavigation(error);
+    return formatActionError(error);
+  }
 }
 
 export async function requestPasswordResetAction(email: string) {
@@ -88,9 +147,8 @@ export async function requestPasswordResetAction(email: string) {
     throw new Error("Password reset requires Supabase authentication");
   }
   const supabase = await createClient();
-  const siteUrl = getSiteUrl();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+    redirectTo: buildAuthEmailRedirect("/auth/reset-password"),
   });
   if (error) throw new Error(error.message);
   return { ok: true as const };
@@ -109,6 +167,13 @@ export async function signUpAction(input: {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Account creation requires Supabase authentication" };
   }
+  if (!isSelfSignupAllowed()) {
+    return {
+      ok: false,
+      error:
+        "Self-service signup is disabled. Ask your admin to invite you from Settings → Users.",
+    };
+  }
 
   const email = input.email.trim().toLowerCase();
   const firstName = input.firstName.trim();
@@ -123,14 +188,13 @@ export async function signUpAction(input: {
   }
 
   const supabase = await createClient();
-  const siteUrl = getSiteUrl();
   const fullName = formatFullName(firstName, lastName);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/callback?next=/work`,
+      emailRedirectTo: buildAuthEmailRedirect("/work"),
       data: {
         first_name: firstName,
         last_name: lastName,
@@ -206,12 +270,11 @@ export async function inviteUserAction(
   }
 
   const admin = createAdminClient();
-  const siteUrl = getSiteUrl();
 
   const { data, error } = await admin.auth.admin.inviteUserByEmail(
     email.trim().toLowerCase(),
     {
-      redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+      redirectTo: buildAuthEmailRedirect("/auth/reset-password"),
       data: {
         first_name: firstName.trim(),
         last_name: lastName.trim(),

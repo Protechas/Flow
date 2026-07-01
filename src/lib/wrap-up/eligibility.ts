@@ -6,6 +6,7 @@ import {
   initProductionTracking,
 } from "@/lib/data/production-tracking";
 import { requiresShiftClock } from "@/lib/users/pay-type";
+import { isAppCalendarDay } from "@/lib/datetime/timezone";
 import type { User, WrapUpComplianceStatus } from "@/types/flow";
 
 function wrapUpStatusFor(userId: string, wrapDate: string): WrapUpComplianceStatus {
@@ -35,15 +36,15 @@ export function hadShiftActivityOnDate(userId: string, wrapDate: string): boolea
   }
 
   const clockEntries = getClockEntriesForUser(userId, 30).filter((e) =>
-    e.clock_in_at.startsWith(wrapDate)
+    isAppCalendarDay(e.clock_in_at, wrapDate)
   );
   if (clockEntries.length > 0) return true;
 
   const active = getActiveClockEntry(userId);
-  if (active?.clock_in_at.startsWith(wrapDate)) return true;
+  if (active && isAppCalendarDay(active.clock_in_at, wrapDate)) return true;
 
   const { taskTimeEntries } = getProductionStore();
-  if (taskTimeEntries.some((e) => e.user_id === userId && e.started_at.startsWith(wrapDate))) {
+  if (taskTimeEntries.some((e) => e.user_id === userId && isAppCalendarDay(e.started_at, wrapDate))) {
     return true;
   }
 

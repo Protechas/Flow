@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getActiveValidationEngines, VALIDATION_ENGINES } from "@/lib/validation-center/engines/registry";
+import { validationPath } from "@/lib/validation-center/nav";
 
 export function ValidationEnginePicker() {
   const activeEngines = getActiveValidationEngines();
@@ -23,7 +24,7 @@ export function ValidationEnginePicker() {
                 <CardDescription>{engine.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button render={<Link href={`/validation/new?engine=${engine.id}`} />}>
+                <Button render={<Link href={`${validationPath("/new")}?engine=${engine.id}`} />}>
                   Start {engine.label}
                 </Button>
               </CardContent>

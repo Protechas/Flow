@@ -2,15 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { listAuditLog, writeAuditLog } from "@/lib/audit/audit-log";
+import {
+  revalidateUserAccessChange,
+  revalidateUserOrgData,
+} from "@/lib/data/revalidate-flow";
 import { requirePermission, requireUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { syncLegacyRoleFromAccessFields } from "@/lib/auth/access-level";
+import {
+  deriveOrganizationalPositionFromRole,
+  deriveSystemAccessLevelFromRole,
+  syncLegacyRoleFromAccessFields,
+  hasAdminAccess,
+} from "@/lib/auth/access-level";
 import { teamLeadCanViewPerson } from "@/lib/auth/team-scope";
 import { getDepartmentUsersAction, removeUserDepartmentAction, setUserDepartmentAction } from "@/app/actions/departments";
 import { assignUserToPositionAction, unassignUserFromPositionAction } from "@/app/actions/positions";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   createUserRecord,
+  deleteUserAccount,
   getUserById,
   hydrateAppStore,
   listTeams,
@@ -27,8 +37,9 @@ import {
 } from "@/lib/users/profile-validation";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
-import { getSiteUrl } from "@/lib/supabase/site-url";
+import { buildAuthEmailRedirect } from "@/lib/supabase/auth-redirect";
 import { formatFullName } from "@/lib/users/format";
+import { assertCanRemoveOrDeactivateUser, assertCanChangeUserAdminAccess } from "@/lib/users/admin-guards";
 import type {
   EmploymentStatus,
   OrganizationalPosition,
@@ -58,11 +69,24 @@ export async function updateUserRoleAction(
   reason?: string
 ) {
   const actor = await requirePermission("users:manage");
+  const [before, users] = await Promise.all([getUserById(userId), listUsers()]);
+  if (!before) throw new Error("User not found");
+  assertCanChangeUserAdminAccess(
+    actor.id,
+    before,
+    users,
+    hasAdminAccess({
+      ...before,
+      role,
+      organizational_position: deriveOrganizationalPositionFromRole(role),
+      system_access_level: deriveSystemAccessLevelFromRole(role),
+    })
+  );
   const user = await updateUserRole(userId, role, {
     reason,
     changedBy: { id: actor.id, email: actor.email },
   });
-  revalidatePath("/", "layout");
+  revalidateUserAccessChange();
   return user;
 }
 
@@ -73,19 +97,64 @@ export async function updateUserAccessLevelsAction(
   reason?: string
 ) {
   const actor = await requirePermission("users:manage");
+  const [before, users] = await Promise.all([getUserById(userId), listUsers()]);
+  if (!before) throw new Error("User not found");
+  assertCanChangeUserAdminAccess(
+    actor.id,
+    before,
+    users,
+    hasAdminAccess({
+      ...before,
+      organizational_position: organizationalPosition,
+      system_access_level: systemAccessLevel,
+    })
+  );
   const user = await updateUserAccessLevels(userId, organizationalPosition, systemAccessLevel, {
     reason,
     changedBy: { id: actor.id, email: actor.email },
   });
-  revalidatePath("/", "layout");
+  revalidateUserAccessChange();
   return user;
 }
 
+function sessionRevokeWarning(isActive: boolean): string | null {
+  if (isActive || !isSupabaseConfigured() || isAdminConfigured()) return null;
+  return "User updated but active sessions could not be revoked — set SUPABASE_SERVICE_ROLE_KEY so disabled users are signed out immediately.";
+}
+
 export async function setUserActiveAction(userId: string, isActive: boolean) {
-  await requirePermission("users:manage");
+  const actor = await requirePermission("users:manage");
+  const [target, users] = await Promise.all([getUserById(userId), listUsers()]);
+  if (!target) throw new Error("User not found");
+  if (!isActive) {
+    assertCanRemoveOrDeactivateUser(actor.id, target, users, "deactivate");
+  }
   const user = await setUserActive(userId, isActive);
-  revalidatePath("/", "layout");
-  return user;
+  revalidateUserOrgData();
+  const sessionWarning = sessionRevokeWarning(isActive);
+  return sessionWarning ? { user, sessionWarning } : user;
+}
+
+export async function adminDeleteUserAction(userId: string) {
+  const actor = await requirePermission("users:manage");
+  const [user, users] = await Promise.all([getUserById(userId), listUsers()]);
+  if (!user) throw new Error("User not found");
+  assertCanRemoveOrDeactivateUser(actor.id, user, users, "delete");
+
+  await deleteUserAccount(userId);
+
+  await writeAuditLog({
+    action: "user_deleted",
+    entityType: "user",
+    entityId: userId,
+    summary: `Deleted user ${user.full_name} (${user.email})`,
+    metadata: { email: user.email, role: user.role },
+    actorId: actor.id,
+    actorEmail: actor.email,
+  });
+
+  revalidateUserOrgData();
+  return { ok: true as const };
 }
 
 export async function updateUserDetailsAction(
@@ -112,7 +181,11 @@ export async function updateUserDetailsAction(
       metadata: { team_id: data.team_id },
     });
   }
-  revalidatePath("/", "layout");
+  if (data.role !== undefined) {
+    revalidateUserAccessChange();
+  } else {
+    revalidateUserOrgData();
+  }
   return user;
 }
 
@@ -156,7 +229,7 @@ export async function createUserManuallyAction(data: {
       actorId: actor.id,
       actorEmail: actor.email,
     });
-    revalidatePath("/", "layout");
+    revalidateUserOrgData();
     return { ok: true as const, user };
   }
 
@@ -206,7 +279,7 @@ export async function createUserManuallyAction(data: {
     actorEmail: actor.email,
   });
 
-  revalidatePath("/", "layout");
+  revalidateUserOrgData();
   return { ok: true as const, userId };
 }
 
@@ -240,9 +313,8 @@ export async function adminResetPasswordAction(userId: string, email: string) {
     throw new Error("Password reset requires Supabase admin configuration");
   }
   const admin = createAdminClient();
-  const siteUrl = getSiteUrl();
   const { error } = await admin.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+    redirectTo: buildAuthEmailRedirect("/auth/reset-password"),
   });
   if (error) throw new Error(error.message);
 
@@ -265,7 +337,7 @@ export async function updateEmployeePayTypeAction(userId: string, pay_type: PayT
 
   if (hasPermission(actor.role, "users:manage")) {
     const user = await updateUserProfile(userId, { pay_type });
-    revalidatePath("/", "layout");
+    revalidatePath("/work");
     return user;
   }
 
@@ -284,7 +356,7 @@ export async function updateEmployeePayTypeAction(userId: string, pay_type: PayT
       actorId: actor.id,
       actorEmail: actor.email,
     });
-    revalidatePath("/", "layout");
+    revalidatePath("/work");
     return user;
   }
 
@@ -406,6 +478,23 @@ export async function saveUserProfileAction(userId: string, input: SaveUserProfi
     input.system_access_level
   );
 
+  const nextIsActive = input.is_active ?? before.is_active;
+  if (before.is_active && !nextIsActive) {
+    assertCanRemoveOrDeactivateUser(actor.id, before, users, "deactivate");
+  }
+
+  assertCanChangeUserAdminAccess(
+    actor.id,
+    before,
+    users,
+    hasAdminAccess({
+      ...before,
+      organizational_position: input.organizational_position,
+      system_access_level: input.system_access_level,
+      role: syncedRole,
+    })
+  );
+
   const profilePayload = {
     first_name: input.first_name.trim(),
     last_name: input.last_name.trim(),
@@ -417,7 +506,7 @@ export async function saveUserProfileAction(userId: string, input: SaveUserProfi
     hire_date: input.hire_date ?? null,
     pay_type: input.pay_type ?? before.pay_type ?? null,
     employment_status: input.employment_status ?? before.employment_status ?? "active",
-    is_active: input.is_active ?? before.is_active,
+    is_active: nextIsActive,
     branch_view_access: input.branch_view_access ?? before.branch_view_access ?? false,
     organizational_position: input.organizational_position,
     system_access_level: input.system_access_level,
@@ -457,8 +546,22 @@ export async function saveUserProfileAction(userId: string, input: SaveUserProfi
     changes,
   });
 
-  revalidatePath("/", "layout");
-  return { ok: true as const, user: updated };
+  const accessChanged =
+    profilePayload.role !== before.role ||
+    profilePayload.organizational_position !== before.organizational_position ||
+    profilePayload.system_access_level !== before.system_access_level ||
+    profilePayload.is_active !== before.is_active ||
+    profilePayload.branch_view_access !== before.branch_view_access;
+
+  if (accessChanged) {
+    revalidateUserAccessChange();
+  } else {
+    revalidateUserOrgData();
+  }
+  const sessionWarning = sessionRevokeWarning(nextIsActive);
+  return sessionWarning
+    ? { ok: true as const, user: updated, sessionWarning }
+    : { ok: true as const, user: updated };
 }
 
 export async function adminResendInviteAction(userId: string) {
@@ -471,9 +574,8 @@ export async function adminResendInviteAction(userId: string) {
   }
 
   const admin = createAdminClient();
-  const siteUrl = getSiteUrl();
   const { error } = await admin.auth.admin.inviteUserByEmail(user.email, {
-    redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password`,
+    redirectTo: buildAuthEmailRedirect("/auth/reset-password"),
     data: {
       first_name: user.first_name,
       last_name: user.last_name,

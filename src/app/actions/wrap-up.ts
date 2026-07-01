@@ -12,6 +12,8 @@ import {
 } from "@/lib/data/flow-store";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getUserById } from "@/lib/data/users";
+import { persistWrapUpOverrideSync } from "@/lib/data/wrap-ups-db";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 import {
   canClockOutForDay,
   getWrapUpComplianceStatus,
@@ -74,12 +76,14 @@ export async function overrideWrapUpRequirementAction(
     throw new Error("Override applies to employees only");
   }
 
-  createWrapUpOverride({
+  await ensureServerWriteContext();
+  const override = createWrapUpOverride({
     user_id: userId,
     wrap_date: date,
     reason: trimmed,
     overridden_by: actor.id,
   });
+  await persistWrapUpOverrideSync(override);
 
   await writeAuditLog({
     action: "assignment_changed",

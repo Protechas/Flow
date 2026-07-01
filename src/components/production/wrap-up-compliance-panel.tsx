@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { DailyWrapUpComplianceRow } from "@/types/flow";
+import { formatAppTime } from "@/lib/datetime/timezone";
 import { ShieldCheck, Moon } from "lucide-react";
 
 export function WrapUpCompliancePanel({
@@ -106,10 +107,7 @@ export function WrapUpCompliancePanel({
                   {row.blockedAttemptAt && row.wrapUpStatus === "missing" && (
                     <p className="text-[10px] text-amber-400 mt-1">
                       Blocked{" "}
-                      {new Date(row.blockedAttemptAt).toLocaleTimeString([], {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                      {formatAppTime(row.blockedAttemptAt)}
                     </p>
                   )}
                 </EnterpriseTd>
@@ -117,12 +115,7 @@ export function WrapUpCompliancePanel({
                   {row.clockedIn ? "On shift" : "Off shift"}
                 </EnterpriseTd>
                 <EnterpriseTd className="text-xs text-muted-foreground">
-                  {row.clockedOutToday && row.clockOutAt
-                    ? new Date(row.clockOutAt).toLocaleTimeString([], {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })
-                    : "—"}
+                  {row.clockedOutToday && row.clockOutAt ? formatAppTime(row.clockOutAt) : "—"}
                 </EnterpriseTd>
                 <EnterpriseTd className="text-xs text-muted-foreground max-w-[160px]">
                   {row.wrapUpStatus === "overridden" ? (

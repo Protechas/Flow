@@ -4,8 +4,7 @@ import { forecastVarianceDays } from "@/lib/forecast/engine";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { resolveLeadersForEmployee } from "@/lib/hierarchy/resolver";
 import {
-  createNotificationSync,
-  hasRecentNotification,
+  deliverNotification,
 } from "@/lib/notifications/notifications";
 import { isOverdue } from "@/lib/scoring/flow-score";
 import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
@@ -30,17 +29,19 @@ function notify(
   if (!userId) return;
   const user = users.find((u) => u.id === userId && u.is_active);
   if (!user) return;
-  if (hasRecentNotification(userId, type, entityType, entityId, DEDUPE_HOURS)) return;
 
-  createNotificationSync({
-    user_id: userId,
-    type,
-    title,
-    message,
-    related_entity_type: entityType,
-    related_entity_id: entityId,
-    link,
-  });
+  deliverNotification(
+    {
+      user_id: userId,
+      type,
+      title,
+      message,
+      related_entity_type: entityType,
+      related_entity_id: entityId,
+      link,
+    },
+    DEDUPE_HOURS
+  );
 }
 
 function isBehindForecast(pkg: WorkPackage): boolean {

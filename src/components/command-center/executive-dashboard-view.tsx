@@ -236,9 +236,9 @@ export function ExecutiveDashboardView({
         </KpiPriorityZone>
       )}
 
-      {data.validationSummary && linkHref(role, "/validation") && (
+      {data.validationSummary && linkHref(role, "/qa-center/validation") && (
         <KpiPriorityZone
-          title="Validation Center"
+          title="QA Center"
           description="Library audit compliance and open correction workload"
           variant="overview"
         >
@@ -251,7 +251,7 @@ export function ExecutiveDashboardView({
                   : "—"
               }
               sublabel={`${data.validationSummary.completedRuns} completed runs`}
-              href="/validation"
+              href="/qa-center/validation"
             />
             <EnterpriseKpi
               label="Open findings"
@@ -261,7 +261,7 @@ export function ExecutiveDashboardView({
                   ? `${data.validationSummary.criticalFindingsOpen} critical/high`
                   : "Across all engines"
               }
-              href="/validation/findings"
+              href="/qa-center/validation/findings"
               warn={data.validationSummary.openFindings > 0}
               critical={data.validationSummary.criticalFindingsOpen > 0}
             />
@@ -273,7 +273,7 @@ export function ExecutiveDashboardView({
                   : "—"
               }
               sublabel="Avg compliance delta on linked reruns"
-              href="/validation/history"
+              href="/qa-center/validation/history"
             />
           </section>
         </KpiPriorityZone>

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { assertPersistRow, normalizePersistRowUuids } from "@/lib/server/persist-row";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
@@ -184,13 +185,26 @@ function persistLater(fn: () => Promise<void>) {
   void fn().catch((err) => console.error("[production-tracking-db]", err));
 }
 
-export function persistTimeClockEntry(entry: TimeClockEntry): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
+async function requirePersistClient() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = await dbClient();
+  if (!supabase) {
+    throw new Error(
+      "Production data could not save. Set SUPABASE_SERVICE_ROLE_KEY in production environment variables."
+    );
+  }
+  return supabase;
+}
+
+/** Await from server actions so state survives the next page load. */
+export async function persistTimeClockEntrySync(entry: TimeClockEntry): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
       id: entry.id,
       user_id: entry.user_id,
+      department_id: entry.department_id,
       clock_in_at: entry.clock_in_at,
       clock_out_at: entry.clock_out_at,
       total_minutes: entry.total_minutes,
@@ -198,22 +212,33 @@ export function persistTimeClockEntry(entry: TimeClockEntry): void {
       status: entry.status,
       edited_by: entry.edited_by,
       edit_reason: entry.edit_reason,
+      created_at: entry.created_at,
       updated_at: entry.updated_at,
-    };
-    const { error } = await supabase.from("time_clock_entries").upsert(row, { onConflict: "id" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+    },
+    ["department_id", "edited_by"]
+  );
+  assertPersistRow("time_clock_entries", row, ["id", "user_id"], ["department_id", "edited_by"]);
+  const { error } = await supabase.from("time_clock_entries").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
 }
 
-export function persistTaskTimeEntry(entry: TaskTimeEntry): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
+export async function deleteTimeClockEntrySync(entryId: string): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const { error } = await supabase.from("time_clock_entries").delete().eq("id", entryId);
+  if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export async function persistTaskTimeEntrySync(entry: TaskTimeEntry): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
       id: entry.id,
       user_id: entry.user_id,
       task_id: entry.task_id,
       project_id: entry.project_id,
+      department_id: entry.department_id,
       started_at: entry.started_at,
       paused_at: entry.paused_at,
       resumed_at: entry.resumed_at,
@@ -223,17 +248,24 @@ export function persistTaskTimeEntry(entry: TaskTimeEntry): void {
       status: entry.status,
       is_correction_session: entry.is_correction_session,
       updated_at: entry.updated_at,
-    };
-    const { error } = await supabase.from("task_time_entries").upsert(row, { onConflict: "id" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+    },
+    ["department_id"]
+  );
+  assertPersistRow(
+    "task_time_entries",
+    row,
+    ["id", "user_id", "task_id", "project_id"],
+    ["department_id"]
+  );
+  const { error } = await supabase.from("task_time_entries").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
 }
 
-export function persistTaskFileUpload(file: TaskFileUpload): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
+export async function persistTaskFileUploadSync(file: TaskFileUpload): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
       id: file.id,
       task_id: file.task_id,
       project_id: file.project_id,
@@ -244,42 +276,53 @@ export function persistTaskFileUpload(file: TaskFileUpload): void {
       file_size: file.file_size,
       file_url_or_path: file.file_url_or_path,
       uploaded_at: file.uploaded_at,
-    };
-    const { error } = await supabase.from("task_file_uploads").upsert(row, { onConflict: "id" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+    },
+    ["department_id"]
+  );
+  assertPersistRow(
+    "task_file_uploads",
+    row,
+    ["id", "task_id", "project_id", "user_id"],
+    ["department_id"]
+  );
+  const { error } = await supabase.from("task_file_uploads").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
 }
 
-export function persistTaskSubmission(record: TaskSubmissionRecord): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
-      id: record.id,
-      task_id: record.task_id,
-      project_id: record.project_id,
-      user_id: record.user_id,
-      submitted_at: record.submitted_at,
-      uploaded_file_count: record.uploaded_file_count,
-      total_task_minutes: record.total_task_minutes,
-      average_minutes_per_document: record.average_minutes_per_document,
-      documents_per_hour: record.documents_per_hour,
-      original_task_minutes: record.original_task_minutes,
-      correction_task_minutes: record.correction_task_minutes,
-      status: record.status,
-      notes: record.notes,
-      updated_at: record.updated_at,
-    };
-    const { error } = await supabase.from("task_submission_records").upsert(row, { onConflict: "id" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+export async function persistTaskSubmissionSync(record: TaskSubmissionRecord): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = {
+    id: record.id,
+    task_id: record.task_id,
+    project_id: record.project_id,
+    user_id: record.user_id,
+    submitted_at: record.submitted_at,
+    uploaded_file_count: record.uploaded_file_count,
+    total_task_minutes: record.total_task_minutes,
+    average_minutes_per_document: record.average_minutes_per_document,
+    documents_per_hour: record.documents_per_hour,
+    original_task_minutes: record.original_task_minutes,
+    correction_task_minutes: record.correction_task_minutes,
+    status: record.status,
+    notes: record.notes,
+    updated_at: record.updated_at,
+  };
+  assertPersistRow("task_submission_records", row, [
+    "id",
+    "task_id",
+    "project_id",
+    "user_id",
+  ]);
+  const { error } = await supabase.from("task_submission_records").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
 }
 
-export function persistQaReviewRecord(record: QaReviewRecord): void {
-  persistLater(async () => {
-    const supabase = await dbClient();
-    if (!supabase) return;
-    const row = {
+export async function persistQaReviewRecordSync(record: QaReviewRecord): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
       id: record.id,
       task_id: record.task_id,
       submission_id: record.submission_id,
@@ -289,8 +332,35 @@ export function persistQaReviewRecord(record: QaReviewRecord): void {
       notes: record.notes,
       correction_required: record.correction_required,
       correction_reason: record.correction_reason,
-    };
-    const { error } = await supabase.from("qa_review_records").upsert(row, { onConflict: "id" });
-    if (error && !isUnavailable(error)) throw error;
-  });
+    },
+    ["submission_id"]
+  );
+  assertPersistRow(
+    "qa_review_records",
+    row,
+    ["id", "task_id", "reviewer_id"],
+    ["submission_id"]
+  );
+  const { error } = await supabase.from("qa_review_records").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export function persistTimeClockEntry(entry: TimeClockEntry): void {
+  persistLater(() => persistTimeClockEntrySync(entry));
+}
+
+export function persistTaskTimeEntry(entry: TaskTimeEntry): void {
+  persistLater(() => persistTaskTimeEntrySync(entry));
+}
+
+export function persistTaskFileUpload(file: TaskFileUpload): void {
+  persistLater(() => persistTaskFileUploadSync(file));
+}
+
+export function persistTaskSubmission(record: TaskSubmissionRecord): void {
+  persistLater(() => persistTaskSubmissionSync(record));
+}
+
+export function persistQaReviewRecord(record: QaReviewRecord): void {
+  persistLater(() => persistQaReviewRecordSync(record));
 }

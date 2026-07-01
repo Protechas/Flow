@@ -78,11 +78,13 @@ export function PlanningCalendarView({
   workPackages,
   projects,
   departments,
+  forecastRefreshedAt,
 }: {
   snapshot: PlanningCenterSnapshot;
   workPackages: WorkPackage[];
   projects: Project[];
   departments: Department[];
+  forecastRefreshedAt?: string;
 }) {
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => formatCalendarDateKey(new Date()));
@@ -170,6 +172,15 @@ export function PlanningCalendarView({
           <Badge variant="outline" className="text-[10px]">
             {monthEventCount} events this month
           </Badge>
+          {forecastRefreshedAt ? (
+            <Badge variant="secondary" className="text-[10px] font-normal">
+              Live · updated{" "}
+              {new Date(forecastRefreshedAt).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </Badge>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -216,6 +227,10 @@ export function PlanningCalendarView({
           </label>
         ))}
       </div>
+      <p className="text-[10px] text-muted-foreground">
+        Dates shift automatically from task timers, document progress, and assignee queues — refreshes
+        every 2 minutes while this page is open.
+      </p>
 
       <Tabs defaultValue="month">
         <TabsList className="mb-3">

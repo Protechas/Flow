@@ -58,6 +58,31 @@ export async function getUserById(userId: string): Promise<User | null> {
   return users.find((u) => u.id === userId) ?? null;
 }
 
+async function revokeUserSessions(userId: string): Promise<void> {
+  if (!isSupabaseConfigured() || !isAdminConfigured()) return;
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.signOut(userId, "global");
+  if (error) console.error("[users] session revoke failed", error.message);
+}
+
+async function patchStoreUser(updated: User): Promise<void> {
+  initFlowStore();
+  const store = getFlowStore();
+  const idx = store.users.findIndex((u) => u.id === updated.id);
+  if (idx < 0) return;
+  const next = [...store.users];
+  next[idx] = updated;
+  setStoreUsers(next);
+}
+
+async function onUserDeactivated(userId: string): Promise<void> {
+  await revokeUserSessions(userId);
+  if (!isSupabaseConfigured()) {
+    const { getDemoUserId, clearDemoSession } = await import("@/lib/auth/demo-session");
+    if ((await getDemoUserId()) === userId) await clearDemoSession();
+  }
+}
+
 export async function updateUserProfile(
   userId: string,
   updates: Partial<
@@ -101,6 +126,7 @@ export async function updateUserProfile(
 
   if (!isSupabaseConfigured()) {
     const updated = updateUser(userId, payload);
+    if (updated && updates.is_active === false) await onUserDeactivated(userId);
     if (updated && updates.manager_id !== undefined) {
       initFlowStore();
       syncHierarchyOnManagerChange(
@@ -122,6 +148,10 @@ export async function updateUserProfile(
     .single();
   if (error) throw error;
   const updated = data ? mapDbUser(data as Record<string, unknown>) : null;
+  if (updated) {
+    await patchStoreUser(updated);
+    if (updates.is_active === false) await onUserDeactivated(userId);
+  }
   if (updated && updates.manager_id !== undefined) {
     initFlowStore();
     syncHierarchyOnManagerChange(
@@ -225,13 +255,23 @@ export async function getUserProfileByAuthId(authUserId: string): Promise<User |
   }
 
   const supabase = await createClient();
+  return getUserProfileByAuthIdWithClient(supabase, authUserId);
+}
+
+/** Prefer this right after sign-in so the session stays on the same Supabase client. */
+export async function getUserProfileByAuthIdWithClient(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  authUserId: string
+): Promise<User | null> {
   const { data, error } = await supabase
     .from("users")
     .select("*")
     .eq("id", authUserId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(error.message || "Could not load your profile");
+  }
   if (!data) return null;
   return mapDbUser(data as Record<string, unknown>);
 }
@@ -263,4 +303,75 @@ export async function createUserRecord(
   const { data, error } = await admin.from("users").upsert(record).select().single();
   if (error) throw error;
   return mapDbUser(data as Record<string, unknown>);
+}
+
+function isOptionalTableError(error: { code?: string; message?: string }): boolean {
+  if (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703") return true;
+  return Boolean(error.message?.includes("does not exist"));
+}
+
+/** Clear FK references that would block auth user deletion. */
+async function detachUserReferences(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string
+): Promise<void> {
+  const ops: Array<PromiseLike<{ error: { code?: string; message?: string } | null }>> = [
+    admin.from("org_positions").update({ assigned_user_id: null, status: "vacant" }).eq("assigned_user_id", userId),
+    admin.from("users").update({ manager_id: null }).eq("manager_id", userId),
+    admin.from("users").update({ assigned_position_id: null }).eq("id", userId),
+    admin.from("teams").update({ manager_id: null }).eq("manager_id", userId),
+    admin.from("teams").update({ team_lead_user_id: null }).eq("team_lead_user_id", userId),
+    admin.from("departments").update({ lead_user_id: null }).eq("lead_user_id", userId),
+    admin.from("projects").update({ project_owner_id: null }).eq("project_owner_id", userId),
+    admin.from("work_items").update({ assigned_to: null }).eq("assigned_to", userId),
+    admin.from("year_work_items").update({ assigned_to: null }).eq("assigned_to", userId),
+    admin.from("time_clock_entries").update({ edited_by: null }).eq("edited_by", userId),
+    admin.from("department_users").delete().eq("user_id", userId),
+    admin.from("user_hierarchy").delete().or(`user_id.eq.${userId},parent_user_id.eq.${userId}`),
+    admin.from("qa_review_records").delete().eq("reviewer_id", userId),
+  ];
+
+  for (const op of ops) {
+    const { error } = await op;
+    if (error && !isOptionalTableError(error)) {
+      throw new Error(error.message || "Could not detach user references");
+    }
+  }
+}
+
+export async function deleteUserAccount(userId: string): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    initFlowStore();
+    const { MOCK_USERS } = await import("@/lib/data/mock-data");
+    const idx = MOCK_USERS.findIndex((u) => u.id === userId);
+    if (idx < 0) throw new Error("User not found");
+    MOCK_USERS.splice(idx, 1);
+    setStoreUsers(getAllUsers());
+    return;
+  }
+
+  if (!isAdminConfigured()) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY required to delete users");
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error: profileError } = await admin
+    .from("users")
+    .select("id, email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profile) {
+    const { error: authOnlyError } = await admin.auth.admin.deleteUser(userId);
+    if (authOnlyError && authOnlyError.message !== "User not found") {
+      throw new Error(authOnlyError.message);
+    }
+    return;
+  }
+
+  await detachUserReferences(admin, userId);
+
+  const { error: authError } = await admin.auth.admin.deleteUser(userId);
+  if (authError) throw new Error(authError.message);
 }

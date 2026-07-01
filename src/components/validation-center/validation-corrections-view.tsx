@@ -31,6 +31,7 @@ import type {
   ValidationFindingSeverity,
   ValidationFindingStatus,
 } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import { ExternalLink } from "lucide-react";
 
 function severityVariant(severity: ValidationFindingSeverity) {
@@ -77,7 +78,7 @@ export function ValidationCorrectionsView({
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
         No linked correction tasks yet.{" "}
-        <Link href="/validation/findings" className="text-primary hover:underline">
+        <Link href={validationPath("/findings")} className="text-primary hover:underline">
           Review findings
         </Link>{" "}
         and create Flow tasks to track corrections here.

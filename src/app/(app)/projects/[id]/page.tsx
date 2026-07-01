@@ -30,6 +30,7 @@ import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
+import { getProjectValidationMetricsForProject } from "@/lib/validation-center/runs";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
 import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
 import { ChevronLeft } from "lucide-react";
@@ -58,12 +59,14 @@ export default async function ProjectDetailPage({
   const branchIds = getScopeMemberIds(user, store.users, store.teams);
   const viewerDeptIds = getViewerDepartmentIds(user);
 
-  const [allProjects, manufacturers, yearItems, managers, allAnalysts] = await Promise.all([
+  const [allProjects, manufacturers, yearItems, managers, allAnalysts, validationMetrics] =
+    await Promise.all([
     getProjectsWithStats(true),
     getManufacturers(undefined, true),
     getYearWorkItems(),
     getManagers(),
     getAnalysts(),
+    getProjectValidationMetricsForProject(projectId),
   ]);
 
   const project = allProjects.find((p) => p.id === projectId);
@@ -125,6 +128,7 @@ export default async function ProjectDetailPage({
   const allowedModes = getAllowedCreationModes(user.role);
   const managerWorkHub = usesManagerWorkHub(user.role);
   const activeProjects = scopedProjects.filter(isActiveProject);
+  const canViewValidation = hasPermission(user.role, "validation:view");
 
   return (
     <FlowPageShell
@@ -214,6 +218,8 @@ export default async function ProjectDetailPage({
             canDeleteProject={canDeleteProjects(user.role)}
             canDeleteTask={hasPermission(user.role, "work:delete")}
             forecastSettings={store.forecastSettings}
+            validationMetrics={validationMetrics}
+            canViewValidation={canViewValidation}
           />
         </WorkspaceContainer>
       }

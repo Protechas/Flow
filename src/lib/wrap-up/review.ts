@@ -151,7 +151,7 @@ export function buildWrapUpReviewRows(
   const start = filters.startDate ? parseISO(filters.startDate) : subDays(new Date(), 14);
   const end = filters.endDate ? parseISO(filters.endDate) : new Date();
 
-  let wrapUps = store.dailyWrapUps.filter((w) => {
+  const wrapUps = store.dailyWrapUps.filter((w) => {
     const d = parseISO(w.wrap_date);
     if (!isWithinInterval(d, { start, end })) return false;
     if (visibleIds && !visibleIds.includes(w.user_id)) return false;

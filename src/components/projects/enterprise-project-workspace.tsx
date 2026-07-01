@@ -36,6 +36,8 @@ import type {
 import { WorkspaceColumnSettings } from "@/components/projects/workspace-column-settings";
 import { WorkspaceTaskDetailSheet } from "@/components/projects/workspace-task-detail-sheet";
 import { ProjectForecastPanel } from "@/components/forecast/project-forecast-panel";
+import { ProjectValidationPanel } from "@/components/validation-center/project-validation-panel";
+import type { ProjectValidationMetrics } from "@/lib/validation-center/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
@@ -88,6 +90,8 @@ export function EnterpriseProjectWorkspace({
   canDeleteProject,
   canDeleteTask,
   forecastSettings,
+  validationMetrics,
+  canViewValidation,
 }: {
   project: Project;
   manufacturers: Manufacturer[];
@@ -102,6 +106,8 @@ export function EnterpriseProjectWorkspace({
   canDeleteProject: boolean;
   canDeleteTask: boolean;
   forecastSettings: ForecastSettings;
+  validationMetrics?: ProjectValidationMetrics | null;
+  canViewValidation?: boolean;
 }) {
   const router = useRouter();
   const sections = useMemo(
@@ -451,27 +457,38 @@ export function EnterpriseProjectWorkspace({
           )}
 
           {view === "qa" && (
-            <div className="space-y-3 max-w-3xl">
-              <p className="text-sm text-muted-foreground">
-                Tasks waiting for or in QA review. Full QA workflow runs in QA Center — backend
-                unchanged.
-              </p>
-              {allProjectTasks
-                .filter((t) => t.status === "ready_for_qa" || t.status === "in_qa")
-                .map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTaskId(t.id)}
-                    className="w-full rounded-lg border p-3 text-left hover:bg-muted/40"
-                  >
-                    <p className="font-medium">{t.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{t.status.replace(/_/g, " ")}</p>
-                  </button>
-                ))}
-              {qaQueue === 0 && (
-                <p className="text-sm text-muted-foreground">No tasks in QA queue for this project.</p>
+            <div className="space-y-4 max-w-3xl">
+              {canViewValidation && validationMetrics && (
+                <ProjectValidationPanel
+                  metrics={validationMetrics}
+                  canViewValidation={canViewValidation}
+                />
               )}
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Tasks waiting for or in QA review. Full QA workflow runs in QA Center.
+                </p>
+                {allProjectTasks
+                  .filter((t) => t.status === "ready_for_qa" || t.status === "in_qa")
+                  .map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedTaskId(t.id)}
+                      className="w-full rounded-lg border p-3 text-left hover:bg-muted/40"
+                    >
+                      <p className="font-medium">{t.title}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {t.status.replace(/_/g, " ")}
+                      </p>
+                    </button>
+                  ))}
+                {qaQueue === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No tasks in QA queue for this project.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

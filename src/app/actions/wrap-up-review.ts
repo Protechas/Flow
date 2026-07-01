@@ -5,6 +5,8 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/permissions";
 import { requireUser } from "@/lib/auth/session";
 import { getDailyWrapUpById, updateDailyWrapUpReview } from "@/lib/data/flow-store";
+import { persistDailyWrapUpSync } from "@/lib/data/wrap-ups-db";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 import { canViewWrapUp } from "@/lib/wrap-up/review";
 
 function revalidateWrapUpReviewPaths() {
@@ -24,15 +26,18 @@ export async function markWrapUpReviewedAction(
     throw new Error("FORBIDDEN");
   }
 
+  await ensureServerWriteContext();
   const wrapUp = getDailyWrapUpById(wrapUpId);
   if (!wrapUp || !canViewWrapUp(actor, wrapUp)) throw new Error("FORBIDDEN");
 
   const now = new Date().toISOString();
-  updateDailyWrapUpReview(wrapUpId, {
+  const saved = updateDailyWrapUpReview(wrapUpId, {
     reviewed_at: now,
     reviewed_by: actor.id,
     internal_notes: internalNotes?.trim() || wrapUp.internal_notes,
   });
+  if (!saved) throw new Error("Wrap-up not found");
+  await persistDailyWrapUpSync(saved);
 
   await writeAuditLog({
     action: "status_changed",
@@ -57,10 +62,15 @@ export async function updateWrapUpReviewNotesAction(wrapUpId: string, internalNo
     throw new Error("FORBIDDEN");
   }
 
+  await ensureServerWriteContext();
   const wrapUp = getDailyWrapUpById(wrapUpId);
   if (!wrapUp || !canViewWrapUp(actor, wrapUp)) throw new Error("FORBIDDEN");
 
-  updateDailyWrapUpReview(wrapUpId, { internal_notes: internalNotes.trim() || null });
+  const saved = updateDailyWrapUpReview(wrapUpId, {
+    internal_notes: internalNotes.trim() || null,
+  });
+  if (!saved) throw new Error("Wrap-up not found");
+  await persistDailyWrapUpSync(saved);
   revalidateWrapUpReviewPaths();
   return { ok: true as const };
 }
@@ -78,13 +88,16 @@ export async function flagWrapUpFollowUpAction(
     throw new Error("FORBIDDEN");
   }
 
+  await ensureServerWriteContext();
   const wrapUp = getDailyWrapUpById(wrapUpId);
   if (!wrapUp || !canViewWrapUp(actor, wrapUp)) throw new Error("FORBIDDEN");
 
-  updateDailyWrapUpReview(wrapUpId, {
+  const saved = updateDailyWrapUpReview(wrapUpId, {
     follow_up_needed: followUpNeeded,
     follow_up_notes: followUpNotes?.trim() || null,
   });
+  if (!saved) throw new Error("Wrap-up not found");
+  await persistDailyWrapUpSync(saved);
 
   await writeAuditLog({
     action: "status_changed",

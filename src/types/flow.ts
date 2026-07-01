@@ -338,6 +338,7 @@ export type EmploymentStatus = "active" | "on_leave" | "terminated";
 export type AuditAction =
   | "user_created"
   | "user_invited"
+  | "user_deleted"
   | "user_disabled"
   | "user_reactivated"
   | "role_changed"
@@ -1614,7 +1615,7 @@ export interface DailyWrapUpOverride {
 export interface DailyWrapUpComplianceRow {
   userId: string;
   userName: string;
-  departmentId: string;
+  departmentId: string | null;
   departmentName: string;
   wrapDate: string;
   wrapUpStatus: WrapUpComplianceStatus;
@@ -1632,7 +1633,7 @@ export interface WrapUpReviewRow {
   id: string;
   userId: string;
   employeeName: string;
-  departmentId: string;
+  departmentId: string | null;
   departmentName: string;
   teamId: string | null;
   teamName: string | null;

@@ -27,6 +27,7 @@ import type {
   ValidationFinding,
   ValidationRunView,
 } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import { ArrowRight, GitCompare } from "lucide-react";
 
 export function ValidationCompareView({
@@ -125,14 +126,14 @@ export function ValidationCompareView({
         <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <Link
-              href={`/validation/runs/${effectiveComparison.baseline.id}`}
+              href={validationPath(`/runs/${effectiveComparison.baseline.id}`)}
               className="font-medium text-primary hover:underline"
             >
               {effectiveComparison.baseline.manufacturer ?? "Baseline"}
             </Link>
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
             <Link
-              href={`/validation/runs/${effectiveComparison.followUp.id}`}
+              href={validationPath(`/runs/${effectiveComparison.followUp.id}`)}
               className="font-medium text-primary hover:underline"
             >
               {effectiveComparison.followUp.manufacturer ?? "Follow-up"}

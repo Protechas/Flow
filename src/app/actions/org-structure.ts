@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrgStructure } from "@/lib/data/revalidate-flow";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission } from "@/lib/auth/session";
 import { completeDepartmentStructureAction } from "@/app/actions/departments";
@@ -29,7 +29,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { listUsers } from "@/lib/data/users";
 
 function revalidateAll() {
-  revalidatePath("/", "layout");
+  revalidateOrgStructure();
 }
 
 export async function bootstrapDepartmentOrgStructureAction(

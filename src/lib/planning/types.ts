@@ -138,6 +138,8 @@ export interface PlanningWorkVisibilitySummary {
 
 export interface PlanningCenterSnapshot {
   scopeLabel: string;
+  /** ISO timestamp when live forecasts were recalculated for this view. */
+  forecastRefreshedAt: string;
   operationsStatus: PlanningMetricLink[];
   executiveForecast: ExecutiveForecastSummary;
   expectedOutcomes: ExpectedOutcomesSummary;

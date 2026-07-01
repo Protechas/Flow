@@ -13,6 +13,7 @@ import { persistHelpFlagSettingsToSupabase } from "@/lib/settings/supabase-setti
 const PATHS = ["/settings", "/settings/help-flags", "/operations", "/people", "/alert-center"];
 
 export async function getHelpFlagSettingsAction() {
+  await requirePermission("settings:manage");
   await hydrateHelpFlagSettings();
   return getHelpFlagSettings();
 }

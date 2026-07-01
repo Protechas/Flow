@@ -58,9 +58,12 @@ export function PeopleProfileView({ profile }: { profile: PeopleProfile }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border/60">
           <CardHeader>
-            <CardTitle className="text-base">Current Assigned Work</CardTitle>
+            <CardTitle className="text-base">
+              Current Assigned Work
+              {profile.currentWork.length > 0 ? ` (${profile.currentWork.length})` : ""}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2 max-h-80 overflow-y-auto">
             {profile.currentWork.length === 0 ? (
               <p className="text-sm text-muted-foreground">No active packages</p>
             ) : (

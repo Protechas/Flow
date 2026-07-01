@@ -1,6 +1,6 @@
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
-import { createNotificationSync, hasRecentNotification } from "@/lib/notifications/notifications";
+import { deliverNotification } from "@/lib/notifications/notifications";
 import { resolveLeadersForEmployee } from "@/lib/hierarchy/resolver";
 import type { User } from "@/types/flow";
 import type { WorkEligibilityAction } from "./types";
@@ -81,18 +81,18 @@ export async function recordBlockedWorkAttempt(
   });
 
   for (const leader of leaders) {
-    if (hasRecentNotification(leader.id, "work_eligibility_alert", "user", user.id, 12)) {
-      continue;
-    }
-    createNotificationSync({
-      user_id: leader.id,
-      type: "work_eligibility_alert",
-      title: "Off-clock work attempts",
-      message: `${user.full_name} attempted work ${recent.length} times while off the clock in the last hour.`,
-      related_entity_type: "user",
-      related_entity_id: user.id,
-      link: "/people",
-    });
+    deliverNotification(
+      {
+        user_id: leader.id,
+        type: "work_eligibility_alert",
+        title: "Off-clock work attempts",
+        message: `${user.full_name} attempted work ${recent.length} times while off the clock in the last hour.`,
+        related_entity_type: "user",
+        related_entity_id: user.id,
+        link: "/people",
+      },
+      12
+    );
   }
 }
 

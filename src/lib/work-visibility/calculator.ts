@@ -100,10 +100,14 @@ export function buildEmployeeWorkVisibilityMetrics(
           ? 50
           : 0;
 
-  const capacityUtilizationPct = Math.min(
-    100,
-    Math.round((workload.openAssigned.length / 6) * 100)
-  );
+  const capacityUtilizationPct =
+    remaining >= threshold
+      ? 100
+      : remaining > 0
+        ? Math.min(100, Math.round((remaining / threshold) * 100))
+        : workload.openAssigned.length > 0
+          ? 50
+          : 0;
 
   const wrapStatus = getWrapUpComplianceStatus(user.id, dateStr);
   let dailyReportCompliancePct: number | null = null;

@@ -14,7 +14,7 @@ import type {
   User,
   WrapUpComplianceStatus,
 } from "@/types/flow";
-import { format } from "date-fns";
+import { appTodayDate } from "@/lib/datetime/timezone";
 
 export function getWrapUpComplianceStatus(
   userId: string,
@@ -43,7 +43,7 @@ export function requiresWrapUpForClockOut(user: Pick<User, "role" | "pay_type">)
 /** Wrap-up completion % for a set of users on a given date (hourly employees only). */
 export function getWrapUpCompletionPctForUsers(
   userIds: string[],
-  wrapDate: string = format(new Date(), "yyyy-MM-dd")
+  wrapDate: string = appTodayDate()
 ): number {
   initFlowStore();
   const store = getFlowStore();
@@ -63,7 +63,7 @@ export function getWrapUpCompletionPctForUsers(
 
 export function buildDailyWrapUpComplianceReport(
   users: User[],
-  wrapDate: string = format(new Date(), "yyyy-MM-dd")
+  wrapDate: string = appTodayDate()
 ): DailyWrapUpComplianceRow[] {
   initFlowStore();
   const store = getFlowStore();

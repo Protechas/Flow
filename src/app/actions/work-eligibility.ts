@@ -9,6 +9,7 @@ import {
   getActiveWorkEligibilityOverride,
   getRecentBlockedAttempts,
 } from "@/lib/work-eligibility";
+import { assertCanManageEmployeeEligibility } from "@/lib/work-eligibility/scope";
 
 export async function getWorkEligibilityAction() {
   const user = await requireUser();
@@ -24,6 +25,7 @@ export async function grantWorkEligibilityOverrideAction(input: {
   if (!input.reason.trim()) {
     throw new Error("Override reason is required");
   }
+  assertCanManageEmployeeEligibility(manager, input.employeeId);
 
   const override = grantWorkEligibilityOverride({
     employeeId: input.employeeId,
@@ -52,11 +54,13 @@ export async function grantWorkEligibilityOverrideAction(input: {
 }
 
 export async function getWorkEligibilityOverrideAction(employeeId: string) {
-  await requirePermission("work:assign");
+  const manager = await requirePermission("work:assign");
+  assertCanManageEmployeeEligibility(manager, employeeId);
   return getActiveWorkEligibilityOverride(employeeId);
 }
 
 export async function getRecentWorkEligibilityBlocksAction(employeeId: string) {
-  await requirePermission("work:view_team");
+  const viewer = await requirePermission("work:view_team");
+  assertCanManageEmployeeEligibility(viewer, employeeId);
   return getRecentBlockedAttempts(employeeId);
 }

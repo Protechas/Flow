@@ -10,6 +10,7 @@ import {
   EnterpriseTh,
 } from "@/components/enterprise/enterprise-data-table";
 import { formatMinutes } from "@/lib/production/metrics";
+import { formatAppDateTime } from "@/lib/datetime/timezone";
 import {
   summarizeTeamAvailability,
   type TeamMemberAvailability,
@@ -98,14 +99,7 @@ export function TeamAvailabilityPanel({
               </EnterpriseTd>
               <EnterpriseTd className="text-muted-foreground text-xs max-w-[180px] truncate">
                 {member.activeTaskTitle ??
-                  (member.lastPunchAt
-                    ? new Date(member.lastPunchAt).toLocaleString([], {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })
-                    : "—")}
+                  (member.lastPunchAt ? formatAppDateTime(member.lastPunchAt) : "—")}
               </EnterpriseTd>
             </tr>
           ))}

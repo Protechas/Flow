@@ -3,7 +3,7 @@ import {
   getActiveClockEntry,
   getActiveTaskTimeEntry,
 } from "@/lib/data/production-tracking";
-import { createNotificationSync, hasRecentNotification } from "@/lib/notifications/notifications";
+import { deliverNotification } from "@/lib/notifications/notifications";
 import { resolveLeadersForEmployee } from "@/lib/hierarchy/resolver";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type { User } from "@/types/flow";
@@ -24,17 +24,17 @@ export function syncWorkEligibilityMismatchAlert(user: User) {
   });
 
   for (const leader of leaders) {
-    if (hasRecentNotification(leader.id, "work_eligibility_alert", "user", user.id, 6)) {
-      continue;
-    }
-    createNotificationSync({
-      user_id: leader.id,
-      type: "work_eligibility_alert",
-      title: "Task timer without clock-in",
-      message: `${user.full_name} has an active task timer but is not clocked in.`,
-      related_entity_type: "user",
-      related_entity_id: user.id,
-      link: "/people",
-    });
+    deliverNotification(
+      {
+        user_id: leader.id,
+        type: "work_eligibility_alert",
+        title: "Task timer without clock-in",
+        message: `${user.full_name} has an active task timer but is not clocked in.`,
+        related_entity_type: "user",
+        related_entity_id: user.id,
+        link: "/people",
+      },
+      6
+    );
   }
 }

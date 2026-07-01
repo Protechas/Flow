@@ -1,8 +1,9 @@
 import { initFlowStore, getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
-import { initProductionTracking } from "@/lib/data/production-tracking";
+import { getProductionStore, initProductionTracking } from "@/lib/data/production-tracking";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { listHelpFlagRecords } from "@/lib/help-flags/store";
 import { operationsHref, projectsHref } from "@/lib/navigation/deep-links";
+import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { diagnoseOrgChartIntegrity } from "@/lib/positions/org-tree";
 import { listActiveOrgPositions } from "@/lib/positions/store";
 import { listWorkloadAlertRecords } from "@/lib/workload-alerts/store";
@@ -25,6 +26,7 @@ export interface SystemHealthIssue {
   count: number;
   href?: string;
   sampleIds?: string[];
+  repairKey?: import("@/lib/system-health/repair-plans").SystemHealthRepairKey;
 }
 
 export interface SystemHealthReport {
@@ -112,6 +114,7 @@ export function buildSystemHealthReport(): SystemHealthReport {
     count: invalidManagers.length,
     href: "/settings/users",
     sampleIds: invalidManagers.slice(0, 5).map((u) => u.id),
+    repairKey: "clear-invalid-manager-links",
   });
 
   const tasksNoProject = packages.filter((p) => !p.project_id || !projectIds.has(p.project_id));
@@ -138,6 +141,7 @@ export function buildSystemHealthReport(): SystemHealthReport {
     count: tasksBadAssignee.length,
     href: operationsHref(),
     sampleIds: tasksBadAssignee.slice(0, 5).map((p) => p.id),
+    repairKey: "clear-invalid-task-assignees",
   });
 
   const activeUnassigned = packages.filter(
@@ -290,6 +294,55 @@ export function buildSystemHealthReport(): SystemHealthReport {
     sampleIds: wrapUpsOrphan.slice(0, 5).map((w) => w.id),
   });
 
+  const dayMs = 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const stuckClockEntries = getProductionStore().timeClockEntries.filter((e) => {
+    if (e.status !== "active") return false;
+    return nowMs - new Date(e.clock_in_at).getTime() > dayMs;
+  });
+  pushIssue(issues, {
+    id: "clock-stuck-open",
+    category: "records",
+    severity: "warning",
+    title: "Clock entries open more than 24 hours",
+    detail: "Shifts may have been left open — review time clock records.",
+    count: stuckClockEntries.length,
+    href: "/time-clock",
+    sampleIds: stuckClockEntries.slice(0, 5).map((e) => e.id),
+  });
+
+  const usersMissingRole = store.users.filter(
+    (u) => u.is_active && !["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"].includes(u.role)
+  );
+  pushIssue(issues, {
+    id: "users-invalid-role",
+    category: "relationships",
+    severity: "critical",
+    title: "Users with invalid roles",
+    detail: "Role values must match Flow permission roles.",
+    count: usersMissingRole.length,
+    href: "/settings/users",
+    sampleIds: usersMissingRole.slice(0, 5).map((u) => u.id),
+  });
+
+  const hourlyNoDept = users.filter(
+    (u) =>
+      u.role === "employee" &&
+      u.is_active &&
+      u.pay_type !== "salary" &&
+      !getUserPrimaryDepartmentId(u.id)
+  );
+  pushIssue(issues, {
+    id: "hourly-no-department",
+    category: "assignments",
+    severity: "warning",
+    title: "Hourly employees without a department",
+    detail: "Department assignment is required for clock-in and reporting.",
+    count: hourlyNoDept.length,
+    href: "/settings/users",
+    sampleIds: hourlyNoDept.slice(0, 5).map((u) => u.id),
+  });
+
   const orgPositions = listActiveOrgPositions();
   if (orgPositions.length > 0) {
     const orgIntegrity = diagnoseOrgChartIntegrity(orgPositions, users);
@@ -330,6 +383,7 @@ export function buildSystemHealthReport(): SystemHealthReport {
       count: missingParents.length,
       href: "/org-chart",
       sampleIds: missingParents.slice(0, 5).map((i) => i.positionId).filter(Boolean) as string[],
+      repairKey: "clear-missing-org-parents",
     });
 
     const seatAssigned = new Set(

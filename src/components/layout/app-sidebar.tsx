@@ -7,6 +7,7 @@ import {
   BarChart3,
   BellRing,
   BookOpen,
+  Brain,
   Building2,
   ChevronDown,
   ClipboardCheck,
@@ -64,6 +65,7 @@ const ICONS = {
   LineChart,
   Clock,
   ShieldCheck,
+  Brain,
   ClipboardCheck,
   BarChart3,
   ClipboardList,
@@ -91,6 +93,7 @@ function isNavItemActive(pathname: string, href: string) {
 interface AppSidebarProps {
   user: User;
   teamDashboardNav?: TeamDashboardNavItem[];
+  hiddenNavIds?: string[];
 }
 
 function mergeTeamDashboardNav(
@@ -120,12 +123,16 @@ function mergeTeamDashboardNav(
   });
 }
 
-export function AppSidebar({ user, teamDashboardNav = [] }: AppSidebarProps) {
+export function AppSidebar({ user, teamDashboardNav = [], hiddenNavIds = [] }: AppSidebarProps) {
   const pathname = usePathname();
+  const hiddenSet = useMemo(() => new Set(hiddenNavIds), [hiddenNavIds]);
   const navGroups = mergeTeamDashboardNav(
     getNavGroupsForRole(getEffectivePermissionRole(user)),
     teamDashboardNav
-  );
+  ).map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !hiddenSet.has(item.id)),
+  })).filter((group) => group.items.length > 0);
   const homeHref = navGroups[0]?.items[0]?.href ?? "/operations";
 
   const [collapsedSections, setCollapsedSections] = useState<Partial<Record<NavGroupId, boolean>>>({});
@@ -169,7 +176,7 @@ export function AppSidebar({ user, teamDashboardNav = [] }: AppSidebarProps) {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="flow-sidebar-scroll px-2 py-2">
         {navGroups.map((group) => {
           const hasActiveItem = group.items.some((item) => isNavItemActive(pathname, item.href));
           const isSectionCollapsed = Boolean(collapsedSections[group.group]) && !hasActiveItem;

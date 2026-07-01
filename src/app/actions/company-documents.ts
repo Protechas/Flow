@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import {
   deleteCompanyDocument,
@@ -18,7 +19,10 @@ const VALID_CATEGORIES = new Set<CompanyDocumentCategory>([
 ]);
 
 export async function listCompanyDocumentsAction() {
-  await requireUser();
+  const user = await requireUser();
+  if (!hasPermission(getEffectivePermissionRole(user), "company_documents:view")) {
+    throw new Error("FORBIDDEN");
+  }
   return listCompanyDocuments();
 }
 

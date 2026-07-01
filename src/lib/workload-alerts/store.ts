@@ -1,4 +1,5 @@
 import type { WorkloadAlertRecord, WorkloadAlertStatus } from "@/types/flow";
+import { newPersistedId } from "@/lib/server/persisted-id";
 
 const GLOBAL_KEY = "__flow_workload_alerts__";
 
@@ -7,7 +8,31 @@ function globalScope(): Record<string, unknown> {
 }
 
 function uid() {
-  return `wla-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return newPersistedId("wla");
+}
+
+const pendingById = new Map<string, WorkloadAlertRecord>();
+let flushScheduled = false;
+
+function flushPendingPersists(): void {
+  flushScheduled = false;
+  const records = [...pendingById.values()];
+  pendingById.clear();
+  if (!records.length) return;
+  void import("@/lib/data/workload-alerts-db").then(({ persistWorkloadAlerts }) =>
+    persistWorkloadAlerts(records)
+  );
+}
+
+function schedulePersist(record: WorkloadAlertRecord): void {
+  pendingById.set(record.id, record);
+  if (flushScheduled) return;
+  flushScheduled = true;
+  queueMicrotask(flushPendingPersists);
+}
+
+export function replaceWorkloadAlertStore(records: WorkloadAlertRecord[]): void {
+  writeStore(records);
 }
 
 function readStore(): WorkloadAlertRecord[] {
@@ -64,6 +89,7 @@ export function upsertWorkloadAlertRecord(
     };
     records[idx] = updated;
     writeStore(records);
+    schedulePersist(updated);
     return updated;
   }
 
@@ -74,6 +100,7 @@ export function upsertWorkloadAlertRecord(
     updated_at: now,
   };
   writeStore([created, ...records]);
+  schedulePersist(created);
   return created;
 }
 
@@ -99,6 +126,7 @@ export function updateWorkloadAlertStatus(
   };
   records[idx] = updated;
   writeStore(records);
+  schedulePersist(updated);
   return updated;
 }
 

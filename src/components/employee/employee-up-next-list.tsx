@@ -4,12 +4,13 @@ import type { WorkPackage } from "@/types/flow";
 
 export function EmployeeUpNextList({
   tasks,
-  max = 5,
+  max,
 }: {
   tasks: WorkPackage[];
+  /** Optional display cap — omit to show the full assigned queue. */
   max?: number;
 }) {
-  const items = tasks.slice(0, max);
+  const items = max != null ? tasks.slice(0, max) : tasks;
   if (items.length === 0) return null;
 
   return (

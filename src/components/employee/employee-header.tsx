@@ -21,11 +21,13 @@ import type { TimeClockEntry, User } from "@/types/flow";
 export function EmployeeHeader({
   user,
   demoMode,
+  hiddenNavHrefs = [],
   activeClock,
   todayClockEntries = [],
 }: {
   user: User;
   demoMode?: boolean;
+  hiddenNavHrefs?: string[];
   activeClock?: TimeClockEntry | null;
   todayClockEntries?: TimeClockEntry[];
 }) {
@@ -33,6 +35,7 @@ export function EmployeeHeader({
   const [pending, startTransition] = useTransition();
   const clockStatus = getEmployeeClockStatus(activeClock ?? null, todayClockEntries);
   const useShiftClock = requiresShiftClock(user);
+  const navItems = EMPLOYEE_NAV.filter((item) => !hiddenNavHrefs.includes(item.href));
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] flow-command-bar">
@@ -46,7 +49,7 @@ export function EmployeeHeader({
           </Link>
 
           <nav className="flex-1 flex gap-0.5 justify-center">
-            {EMPLOYEE_NAV.map((item) => {
+            {navItems.map((item) => {
               const active = isEmployeeNavActive(item.href, pathname);
               return (
                 <Link

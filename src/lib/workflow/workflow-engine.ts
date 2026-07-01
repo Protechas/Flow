@@ -1,6 +1,5 @@
 import {
-  createNotificationSync,
-  hasRecentNotification,
+  deliverNotification,
 } from "@/lib/notifications/notifications";
 import { isOverdue } from "@/lib/scoring/flow-score";
 import {
@@ -60,25 +59,19 @@ function notify(
   const user = ctx.users.find((u) => u.id === input.userId && u.is_active);
   if (!user) return;
 
-  if (input.dedupe !== false && hasRecentNotification(
-    input.userId,
-    input.type,
-    input.entityType,
-    input.entityId,
-    WORKFLOW_THRESHOLDS.DEDUPE_HOURS
-  )) {
-    return;
-  }
-
-  createNotificationSync({
-    user_id: input.userId,
-    type: input.type,
-    title: input.title,
-    message: input.message,
-    related_entity_type: input.entityType,
-    related_entity_id: input.entityId,
-    link: input.link ?? workPackageLink(input.entityId, user.role),
-  });
+  deliverNotification(
+    {
+      user_id: input.userId,
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      related_entity_type: input.entityType,
+      related_entity_id: input.entityId,
+      link: input.link ?? workPackageLink(input.entityId, user.role),
+    },
+    WORKFLOW_THRESHOLDS.DEDUPE_HOURS,
+    input.dedupe === false
+  );
 }
 
 function pkgById(ctx: WorkflowContext, id: string): WorkPackage | undefined {

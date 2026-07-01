@@ -96,7 +96,7 @@ export function PeopleScopeRoster({
   teams: Team[];
   viewerId: string;
   opsMap: Record<string, OrgChartUserOps>;
-  userDepartments: Record<string, string>;
+  userDepartments: Record<string, string | null>;
 }) {
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("all");

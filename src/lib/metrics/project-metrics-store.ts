@@ -3,6 +3,7 @@ import type {
   ProjectMetricDefinitionInput,
   ProjectMetricValue,
 } from "@/types/flow";
+import { newPersistedId } from "@/lib/server/persisted-id";
 
 const DEFINITIONS_KEY = "__flow_project_metric_definitions__";
 const VALUES_KEY = "__flow_project_metric_values__";
@@ -12,7 +13,7 @@ function globalScope(): Record<string, unknown> {
 }
 
 function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return newPersistedId(prefix);
 }
 
 function readDefinitions(): ProjectMetricDefinition[] {

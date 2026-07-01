@@ -23,14 +23,20 @@ import type {
 } from "@/lib/validation-center/types";
 
 const VALIDATION_PATHS = [
-  "/validation",
-  "/validation/runs",
-  "/validation/new",
-  "/validation/findings",
-  "/validation/corrections",
-  "/validation/history",
-  "/validation/reports",
-  "/validation/analytics",
+  "/qa-center",
+  "/qa-center/validation",
+  "/qa-center/validation/runs",
+  "/qa-center/validation/new",
+  "/qa-center/validation/findings",
+  "/qa-center/validation/corrections",
+  "/qa-center/validation/history",
+  "/qa-center/reports",
+  "/qa-center/analytics",
+  "/qa-center/settings",
+  "/qa-center/knowledge",
+  "/qa-center/rules",
+  "/qa-center/review",
+  "/qa-center/upload",
 ];
 
 function revalidateValidation() {
@@ -93,7 +99,7 @@ export async function createValidationRunAction(formData: FormData) {
       },
     });
     revalidateValidation();
-    revalidatePath(`/validation/runs/${run.id}`);
+    revalidatePath(`/qa-center/validation/runs/${run.id}`);
     return { ok: true as const, runId: run.id };
   } catch (e) {
     return {
@@ -136,7 +142,7 @@ export async function saveSiLibrarySettingsAction(settings: SiLibraryAuditSettin
 
   try {
     await saveSiLibrarySettings(settings, user.id);
-    revalidatePath("/validation/settings");
+    revalidatePath("/qa-center/settings");
     return { ok: true as const };
   } catch (e) {
     return {

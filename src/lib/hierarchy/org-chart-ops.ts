@@ -221,7 +221,6 @@ export function buildOrgChartProfileDetail(
 
   const activeTasks = packages
     .filter((p) => p.assigned_to === userId && p.status !== "done")
-    .slice(0, 8)
     .map((p) => ({ id: p.id, title: p.title, status: p.status }));
 
   let workloadSummary: string | null = null;

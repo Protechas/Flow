@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { useSecureCookies } from "@/lib/auth/cookie-options";
+import { shouldUseSecureCookies } from "@/lib/auth/cookie-options";
 import type { WorkloadAlertSettings } from "@/types/flow";
 
 export const WORKLOAD_ALERT_SETTINGS_COOKIE = "flow_workload_alert_settings";
@@ -72,7 +72,7 @@ export async function writeWorkloadAlertSettingsCookie(
   };
   store.set(WORKLOAD_ALERT_SETTINGS_COOKIE, JSON.stringify(snapshot), {
     httpOnly: true,
-    secure: useSecureCookies(),
+    secure: shouldUseSecureCookies(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,

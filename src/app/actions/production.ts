@@ -13,6 +13,7 @@ import {
 import {
   getActiveTaskTimeEntry,
   getLatestSubmission,
+  getProductionStore,
   getTaskFiles,
   getTotalTaskMinutes,
   pauseTaskTimer,
@@ -23,9 +24,15 @@ import {
   uploadTaskFile,
 } from "@/lib/data/production-tracking";
 import {
+  persistTaskFileUploadSync,
+  persistTaskSubmissionSync,
+  persistTaskTimeEntrySync,
+} from "@/lib/data/production-tracking-db";
+import {
   refreshTaskLiveForecastExternal,
   updateWorkPackageExternal,
 } from "@/lib/data/production-bridge";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 
 function revalidateProduction(taskId?: string) {
   revalidatePath("/work");
@@ -48,7 +55,9 @@ export async function startTaskTimerAction(taskId: string, managerOverride?: boo
     return { ok: false as const, code: gate.code, message: gate.message };
   }
   try {
-    startTaskTimer(user.id, taskId);
+    await ensureServerWriteContext();
+    const entry = startTaskTimer(user.id, taskId);
+    await persistTaskTimeEntrySync(entry);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to start task";
     if (msg.startsWith("ACTIVE_TASK:")) {
@@ -69,7 +78,9 @@ export async function startTaskTimerAction(taskId: string, managerOverride?: boo
 
 export async function pauseTaskTimerAction() {
   const user = await requireUser();
-  pauseTaskTimer(user.id);
+  await ensureServerWriteContext();
+  const entry = pauseTaskTimer(user.id);
+  await persistTaskTimeEntrySync(entry);
   revalidateProduction();
   return { ok: true as const };
 }
@@ -80,14 +91,18 @@ export async function resumeTaskTimerAction(managerOverride?: boolean) {
   if (!gate.ok) {
     return { ok: false as const, code: gate.code, message: gate.message };
   }
-  resumeTaskTimer(user.id);
+  await ensureServerWriteContext();
+  const entry = resumeTaskTimer(user.id);
+  await persistTaskTimeEntrySync(entry);
   revalidateProduction();
   return { ok: true as const };
 }
 
 export async function stopTaskTimerAction() {
   const user = await requireUser();
+  await ensureServerWriteContext();
   const entry = stopTaskTimer(user.id);
+  await persistTaskTimeEntrySync(entry);
   revalidateProduction(entry.task_id);
   return { ok: true as const, taskId: entry.task_id, minutes: entry.total_active_minutes };
 }
@@ -117,7 +132,8 @@ export async function uploadTaskFileAction(formData: FormData) {
         message: `File must be ${formatUploadLimitLabel(maxBytes)} or smaller`,
       };
     }
-    uploadTaskFile({
+    await ensureServerWriteContext();
+    const upload = uploadTaskFile({
       task_id: taskId,
       user_id: user.id,
       file_name: file.name,
@@ -125,6 +141,7 @@ export async function uploadTaskFileAction(formData: FormData) {
       file_size: buffer.length,
       file_data_base64: buffer.toString("base64"),
     });
+    await persistTaskFileUploadSync(upload);
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
@@ -148,12 +165,20 @@ export async function submitTaskForReviewAction(
       return { ok: false as const, code: gate.code, message: gate.message };
     }
     const roleOverride = hasPermission(user.role, "work:assign");
-    submitTaskForReview({
+    await ensureServerWriteContext();
+    const record = submitTaskForReview({
       task_id: taskId,
       user_id: user.id,
       notes,
       manager_override: managerOverride || roleOverride,
     });
+    await persistTaskSubmissionSync(record);
+    const completedTimer = getProductionStore()
+      .taskTimeEntries.filter(
+        (e) => e.user_id === user.id && e.task_id === taskId && e.status === "completed"
+      )
+      .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""))[0];
+    if (completedTimer) await persistTaskTimeEntrySync(completedTimer);
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
@@ -173,6 +198,7 @@ export async function submitTaskForReviewAction(
 export async function getTaskProductionStateAction(taskId: string) {
   const user = await requireUser();
   await assertCanEditWorkPackage(user, taskId);
+  await ensureServerWriteContext();
   const active = getActiveTaskTimeEntry(user.id);
   return {
     activeTimer: active?.task_id === taskId ? active : null,
@@ -197,6 +223,7 @@ export async function updateTaskDocumentProgressAction(
   if (!gate.ok) {
     return { ok: false as const, code: gate.code, message: gate.message };
   }
+  await ensureServerWriteContext();
   const count = Math.max(0, Math.round(completed));
   updateWorkPackageExternal(taskId, { current_documents_completed: count });
   refreshTaskLiveForecastExternal(taskId, getTotalTaskMinutes(taskId));

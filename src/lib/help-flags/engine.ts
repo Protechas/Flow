@@ -23,8 +23,7 @@ import {
   updateHelpFlagRecord,
 } from "@/lib/help-flags/store";
 import {
-  createNotificationSync,
-  hasRecentNotification,
+  deliverNotification,
 } from "@/lib/notifications/notifications";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
 import type {
@@ -57,16 +56,18 @@ function notifyRecipients(
   dedupeHours = 1
 ) {
   for (const r of recipients) {
-    if (hasRecentNotification(r.id, type, entityType, entityId, dedupeHours)) continue;
-    createNotificationSync({
-      user_id: r.id,
-      type,
-      title,
-      message,
-      related_entity_type: entityType,
-      related_entity_id: entityId,
-      link,
-    });
+    deliverNotification(
+      {
+        user_id: r.id,
+        type,
+        title,
+        message,
+        related_entity_type: entityType,
+        related_entity_id: entityId,
+        link,
+      },
+      dedupeHours
+    );
   }
 }
 
@@ -185,7 +186,7 @@ export function raiseHelpFlag(input: RaiseHelpFlagInput): HelpFlagRecord {
     0.5
   );
 
-  createNotificationSync({
+  deliverNotification({
     user_id: employee.id,
     type: "help_flag_raised",
     title: "Help request submitted",
@@ -364,7 +365,7 @@ export function acknowledgeHelpFlag(
 
   const employee = getFlowStore().users.find((u) => u.id === record.employee_id);
   if (employee) {
-    createNotificationSync({
+    deliverNotification({
       user_id: employee.id,
       type: "help_flag_acknowledged",
       title: "Help request acknowledged",
@@ -409,7 +410,7 @@ export function resolveHelpFlag(
 
   const employee = getFlowStore().users.find((u) => u.id === record.employee_id);
   if (employee) {
-    createNotificationSync({
+    deliverNotification({
       user_id: employee.id,
       type: "help_flag_resolved",
       title: "Help request resolved",

@@ -4,6 +4,7 @@ export const VERCEL_MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 export const TASK_FILE_MAX_BYTES = 10 * 1024 * 1024;
 export const COMPANY_DOCUMENT_MAX_BYTES = 25 * 1024 * 1024;
 export const FEEDBACK_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const QA_KNOWLEDGE_MAX_BYTES = 50 * 1024 * 1024;
 
 function isVercelDeployment(): boolean {
   return Boolean(process.env.VERCEL);
@@ -38,6 +39,14 @@ export function getFeedbackAttachmentMaxBytes(): number {
   return readPublicLimit(
     process.env.NEXT_PUBLIC_MAX_FEEDBACK_ATTACHMENT_BYTES,
     FEEDBACK_ATTACHMENT_MAX_BYTES
+  );
+}
+
+export function getQaKnowledgeMaxBytes(): number {
+  if (isVercelDeployment()) return VERCEL_MAX_UPLOAD_BYTES;
+  return readPublicLimit(
+    process.env.NEXT_PUBLIC_MAX_QA_KNOWLEDGE_BYTES,
+    QA_KNOWLEDGE_MAX_BYTES
   );
 }
 

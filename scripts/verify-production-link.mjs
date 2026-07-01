@@ -120,6 +120,9 @@ function main() {
   console.log(`  • NEXT_PUBLIC_FLOW_DEMO_MODE = false`);
   console.log(`  • Supabase → Auth → URL config → Site URL = https://${PRODUCTION_DOMAIN}`);
   console.log(`  • Redirect URL: https://${PRODUCTION_DOMAIN}/auth/callback`);
+  console.log(`  • Redirect URL: https://${PRODUCTION_DOMAIN}/auth/callback/**`);
+  console.log(`  • Redirect URL: https://${PRODUCTION_DOMAIN}/auth/confirm`);
+  console.log(`  • Redirect URL: https://${PRODUCTION_DOMAIN}/auth/confirm/**`);
   console.log("  • Vercel → Git → connected to https://github.com/Protechas/Flow.git");
   console.log("  • After env changes: redeploy production (git push or npx vercel deploy --prod)");
 

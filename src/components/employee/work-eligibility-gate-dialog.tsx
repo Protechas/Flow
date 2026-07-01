@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { clockInAction } from "@/app/actions/clock";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatActionError } from "@/lib/errors/action-messages";
 import { LogIn } from "lucide-react";
 
 export function WorkEligibilityGateDialog({
@@ -29,22 +30,35 @@ export function WorkEligibilityGateDialog({
   title?: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleClockIn() {
+    setError(null);
     startTransition(async () => {
-      await clockInAction();
-      onOpenChange(false);
-      onClockedIn?.();
+      try {
+        await clockInAction();
+        onOpenChange(false);
+        onClockedIn?.();
+      } catch (e) {
+        setError(formatActionError(e));
+      }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null);
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             {allowClockIn ? "Not now" : "Close"}

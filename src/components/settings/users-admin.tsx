@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  adminDeleteUserAction,
   adminResetPasswordAction,
   setUserActiveAction,
 } from "@/app/actions/users";
@@ -32,7 +33,7 @@ import type {
   Team,
   User,
 } from "@/types/flow";
-import { MoreHorizontal, Pencil, Shield, UserMinus, UserPlus } from "lucide-react";
+import { MoreHorizontal, Pencil, Shield, Trash2, UserMinus, UserPlus } from "lucide-react";
 
 type EditorMode = "edit" | "access" | "account" | "position";
 
@@ -75,6 +76,17 @@ export function UsersAdmin({
         setError(formatActionError(e));
       }
     });
+  }
+
+  function confirmDeleteUser(user: User) {
+    const ok = window.confirm(
+      `Permanently delete ${user.full_name} (${user.email})?\n\nThis removes their login and profile. You can invite the same email again afterward.`
+    );
+    if (!ok) return;
+    run(
+      () => adminDeleteUserAction(user.id),
+      `${user.full_name} deleted. You can create a fresh account with the same email.`
+    );
   }
 
   function managerName(user: User): string {
@@ -248,6 +260,14 @@ export function UsersAdmin({
                             Send reset email
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => confirmDeleteUser(user)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Delete user permanently
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

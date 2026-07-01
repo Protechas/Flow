@@ -2,7 +2,6 @@ import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { PLANNING_METRIC_HELP_KEYS } from "@/lib/help/help-text";
 import { getDepartmentName } from "@/lib/departments/resolve";
-import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getProjectHealthList } from "@/lib/data/project-health";
 import { initProductionTracking, getProductionStore } from "@/lib/data/production-tracking";
@@ -41,6 +40,7 @@ import {
   qaCenterHref,
   wrapUpsHref,
 } from "@/lib/navigation/deep-links";
+import { refreshPlanningForecasts } from "@/lib/planning/refresh-forecasts";
 import { isProductionEmployee } from "@/lib/users/production-roster";
 import type { User, WorkPackage } from "@/types/flow";
 import { addDays, addWeeks, format } from "date-fns";
@@ -168,7 +168,7 @@ function buildRecommendations(
 }
 
 export async function buildPlanningCenterSnapshot(viewer: User): Promise<PlanningCenterSnapshot> {
-  await ensureAppDataLoaded();
+  const forecastRefreshedAt = await refreshPlanningForecasts();
   initProductionTracking();
   const store = getFlowStore();
   const settings = getForecastSettings();
@@ -517,6 +517,7 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
 
   const partial: Omit<PlanningCenterSnapshot, "recommendations"> = {
     scopeLabel,
+    forecastRefreshedAt,
     operationsStatus,
     executiveForecast,
     expectedOutcomes,

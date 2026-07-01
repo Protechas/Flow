@@ -191,7 +191,7 @@ export async function persistValidationRun(
   if (runError) throw new Error(runError.message);
 
   for (const file of files) {
-    let storagePath = file.storage_path;
+    const storagePath = file.storage_path;
     if (file.file_data_base64) {
       const buffer = Buffer.from(file.file_data_base64, "base64");
       const { error: uploadError } = await supabase.storage
@@ -398,7 +398,7 @@ export async function persistValidationStoredFiles(
   const supabase = await createClient();
 
   for (const file of files) {
-    let storagePath = file.storage_path;
+    const storagePath = file.storage_path;
     if (file.file_data_base64) {
       const buffer = Buffer.from(file.file_data_base64, "base64");
       const { error: uploadError } = await supabase.storage

@@ -1,4 +1,3 @@
-import { DEMO_USER_ID, MOCK_USERS } from "@/lib/data/mock-data";
 import { getDemoUser } from "@/lib/auth/demo-session";
 import { getTeamMemberIds } from "@/lib/auth/team-scope";
 import { getAssignableUserIds } from "@/lib/hierarchy/resolver";
@@ -15,10 +14,7 @@ import type { User, UserRole } from "@/types/flow";
 
 export async function getCurrentUser(): Promise<User | null> {
   if (!isSupabaseConfigured()) {
-    const demo = await getDemoUser();
-    if (demo) return demo;
-    const fallback = MOCK_USERS.find((u) => u.id === DEMO_USER_ID) ?? MOCK_USERS[1];
-    return fallback ? { ...fallback, role: normalizeRole(fallback.role) } : null;
+    return getDemoUser();
   }
 
   const supabase = await createClient();

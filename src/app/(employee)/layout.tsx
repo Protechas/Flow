@@ -4,6 +4,7 @@ import { getDefaultRoute, isEmployeeRole } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getDemoUserId } from "@/lib/auth/demo-session";
+import { loadHiddenEmployeeNavHrefs } from "@/lib/auth/feature-access-loader";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
@@ -26,6 +27,7 @@ export default async function EmployeeLayout({
 
   const demoMode = !isSupabaseConfigured();
   const hasDemoCookie = demoMode ? !!(await getDemoUserId()) : false;
+  const hiddenEmployeeNavHrefs = await loadHiddenEmployeeNavHrefs(user);
   const activeClock = getActiveClockEntry(user.id);
   const todayClockEntries = getTodayClockEntries(user.id);
 
@@ -34,6 +36,7 @@ export default async function EmployeeLayout({
       <EmployeeHeader
         user={user}
         demoMode={demoMode && hasDemoCookie}
+        hiddenNavHrefs={hiddenEmployeeNavHrefs}
         activeClock={activeClock}
         todayClockEntries={todayClockEntries}
       />

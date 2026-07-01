@@ -41,6 +41,7 @@ import type {
   ValidationFindingStatus,
   ValidationRootCause,
 } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 import type { Project, User } from "@/types/flow";
 import { ListTodo } from "lucide-react";
 
@@ -155,7 +156,7 @@ export function ValidationFindingsHub({
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
         No findings yet.{" "}
-        <Link href="/validation/new" className="text-primary hover:underline">
+        <Link href={validationPath("/new")} className="text-primary hover:underline">
           Run a validation
         </Link>{" "}
         to generate findings.
@@ -443,7 +444,7 @@ export function ValidationFindingsHub({
             <Button
               variant="outline"
               size="sm"
-              render={<Link href={`/validation/runs/${selected.validation_run_id}`} />}
+              render={<Link href={validationPath(`/runs/${selected.validation_run_id}`)} />}
             >
               View source run
             </Button>

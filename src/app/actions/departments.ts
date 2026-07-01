@@ -1,9 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrgStructure } from "@/lib/data/revalidate-flow";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/permissions";
-import { canManageDepartment } from "@/lib/departments/scope";
+import {
+  canManageDepartment,
+  filterDepartmentsForViewer,
+  getViewerDepartmentIds,
+} from "@/lib/departments/scope";
 import { requireUser, requirePermission } from "@/lib/auth/session";
 import {
   countProjectsForDepartment,
@@ -35,7 +39,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { DepartmentRoleInDepartment } from "@/types/flow";
 
 function revalidateDeptPaths() {
-  revalidatePath("/", "layout");
+  revalidateOrgStructure();
 }
 
 async function persistDepartment(
@@ -51,25 +55,45 @@ async function persistTeam(id: string, updates: Parameters<typeof updateTeamDb>[
   return isSupabaseConfigured() ? await updateTeamDb(id, updates) : updateTeam(id, updates);
 }
 
+async function requireOrgStructureRead() {
+  const user = await requireUser();
+  if (
+    hasPermission(user.role, "departments:manage") ||
+    hasPermission(user.role, "departments:view") ||
+    hasPermission(user.role, "users:manage")
+  ) {
+    return user;
+  }
+  throw new Error("FORBIDDEN");
+}
+
 export async function getDepartmentsAction() {
-  await requireUser();
+  const viewer = await requireOrgStructureRead();
   initFlowStore();
   await ensureDepartmentsLoaded();
-  return listDepartments();
+  return filterDepartmentsForViewer(listDepartments(), viewer);
 }
 
 export async function getTeamsAction() {
-  await requireUser();
+  const viewer = await requireOrgStructureRead();
   initFlowStore();
   await ensureDepartmentsLoaded();
-  return listTeamsStore();
+  const teams = listTeamsStore();
+  const allowed = getViewerDepartmentIds(viewer);
+  if (allowed === null) return teams;
+  const set = new Set(allowed);
+  return teams.filter((t) => t.department_id && set.has(t.department_id));
 }
 
 export async function getDepartmentUsersAction() {
-  await requireUser();
+  const viewer = await requireOrgStructureRead();
   initFlowStore();
   await ensureDepartmentsLoaded();
-  return listDepartmentUsers();
+  const rows = listDepartmentUsers();
+  const allowed = getViewerDepartmentIds(viewer);
+  if (allowed === null) return rows;
+  const set = new Set(allowed);
+  return rows.filter((du) => set.has(du.department_id));
 }
 
 export async function createDepartmentAction(input: {

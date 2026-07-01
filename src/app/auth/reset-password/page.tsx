@@ -1,11 +1,27 @@
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default function ResetPasswordPage() {
   if (!isSupabaseConfigured()) {
-    redirect("/login");
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-border">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-xl font-semibold tracking-tight">Wrong environment</CardTitle>
+            <CardDescription>
+              This server is running in demo mode. Password reset links must open on production:
+              {" "}
+              <Link href="https://flowproduction.space/auth/forgot-password" className="text-primary hover:underline">
+                flowproduction.space
+              </Link>
+              .
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
   return (

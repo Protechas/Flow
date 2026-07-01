@@ -1,12 +1,12 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { NotificationCenterView } from "@/components/notifications/notification-center-view";
 import { requirePageAccess } from "@/lib/auth/guard";
-import { runWorkflowChecksAction } from "@/app/actions/notifications";
+import { runWorkflowChecks } from "@/lib/workflow/run-checks";
 import { getNotificationCenter } from "@/lib/notifications/hub";
 
 export default async function NotificationsPage() {
   const user = await requirePageAccess("/notifications");
-  await runWorkflowChecksAction();
+  await runWorkflowChecks();
   const { items, unread } = await getNotificationCenter(user.id, { limit: 100 });
 
   return (

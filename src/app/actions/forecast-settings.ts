@@ -24,6 +24,7 @@ const PATHS = [
 ];
 
 export async function getForecastSettingsAction(): Promise<ForecastSettings> {
+  await requireUser();
   await hydrateForecastSettings();
   return getForecastSettings();
 }

@@ -23,6 +23,7 @@ const PATHS = [
 ];
 
 export async function getWorkloadAlertSettingsAction(): Promise<WorkloadAlertSettings> {
+  await requirePermission("settings:manage");
   await hydrateWorkloadAlertSettings();
   return getWorkloadAlertSettings();
 }

@@ -320,8 +320,13 @@ async function main() {
   }
 
   console.log("\n--- Manual step (Supabase dashboard) ---");
-  console.log("Authentication → URL configuration → add redirect URL:");
-  console.log(`  ${siteUrl}/auth/callback`);
+  console.log("Authentication → URL configuration");
+  console.log(`  Site URL: ${siteUrl}  (must NOT be localhost in production)`);
+  console.log("  Redirect URLs — add:");
+  console.log(`    ${siteUrl}/auth/callback`);
+  console.log(`    ${siteUrl}/auth/callback/**`);
+  console.log(`    ${siteUrl}/auth/confirm`);
+  console.log(`    ${siteUrl}/auth/confirm/**`);
   console.log("\nThen: npm run dev → /login\n");
 }
 

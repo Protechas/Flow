@@ -7,6 +7,7 @@ import { ValidationEnginePicker } from "@/components/validation-center/validatio
 import { ValidationRunsTable } from "@/components/validation-center/validation-runs-table";
 import { ValidationSubnav } from "@/components/validation-center/validation-subnav";
 import type { ValidationRunView } from "@/lib/validation-center/types";
+import { validationPath } from "@/lib/validation-center/nav";
 
 export function ValidationDashboard({
   runs,
@@ -34,7 +35,7 @@ export function ValidationDashboard({
           Run validation engines, review findings, and turn audit results into tracked corrections —
           all inside Flow.
         </p>
-        <Button render={<Link href="/validation/new" />}>New Validation</Button>
+        <Button render={<Link href={validationPath("/new")} />}>New Validation</Button>
       </div>
 
       <KpiStrip
@@ -49,19 +50,19 @@ export function ValidationDashboard({
             label: "Open Findings",
             value: stats.openFindings > 0 ? stats.openFindings : "—",
             sublabel: stats.totalFindings ? `${stats.totalFindings} total` : undefined,
-            href: "/validation/findings",
+            href: validationPath("/findings"),
           },
           {
             label: "Critical / High",
             value: stats.criticalFindings > 0 ? stats.criticalFindings : "—",
             sublabel: "Open findings",
             critical: stats.criticalFindings > 0,
-            href: "/validation/findings",
+            href: validationPath("/findings"),
           },
           {
             label: "Completed Runs",
             value: stats.completedRuns,
-            href: "/validation/runs",
+            href: validationPath("/runs"),
           },
         ]}
       />
@@ -78,13 +79,13 @@ export function ValidationDashboard({
                   ? `${stats.revalidationImprovementPct >= 0 ? "+" : ""}${stats.revalidationImprovementPct}%`
                   : "—",
               sublabel: "Linked rerun compliance delta",
-              href: "/validation/history",
+              href: validationPath("/history"),
             },
             {
               label: "Active Corrections",
               value: stats.correctionsInProgress ?? 0,
               sublabel: "Findings with open tasks",
-              href: "/validation/corrections",
+              href: validationPath("/corrections"),
               warn: (stats.correctionsInProgress ?? 0) > 0,
             },
           ]}
@@ -101,7 +102,7 @@ export function ValidationDashboard({
             <CardDescription>Upload files and run SI Library Audit</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button size="sm" variant="outline" render={<Link href="/validation/new" />}>
+            <Button size="sm" variant="outline" render={<Link href={validationPath("/new")} />}>
               Start validation
             </Button>
           </CardContent>
@@ -115,7 +116,7 @@ export function ValidationDashboard({
             <CardDescription>Search, filter, and classify issues</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button size="sm" variant="outline" render={<Link href="/validation/findings" />}>
+            <Button size="sm" variant="outline" render={<Link href={validationPath("/findings")} />}>
               Open findings
             </Button>
           </CardContent>
@@ -129,10 +130,10 @@ export function ValidationDashboard({
             <CardDescription>Monitor linked Flow tasks and QA</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" render={<Link href="/validation/corrections" />}>
+            <Button size="sm" variant="outline" render={<Link href={validationPath("/corrections")} />}>
               View corrections
             </Button>
-            <Button size="sm" variant="ghost" render={<Link href="/validation/history" />}>
+            <Button size="sm" variant="ghost" render={<Link href={validationPath("/history")} />}>
               Compare runs
             </Button>
           </CardContent>
@@ -142,7 +143,7 @@ export function ValidationDashboard({
       <div className="mt-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold">Recent runs</h2>
-          <Link href="/validation/runs" className="text-sm text-primary hover:underline">
+          <Link href={validationPath("/runs")} className="text-sm text-primary hover:underline">
             View all
           </Link>
         </div>

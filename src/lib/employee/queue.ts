@@ -50,10 +50,7 @@ export function compareQueueOrder(a: WorkPackage, b: WorkPackage): number {
   return a.created_at.localeCompare(b.created_at);
 }
 
-function inferBlockReason(
-  task: WorkPackage,
-  currentTaskId: string | null
-): EmployeeQueueBlockedItem | null {
+function inferBlockReason(task: WorkPackage): EmployeeQueueBlockedItem | null {
   if (task.status === "ready_for_qa" || task.status === "in_qa") {
     return {
       task,
@@ -75,18 +72,6 @@ function inferBlockReason(
       task,
       reason: "missing_info",
       label: task.notes?.trim() || QUEUE_BLOCK_LABELS.missing_info,
-    };
-  }
-
-  if (
-    currentTaskId &&
-    task.id !== currentTaskId &&
-    (task.status === "assigned" || task.status === "not_started")
-  ) {
-    return {
-      task,
-      reason: "waiting_on_prior_task",
-      label: QUEUE_BLOCK_LABELS.waiting_on_prior_task,
     };
   }
 
@@ -181,7 +166,7 @@ export function buildEmployeeMyQueue(input: {
     if (task.status === "done") continue;
     if (currentId && task.id === currentId) continue;
 
-    const block = inferBlockReason(task, currentId);
+    const block = inferBlockReason(task);
     if (block) {
       blocked.push(block);
       continue;

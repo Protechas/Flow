@@ -1,6 +1,7 @@
 import {
   COMPANY_DOCUMENT_MAX_BYTES,
   FEEDBACK_ATTACHMENT_MAX_BYTES,
+  QA_KNOWLEDGE_MAX_BYTES,
   TASK_FILE_MAX_BYTES,
   formatUploadLimitLabel,
 } from "@/lib/files/upload-limits";
@@ -26,6 +27,11 @@ export const clientCompanyDocumentMaxBytes = readPublicLimit(
 export const clientFeedbackAttachmentMaxBytes = readPublicLimit(
   process.env.NEXT_PUBLIC_MAX_FEEDBACK_ATTACHMENT_BYTES,
   FEEDBACK_ATTACHMENT_MAX_BYTES
+);
+
+export const clientQaKnowledgeMaxBytes = readPublicLimit(
+  process.env.NEXT_PUBLIC_MAX_QA_KNOWLEDGE_BYTES,
+  QA_KNOWLEDGE_MAX_BYTES
 );
 
 export { formatUploadLimitLabel };
