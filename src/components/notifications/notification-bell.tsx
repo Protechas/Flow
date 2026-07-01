@@ -27,18 +27,18 @@ export function NotificationBell() {
 
   const refresh = useCallback(() => {
     startTransition(async () => {
-      const data = await getNotificationsAction({ limit: 20, status: "all" });
-      setItems(data.items);
-      setUnread(data.unread);
+      try {
+        const data = await getNotificationsAction({ limit: 20, status: "all" });
+        setItems(data.items);
+        setUnread(data.unread);
+      } catch {
+        // Supabase busy — keep page alive; bell shows empty until next refresh.
+      }
     });
   }, []);
 
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 60_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
-
+  // Only fetch when opened — mount-time server actions were crashing /operations
+  // with "An unexpected response was received from the server" during Supabase load.
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);

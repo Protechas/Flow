@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requireAuthenticatedUser, requireUser } from "@/lib/auth/session";
+import { withTimeout } from "@/lib/server/with-timeout";
 import { applyStuckStatus, getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   getNotificationCenter,
@@ -62,8 +63,16 @@ export async function runWorkflowChecksAction() {
 
 /** Lightweight read for header bell — no full store hydrate or workflow sync. */
 export async function getNotificationsAction(filters?: NotificationCenterFilters) {
-  const user = await requireAuthenticatedUser();
-  return getNotificationCenter(user.id, filters ?? { limit: 50 });
+  try {
+    const user = await withTimeout(
+      requireAuthenticatedUser(),
+      8_000,
+      "Notification auth timed out"
+    );
+    return await getNotificationCenter(user.id, filters ?? { limit: 50 });
+  } catch {
+    return { items: [], unread: 0, total: 0 };
+  }
 }
 
 export async function markNotificationReadAction(id: string) {
