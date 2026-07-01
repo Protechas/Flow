@@ -52,7 +52,6 @@ import { OperationsPlanningProvider } from "@/components/operations/operations-p
 import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
 import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 import { listActivityGapsForViewer } from "@/lib/work-visibility/engine";
-import { runWorkflowChecksAction } from "@/app/actions/notifications";
 
 export default async function OperationsPage({
   searchParams,
@@ -80,7 +79,6 @@ export default async function OperationsPage({
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
   await hydrateWorkVisibilitySettings();
-  await runWorkflowChecksAction();
   initProductionTracking();
   const store = getFlowStore();
   const teams = listTeamsStore();

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { requireUser } from "@/lib/auth/session";
+import { requireAuthenticatedUser, requireUser } from "@/lib/auth/session";
 import { applyStuckStatus, getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   getNotificationCenter,
@@ -60,20 +60,20 @@ export async function runWorkflowChecksAction() {
   }
 }
 
+/** Lightweight read for header bell — no full store hydrate or workflow sync. */
 export async function getNotificationsAction(filters?: NotificationCenterFilters) {
-  const user = await requireUser();
-  await runWorkflowChecksAction();
+  const user = await requireAuthenticatedUser();
   return getNotificationCenter(user.id, filters ?? { limit: 50 });
 }
 
 export async function markNotificationReadAction(id: string) {
-  const user = await requireUser();
+  const user = await requireAuthenticatedUser();
   await markNotificationRead(id, user.id);
   revalidateNotificationPaths();
 }
 
 export async function markAllNotificationsReadAction() {
-  const user = await requireUser();
+  const user = await requireAuthenticatedUser();
   await markAllNotificationsRead(user.id);
   revalidateNotificationPaths();
 }

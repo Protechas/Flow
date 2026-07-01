@@ -2,13 +2,11 @@ import { Suspense } from "react";
 import { ExecutiveDashboardView } from "@/components/command-center/executive-dashboard-view";
 import { CommandCenterSkeleton } from "@/components/enterprise/command-center-skeleton";
 import { FlowPageShell, PLATFORM_EYEBROWS, WorkspaceContainer } from "@/components/platform";
-import { runWorkflowChecksAction } from "@/app/actions/notifications";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getCommandCenterMetrics } from "@/lib/data/command-center";
 import type { User } from "@/types/flow";
 
 async function ExecutiveDashboardContent({ user }: { user: User }) {
-  await runWorkflowChecksAction();
   const data = await getCommandCenterMetrics(user);
   return <ExecutiveDashboardView data={data} role={user.role} />;
 }

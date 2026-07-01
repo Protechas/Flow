@@ -14,7 +14,6 @@ import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { buildPlanningCenterSnapshot } from "@/lib/planning/snapshot";
 import { filterDepartmentsForViewer } from "@/lib/departments/scope";
 import { getActiveDepartments } from "@/lib/departments/filters";
-import { runWorkflowChecksAction } from "@/app/actions/notifications";
 import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 
 export default async function PlanningPage() {
@@ -23,7 +22,6 @@ export default async function PlanningPage() {
   await hydrateWorkloadAlertSettings();
   await hydrateHelpFlagSettings();
   await hydrateWorkVisibilitySettings();
-  await runWorkflowChecksAction();
   initFlowStore();
 
   const snapshot = await buildPlanningCenterSnapshot(user);

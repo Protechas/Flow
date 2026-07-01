@@ -34,6 +34,13 @@ export async function getCurrentUser(): Promise<User | null> {
   return profile;
 }
 
+/** Auth only — no full org hydrate (notification bell, lightweight actions). */
+export async function requireAuthenticatedUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHORIZED");
+  return user;
+}
+
 export async function requireUser(): Promise<User> {
   if (isSupabaseConfigured()) {
     const { ensureAppDataLoaded } = await import("@/lib/data/app-hydrate");
