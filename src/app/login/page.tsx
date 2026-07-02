@@ -53,7 +53,9 @@ export default async function LoginPage({
           {supabaseEnabled && (
             <p className="text-center text-xs text-muted-foreground mt-4">
               Stuck signing in?{" "}
-              <Link href="/auth/clear" className="text-primary hover:underline">
+              {/* prefetch must stay off: prefetching this route executes it,
+                  signing the user out immediately after login. */}
+              <Link href="/auth/clear" prefetch={false} className="text-primary hover:underline">
                 Clear session
               </Link>
             </p>

@@ -15,6 +15,17 @@ function isFlowAuthCookie(name: string): boolean {
 }
 
 export async function GET(request: Request) {
+  // Never clear a session on speculative loads. Router/browser prefetches of
+  // the "Clear session" link would otherwise sign the user out invisibly.
+  const purpose =
+    request.headers.get("next-router-prefetch") ??
+    request.headers.get("sec-purpose") ??
+    request.headers.get("purpose") ??
+    request.headers.get("x-purpose");
+  if (purpose !== null) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   const store = await cookies();
 
   if (isSupabaseConfigured()) {
