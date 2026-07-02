@@ -29,9 +29,13 @@ export async function proxy(request: NextRequest) {
 
     if (hasDemoSession && isAuthRoute) {
       const role = getDemoRoleFromUserId(hasDemoSession);
-      const url = request.nextUrl.clone();
-      url.pathname = role ? redirectPathForRole(role) : "/operations";
-      return NextResponse.redirect(url);
+      // Stale cookie (unknown user): stay on the auth route so the user can
+      // sign in again — redirecting away would loop with the page guards.
+      if (role) {
+        const url = request.nextUrl.clone();
+        url.pathname = redirectPathForRole(role);
+        return NextResponse.redirect(url);
+      }
     }
 
     if (hasDemoSession && shouldProtectRoute(pathname)) {

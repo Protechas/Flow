@@ -496,7 +496,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/analytics": ["reports:view_all", "reports:view_team", "people:view_all", "people:view_team"],
 
-  "/performance": ["people:view_all", "reports:view_all"],
+  "/performance": ["people:view_all", "reports:view_all", "people:view_team", "reports:view_team"],
 
   "/project-health": "dashboard:view",
 
@@ -853,7 +853,7 @@ export const NAV_CONFIG: {
 
   { id: "qa-center", href: "/qa-center", label: "QA Center", icon: "Brain", group: "attention", permissions: ["validation:view", "qa:review", "qa:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "wrap-ups", href: "/wrap-ups", label: "Daily Reports", icon: "ClipboardList", group: "attention", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
+  { id: "wrap-ups", href: "/wrap-ups", label: "Daily Reports", icon: "ClipboardList", group: "attention", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
@@ -863,11 +863,11 @@ export const NAV_CONFIG: {
 
   { id: "project-health", href: "/project-health", label: "Project Health", icon: "HeartPulse", group: "operations", permissions: "dashboard:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
-  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "operations", permissions: "company_documents:view", roles: ["admin", "manager", "teamlead", "employee", "viewer"] },
+  { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "operations", permissions: "company_documents:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"] },
 
   { id: "people", href: "/people", label: "People", icon: "Users", group: "workforce", permissions: ["people:view_all", "people:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
-  { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "workforce", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "manager", "teamlead"] },
+  { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "workforce", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "workforce", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
@@ -1035,6 +1035,10 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
 
       "/project-health",
 
+      "/files",
+
+      "/performance",
+
       "/people",
 
       "/qa-center",
@@ -1090,6 +1094,8 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
       "/reports/work-visibility",
 
       "/analytics",
+
+      "/planning",
 
       "/operations",
 

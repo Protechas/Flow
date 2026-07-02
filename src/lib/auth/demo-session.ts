@@ -42,7 +42,9 @@ export async function getDemoUser(): Promise<User | null> {
   if (!id) return null;
   const user = MOCK_USERS.find((u) => u.id === id);
   if (!user || !user.is_active) {
-    await clearDemoSession();
+    // Stale cookie for an unknown/inactive user. Cookies cannot be modified
+    // during server-component render, so just treat it as signed out; the
+    // cookie is overwritten on the next login (or cleared via /auth/clear).
     return null;
   }
   return { ...user, role: normalizeRole(user.role) };
