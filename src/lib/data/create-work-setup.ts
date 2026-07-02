@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import type { ForecastComplexityLevel, WorkPackage, WorkPriority } from "@/types/flow";
 import { defaultPackageTitle } from "@/lib/data/work-assign";
 import {
@@ -52,7 +53,7 @@ export function createQuickTask(input: QuickTaskInput): WorkPackage {
         project_type: input.projectType ?? "custom",
         status: "active",
         priority: "medium",
-        start_date: new Date().toISOString().split("T")[0],
+        start_date: appTodayDate(),
         due_date: null,
         project_owner_id: input.projectOwnerId ?? null,
         estimated_total_documents:

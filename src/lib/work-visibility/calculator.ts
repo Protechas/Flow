@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import {
   getActiveClockEntry,
@@ -78,7 +79,7 @@ export function buildEmployeeWorkVisibilityMetrics(
 ): EmployeeWorkVisibilityMetrics {
   initFlowStore();
   const store = getFlowStore();
-  const dateStr = options?.date ?? format(new Date(), "yyyy-MM-dd");
+  const dateStr = options?.date ?? appTodayDate();
   const clockedMinutes = requiresShiftClock(user)
     ? shiftMinutesForDate(user.id, dateStr)
     : taskMinutesForDate(user.id, dateStr);
@@ -116,7 +117,7 @@ export function buildEmployeeWorkVisibilityMetrics(
       wrapStatus === "submitted" || wrapStatus === "overridden" ? 100 : 0;
   }
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = appTodayDate();
   const documentsCompleted =
     dateStr === todayStr
       ? getProductionStore().taskFileUploads.filter(

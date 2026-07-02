@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import {
   computeQaTurnaroundHours,
   generateCommandCenterInsights,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/design/department-health";
 import { buildScopedWorkVisibility } from "@/lib/work-visibility/engine";
 import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
-import { isSameDay, parseISO, subDays, format } from "date-fns";
+import { isSameDay, parseISO, subDays } from "date-fns";
 
 function trendDeltaFor(sc: EmployeeScorecard, rankings: EmployeeRanking[]): number {
   return rankings.find((r) => r.userId === sc.user.id)?.trendDelta ?? 0;
@@ -345,7 +346,7 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
   const activeTaskTimers = production.taskTimeEntries.filter(
     (e) => e.status === "active" || e.status === "paused"
   ).length;
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = appTodayDate();
   const documentsCompletedToday = production.taskFileUploads.filter((f) =>
     f.uploaded_at.startsWith(todayStr)
   ).length;

@@ -1,7 +1,7 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
-import { format } from "date-fns";
 import { requireUser } from "@/lib/auth/session";
 import { hasPermission, isEmployeeRole } from "@/lib/auth/permissions";
 import { canViewerSeeUser } from "@/lib/auth/team-scope";
@@ -93,7 +93,7 @@ export async function clockOutAction(outType: "lunch" | "out") {
   }
 
   if (outType === "out" && isEmployeeRole(user.role) && requiresShiftClock(user)) {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = appTodayDate();
     if (!canClockOutForDay(user.id, today)) {
       recordWrapUpBlockAttempt(user.id, today);
       await writeAuditLog({

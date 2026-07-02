@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { requireUser } from "@/lib/auth/session";
@@ -34,7 +35,7 @@ export async function recordProgramSnapshotAction(intel: ProgramIntelligence): P
   await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return;
   const supabase = await createClient();
-  const date = format(new Date(), "yyyy-MM-dd");
+  const date = appTodayDate();
 
   await supabase
     .from("project_intelligence_snapshots")
@@ -60,7 +61,7 @@ export async function recordPortfolioSnapshotAction(
   await requireIntelligenceAccess();
   if (!isSupabaseConfigured()) return;
   const supabase = await createClient();
-  const date = format(new Date(), "yyyy-MM-dd");
+  const date = appTodayDate();
 
   await supabase
     .from("project_intelligence_snapshots")

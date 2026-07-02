@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { writeAuditLog } from "@/lib/audit/audit-log";
@@ -106,7 +107,7 @@ export async function createProjectFromWizardAction(input: {
     structure_mode: "custom",
     status: "active",
     priority: input.priority ?? "medium",
-    start_date: new Date().toISOString().split("T")[0],
+    start_date: appTodayDate(),
     due_date: input.dueDate ?? null,
     manual_project_due_date: input.dueDate ?? null,
     department_id: input.departmentId,

@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import type {
   PortfolioIntelligenceSummary,
   ProgramIntelligence,
@@ -31,7 +32,7 @@ type SnapshotStore = {
 };
 
 function todayKey(): string {
-  return format(new Date(), "yyyy-MM-dd");
+  return appTodayDate();
 }
 
 function chartLabel(date: string): string {

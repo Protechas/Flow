@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
 import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getDepartmentName } from "@/lib/departments/resolve";
@@ -397,7 +398,7 @@ export async function buildFlowAnalyticsSnapshot(
   const activeTaskTimers = prodStore.taskTimeEntries.filter(
     (e) => e.status === "active" || e.status === "paused"
   ).length;
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = appTodayDate();
   const documentsCompletedToday = prodStore.taskFileUploads.filter((f) =>
     f.uploaded_at.startsWith(todayStr)
   ).length;

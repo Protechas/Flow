@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import {
   bulkCreateYears,
   createManufacturer,
@@ -40,7 +41,7 @@ export function generateProjectFromTemplate(
       project_type: template.projectType,
       status: "active",
       priority: template.defaultPriority,
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       due_date: null,
       department_id: input.departmentId,
       team_id: input.teamId,
@@ -89,7 +90,7 @@ export function generateProjectFromTemplate(
       status: taskTpl.status,
       priority: taskTpl.priority,
       due_date: null,
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       estimated_hours: taskTpl.estimated_hours ?? 4,
       estimated_document_count: template.forecastingEnabled
         ? taskTpl.estimated_document_count ?? 10

@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { requirePermission } from "@/lib/auth/session";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
@@ -124,7 +125,7 @@ export async function createBulkMatrixProjectAction(input: {
       structure_mode: structureMode,
       status: "active",
       priority: input.priority ?? "medium",
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       due_date: input.manualDueDate ?? null,
       manual_project_due_date: input.manualDueDate ?? null,
       department_id: input.departmentId,

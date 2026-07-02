@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { requirePermission } from "@/lib/auth/session";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
@@ -99,7 +100,7 @@ export async function createProjectWithStructureAction(draft: {
       structure_mode: draft.structureMode,
       status: "active",
       priority: draft.priority ?? "medium",
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       due_date: draft.manualDueDate ?? null,
       manual_project_due_date: draft.manualDueDate ?? null,
       department_id: draft.departmentId,

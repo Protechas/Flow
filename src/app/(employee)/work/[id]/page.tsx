@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { EmployeeTaskWorkspace } from "@/components/employee/employee-task-workspace";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
@@ -21,7 +22,6 @@ import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { redirect } from "next/navigation";
 import { enrichPackages } from "@/lib/data/flow-store";
-import { format } from "date-fns";
 
 export default async function EmployeeTaskPage({
   params,
@@ -52,7 +52,7 @@ export default async function EmployeeTaskPage({
     (f) => f.task_id === task.id || !f.task_id
   );
   const activeTimer = getActiveTaskTimeEntry(user.id);
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
   const payType = normalizePayType(user.pay_type, user.role);
 
   const workflowInput = buildTaskPageWorkflowInput({

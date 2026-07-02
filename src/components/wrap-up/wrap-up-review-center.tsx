@@ -1,5 +1,6 @@
 "use client";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -111,7 +112,7 @@ export function WrapUpReviewCenter({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `wrap-ups-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `wrap-ups-${appTodayDate()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }

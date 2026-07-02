@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { hasPermission } from "@/lib/auth/permissions";
 import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { getDepartmentName, getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
@@ -45,7 +46,7 @@ function getClockOutStatus(userId: string, wrapDate: string): {
   if (endOfDayOut) {
     return { status: "clocked_out", clockOutAt: endOfDayOut.clock_out_at };
   }
-  const isToday = wrapDate === format(new Date(), "yyyy-MM-dd");
+  const isToday = wrapDate === appTodayDate();
   if (isToday && getActiveClockEntry(userId)) {
     return { status: "on_shift", clockOutAt: null };
   }
@@ -237,7 +238,7 @@ export function getWrapUpReviewDetail(
     clockOutStatus,
     clockOutAt,
     shiftMinutesToday:
-      wrapUp.wrap_date === format(new Date(), "yyyy-MM-dd")
+      wrapUp.wrap_date === appTodayDate()
         ? getShiftMinutesToday(wrapUp.user_id)
         : clockEntries.reduce((s, e) => s + (e.total_minutes ?? 0), 0),
     clockEntries,
@@ -246,7 +247,7 @@ export function getWrapUpReviewDetail(
 }
 
 export function getWrapUpDashboardStats(viewer: User): WrapUpReviewDashboardStats {
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
   const rows = buildWrapUpReviewRows(viewer, {
     startDate: today,
     endDate: today,

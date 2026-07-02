@@ -1,5 +1,6 @@
 "use client";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { useMemo, useState, useTransition } from "react";
 import { createWorkPackageAction } from "@/app/actions/crud";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function AddWorkPackageDialog({
         {
           estimated_document_count: docs > 0 ? docs : null,
           complexity_level: complexity,
-          start_date: new Date().toISOString().split("T")[0],
+          start_date: appTodayDate(),
           manual_due_date: null,
           due_date: null,
         },

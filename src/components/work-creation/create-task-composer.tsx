@@ -1,5 +1,6 @@
 "use client";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createQuickTaskAction } from "@/app/actions/crud";
@@ -224,7 +225,7 @@ export function CreateTaskComposer({
       {
         estimated_document_count: docs,
         complexity_level: complexity,
-        start_date: new Date().toISOString().split("T")[0],
+        start_date: appTodayDate(),
         manual_due_date: dueDate || null,
       },
       { settings: forecastSettings }

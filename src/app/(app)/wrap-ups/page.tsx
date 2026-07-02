@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { WrapUpReviewCenter } from "@/components/wrap-up/wrap-up-review-center";
 import {
   FlowPageShell,
@@ -58,7 +59,7 @@ export default async function WrapUpsPage({
 
   const rows = buildWrapUpReviewRows(user, {
     startDate: format(subDays(new Date(), 14), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+    endDate: appTodayDate(),
   });
   const stats = getWrapUpDashboardStats(user);
   const detail = id ? getWrapUpReviewDetail(id, user) : null;

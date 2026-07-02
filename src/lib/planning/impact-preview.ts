@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import {
   aggregateProjectForecast,
@@ -20,7 +21,6 @@ import {
 import { computePackageRemaining } from "@/lib/workload-alerts/calculator";
 import { primaryDueDate } from "@/lib/forecast/live";
 import type { ForecastSettings, Project, User, WorkPackage } from "@/types/flow";
-import { format } from "date-fns";
 
 const ACTIVE = new Set([
   "not_started",
@@ -94,7 +94,7 @@ export function previewTaskImpact(
   }
 ): TaskImpactPreview {
   const { users, packages, projects, teams, settings, viewer, departments, liveHints } = context;
-  const startDate = format(new Date(), "yyyy-MM-dd");
+  const startDate = appTodayDate();
 
   const taskForecast = calculateTaskForecast(
     {

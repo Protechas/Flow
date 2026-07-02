@@ -1,5 +1,6 @@
 "use client";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -258,7 +259,7 @@ export function PackageDetailContent({
                   work_package_id: pkg.id,
                   user_id: currentUserId,
                   hours: Number(fd.get("hours")),
-                  log_date: (fd.get("log_date") as string) || new Date().toISOString().split("T")[0],
+                  log_date: (fd.get("log_date") as string) || appTodayDate(),
                   notes: (fd.get("tl_notes") as string) || undefined,
                 });
                 (e.target as HTMLFormElement).reset();
@@ -267,7 +268,7 @@ export function PackageDetailContent({
             }}
           >
             <Input name="hours" type="number" step="0.5" placeholder="Hrs" className="w-20 h-8 text-xs" required />
-            <Input name="log_date" type="date" defaultValue={new Date().toISOString().split("T")[0]} className="flex-1 h-8 text-xs" />
+            <Input name="log_date" type="date" defaultValue={appTodayDate()} className="flex-1 h-8 text-xs" />
             <Button type="submit" size="sm" className="h-8 text-xs" disabled={pending}>Log</Button>
           </form>
           <ul className="text-xs space-y-1 text-muted-foreground">

@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { healthLevelFromScore } from "@/lib/design/department-health";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { forecastVarianceDays } from "@/lib/forecast/engine";
@@ -12,7 +13,6 @@ import { isWrapUpRequiredForDate } from "@/lib/wrap-up/eligibility";
 import { getManagersForPackage, getProjectOwner } from "@/lib/workflow/recipients";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type { NotificationType, User, WorkPackage } from "@/types/flow";
-import { format } from "date-fns";
 
 const DEDUPE_HOURS = 12;
 
@@ -54,7 +54,7 @@ function isBehindForecast(pkg: WorkPackage): boolean {
 
 /** Notify employees and leaders about missing daily wrap-ups. */
 export function syncWrapUpNotifications(users: User[]) {
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
 
   for (const emp of users.filter((u) => u.is_active && requiresShiftClock(u))) {
     if (!isWrapUpRequiredForDate(emp, today)) continue;

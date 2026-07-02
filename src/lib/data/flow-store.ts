@@ -2,6 +2,7 @@
  * Mutable in-memory store for demo mode.
  * All reporting reads from this store — no hardcoded metrics.
  */
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { PROJECT_TEMPLATES, type ProjectTemplateId } from "@/lib/templates/project-templates";
 import { seedMetricsForProject } from "@/lib/metrics/template-metric-defaults";
@@ -967,7 +968,7 @@ export function createWorkPackage(input: WorkPackageInput): WorkPackage {
     assigned_to: input.assigned_to ?? null,
     due_date: input.manual_due_date ?? input.due_date ?? null,
     manual_due_date: input.manual_due_date ?? input.due_date ?? null,
-    start_date: input.start_date ?? new Date().toISOString().split("T")[0],
+    start_date: input.start_date ?? appTodayDate(),
     estimated_document_count: input.estimated_document_count ?? null,
     complexity_level: input.complexity_level ?? "standard",
     completed_date: null,
@@ -1044,7 +1045,7 @@ export function updateWorkPackage(id: string, updates: Partial<WorkPackage>) {
   }
   if (updates.status === "done") {
     if (!updated.completed_date) {
-      updated.completed_date = new Date().toISOString().split("T")[0];
+      updated.completed_date = appTodayDate();
     }
     if (!updated.completed_at) {
       updated.completed_at = ts();
@@ -1300,7 +1301,7 @@ export function submitQaReview(
       status: result === "pass" ? "done" : "correction_needed",
       qa_status: qaStatusMap[result],
       correction_count: correctionCount,
-      completed_date: result === "pass" ? new Date().toISOString().split("T")[0] : null,
+      completed_date: result === "pass" ? appTodayDate() : null,
     });
     if (result !== "pass") {
       const corr = createCorrection({

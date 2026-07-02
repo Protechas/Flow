@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
@@ -178,7 +179,7 @@ export async function createBoardAction(input: {
       project_type: "board",
       status: "active",
       priority: "medium",
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       due_date: null,
       department_id: departmentId,
       team_id: teamId,
@@ -262,7 +263,7 @@ export async function createProjectWizardAction(input: {
       project_type: tplMeta?.projectType ?? "custom",
       status: "active",
       priority: input.priority ?? "medium",
-      start_date: new Date().toISOString().split("T")[0],
+      start_date: appTodayDate(),
       due_date: input.manualDueDate ?? null,
       manual_project_due_date: input.manualDueDate ?? null,
       department_id: input.departmentId,
@@ -593,7 +594,7 @@ export async function completeWorkPackageAction(id: string) {
   if (isEmployeeRole(user.role)) {
     await assertWorkEligible(user, "complete_task", { taskId: id });
   }
-  const today = new Date().toISOString().split("T")[0];
+  const today = appTodayDate();
   updateWorkPackage(id, {
     status: "done",
     completed_date: today,

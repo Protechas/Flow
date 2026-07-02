@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { EmployeeHome } from "@/components/employee/employee-home";
 import { EmployeeNeedsSetupView } from "@/components/setup/employee-needs-setup-view";
 import { LiveRefresh } from "@/components/platform";
@@ -20,13 +21,12 @@ import { getWorkPackages } from "@/lib/data/work-packages";
 import { initProductionTracking } from "@/lib/data/production-tracking";
 import { getTodayVisibilityForUser } from "@/lib/work-visibility/calculator";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
-import { format } from "date-fns";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
   const dashboard = await getEmployeeDashboard(user.id);
   const payType = normalizePayType(user.pay_type, user.role);
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
   await hydrateHelpFlagSettings();
   initProductionTracking();
   const store = getFlowStore();

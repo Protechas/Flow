@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore } from "@/lib/data/flow-store";
 import { getEmployeeScorecard } from "@/lib/data/performance";
@@ -127,7 +128,7 @@ function buildDailySummary(
   tasks: WorkPackage[],
   store: ReturnType<typeof getFlowStore>
 ): EmployeeDailySummary {
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = appTodayDate();
   const mine = tasks;
   const hoursWorkedToday = store.timeLogs
     .filter((t) => t.user_id === userId && t.log_date === todayStr)
@@ -169,7 +170,7 @@ export async function getEmployeeDashboard(userId: string): Promise<EmployeeDash
 
   const nextTask = pickNextTask(board.all);
   const currentTask = board.inProgress[0] ?? null;
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = appTodayDate();
   const activeClock = getActiveClockEntry(userId);
   const activeTaskTimer = getActiveTaskTimeEntry(userId);
   const activeTaskPkg = activeTaskTimer

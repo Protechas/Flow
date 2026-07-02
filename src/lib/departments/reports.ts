@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { initFlowStore, getFlowStore } from "@/lib/data/flow-store";
 import type {
   DailyWrapUpComplianceRow,
@@ -40,7 +41,7 @@ export function buildDepartmentReportMetrics(
   const production = getProductionReport({ ...filters, departmentId });
   const compliance = store.dailyWrapUps;
   const overrides = store.dailyWrapUpOverrides;
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
 
   const deptUserIds = new Set(
     store.departmentUsers

@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import {
   aggregateMatrixStructure,
   generateMatrixRows,
@@ -11,7 +12,6 @@ import {
   getComplexityMultiplier,
 } from "@/lib/forecast/engine";
 import type { ForecastSettings } from "@/types/flow";
-import { format } from "date-fns";
 
 export interface BulkMatrixPreview {
   title: string;
@@ -50,7 +50,7 @@ export function buildBulkMatrixPreview(
 
   let estimatedHours = 0;
   let estimatedWorkDays = 0;
-  const startDate = format(new Date(), "yyyy-MM-dd");
+  const startDate = appTodayDate();
   const multiplier = getComplexityMultiplier(draft.complexity);
   const minutesPerDoc = settings.minutes_per_document;
 

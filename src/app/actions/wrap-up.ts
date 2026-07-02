@@ -1,7 +1,7 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
-import { format } from "date-fns";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/permissions";
 import { teamLeadCanViewPerson } from "@/lib/auth/team-scope";
@@ -26,7 +26,7 @@ function revalidateWrapUpPaths() {
 
 export async function getWrapUpComplianceStatusAction(wrapDate?: string) {
   const user = await requireUser();
-  const date = wrapDate ?? format(new Date(), "yyyy-MM-dd");
+  const date = wrapDate ?? appTodayDate();
   return {
     status: getWrapUpComplianceStatus(user.id, date),
     canClockOut: canClockOutForDay(user.id, date),
@@ -35,7 +35,7 @@ export async function getWrapUpComplianceStatusAction(wrapDate?: string) {
 
 export async function recordWrapUpBlockAttemptAction() {
   const user = await requireUser();
-  const date = format(new Date(), "yyyy-MM-dd");
+  const date = appTodayDate();
   recordWrapUpBlockAttempt(user.id, date);
   await writeAuditLog({
     action: "status_changed",
@@ -55,7 +55,7 @@ export async function overrideWrapUpRequirementAction(
   wrapDate?: string
 ) {
   const actor = await requireUser();
-  const date = wrapDate ?? format(new Date(), "yyyy-MM-dd");
+  const date = wrapDate ?? appTodayDate();
   const trimmed = reason.trim();
   if (!trimmed) throw new Error("Override reason is required");
 

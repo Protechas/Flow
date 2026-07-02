@@ -1,5 +1,6 @@
 "use server";
 
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
 import {
   assertCanEditWorkPackage,
@@ -18,7 +19,6 @@ import { ensureServerWriteContext } from "@/lib/server/write-context";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { raiseHelpFlag } from "@/lib/help-flags/engine";
 import type { User, WorkPackage } from "@/types/flow";
-import { format } from "date-fns";
 
 function revalidateWork() {
   revalidatePath("/work");
@@ -168,7 +168,7 @@ export async function submitDailyWrapUpAction(input: {
   const visibility = getTodayVisibilityForUser(user.id);
   const wrapUp = createDailyWrapUp({
     user_id: user.id,
-    wrap_date: format(new Date(), "yyyy-MM-dd"),
+    wrap_date: appTodayDate(),
     completed_summary: input.completed_summary || null,
     blockers: input.blockers || null,
     needs_support: input.needs_support,

@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getDirectReportIds, getPrimarySupervisorId, getReportingChain } from "@/lib/hierarchy/resolver";
@@ -25,7 +26,6 @@ import type {
   WorkPackage,
 } from "@/types/flow";
 import { getOrgChartNodeUserId } from "@/lib/positions/resolver";
-import { format } from "date-fns";
 
 export function collectOrgChartUserIds(nodes: OrgChartNode[]): string[] {
   const ids: string[] = [];
@@ -62,7 +62,7 @@ export function buildOrgChartOpsMap(
   const store = getFlowStore();
   const settings = getWorkloadAlertSettings();
   const threshold = settings.work_remaining_threshold_hours;
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
 
   const openHelp = listOpenHelpFlags();
   const activeAlerts = listWorkloadAlertRecords().filter(

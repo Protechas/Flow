@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { forecastVarianceDays } from "@/lib/forecast/engine";
@@ -70,7 +71,7 @@ export function buildForecastDashboardStats(viewer?: User): ForecastDashboardSta
   }
 
   const in7 = format(addDays(new Date(), 7), "yyyy-MM-dd");
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = appTodayDate();
 
   const deptMap = new Map<string, { activeTasks: number; estimatedHours: number }>();
   for (const pkg of packages) {

@@ -1,3 +1,4 @@
+import { appTodayDate } from "@/lib/datetime/timezone";
 import {
   ACTION_LABELS,
   activityScoreFromPoints,
@@ -436,7 +437,7 @@ export function buildEmployeeScorecard(
 
   const hoursLogged = logs.reduce((s, t) => s + Number(t.hours), 0);
   const todayHours = logs
-    .filter((t) => t.log_date === format(new Date(), "yyyy-MM-dd"))
+    .filter((t) => t.log_date === appTodayDate())
     .reduce((s, t) => s + Number(t.hours), 0);
 
   const slice = toAccountabilitySlice(store);
