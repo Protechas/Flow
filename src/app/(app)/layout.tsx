@@ -25,23 +25,23 @@ export default async function AppLayout({
 
   if (isSupabaseConfigured()) {
     await ensureAppDataLoaded();
-    await hydrateForecastSettings();
-    const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
-    await hydrateWorkloadAlertSettings();
-    const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
-    await hydrateHelpFlagSettings();
-    const { hydrateWorkVisibilitySettings } = await import("@/lib/work-visibility/hydrate");
-    await hydrateWorkVisibilitySettings();
   } else {
     initFlowStore();
-    await hydrateForecastSettings();
-    const { hydrateWorkloadAlertSettings } = await import("@/lib/workload-alerts/hydrate");
-    await hydrateWorkloadAlertSettings();
-    const { hydrateHelpFlagSettings } = await import("@/lib/help-flags/hydrate");
-    await hydrateHelpFlagSettings();
-    const { hydrateWorkVisibilitySettings } = await import("@/lib/work-visibility/hydrate");
-    await hydrateWorkVisibilitySettings();
   }
+
+  // Independent settings loads — run in parallel on every page view.
+  const [{ hydrateWorkloadAlertSettings }, { hydrateHelpFlagSettings }, { hydrateWorkVisibilitySettings }] =
+    await Promise.all([
+      import("@/lib/workload-alerts/hydrate"),
+      import("@/lib/help-flags/hydrate"),
+      import("@/lib/work-visibility/hydrate"),
+    ]);
+  await Promise.all([
+    hydrateForecastSettings(),
+    hydrateWorkloadAlertSettings(),
+    hydrateHelpFlagSettings(),
+    hydrateWorkVisibilitySettings(),
+  ]);
 
   const store = getFlowStore();
   const teamDashboardNav = getTeamDashboardNavItemsForUser(user, store.teams, store.users);

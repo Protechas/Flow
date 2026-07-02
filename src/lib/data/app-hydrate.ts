@@ -18,17 +18,24 @@ const hydrateApp = cache(async (): Promise<void> => {
     await hydrateOperatingModels();
     return;
   }
+  // Ordered: users/departments feed hierarchy scoping; projects feed
+  // manufacturer linking in the work structure. Everything after that is an
+  // independent store replacement, so load in parallel to cut request latency.
   await hydrateAppStore();
   await ensureProjectsHydrated();
-  await ensureWorkStructureHydrated();
-  await ensureProductionTrackingHydrated();
-  await ensureWrapUpsHydrated();
-  await ensureHelpFlagsHydrated();
-  await ensureWorkloadAlertsHydrated();
-  const { hydrateTeamDashboardPacks } = await import("@/lib/team-dashboards/hydrate");
-  await hydrateTeamDashboardPacks();
-  const { hydrateOperatingModels } = await import("@/lib/operating-models/hydrate");
-  await hydrateOperatingModels();
+  const [{ hydrateTeamDashboardPacks }, { hydrateOperatingModels }] = await Promise.all([
+    import("@/lib/team-dashboards/hydrate"),
+    import("@/lib/operating-models/hydrate"),
+  ]);
+  await Promise.all([
+    ensureWorkStructureHydrated(),
+    ensureProductionTrackingHydrated(),
+    ensureWrapUpsHydrated(),
+    ensureHelpFlagsHydrated(),
+    ensureWorkloadAlertsHydrated(),
+    hydrateTeamDashboardPacks(),
+    hydrateOperatingModels(),
+  ]);
 });
 
 /**
