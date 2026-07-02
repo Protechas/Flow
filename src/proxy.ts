@@ -6,14 +6,15 @@ import {
   roleCanAccessPath,
   shouldProtectRoute,
 } from "@/lib/auth/route-guard";
+import { isPublicAuthPath } from "@/lib/supabase/proxy-auth";
 import {
-  hasSupabaseAuthCookies,
-  isPublicAuthPath,
-} from "@/lib/supabase/proxy-auth";
+  refreshSupabaseSession,
+  withSessionCookies,
+} from "@/lib/supabase/update-session";
 
 const DEMO_USER_COOKIE = "flow_demo_user_id";
 
-/** Instant cookie gate — zero Supabase calls at the edge. */
+/** Edge auth: refresh Supabase session cookies; demo mode uses cookie-only gate. */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -50,13 +51,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!hasSupabaseAuthCookies(request) && !isPublicAuthPath(pathname)) {
+  const { response, user } = await refreshSupabaseSession(request);
+
+  if (!user && !isPublicAuthPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return withSessionCookies(NextResponse.redirect(url), response);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

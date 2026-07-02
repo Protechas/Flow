@@ -27,7 +27,7 @@ export async function createClient() {
               )
             );
           } catch {
-            // Called from Server Component — middleware handles refresh
+            // Called from Server Component — proxy.ts refreshes session at the edge
           }
         },
       },
