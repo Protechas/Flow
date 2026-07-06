@@ -94,6 +94,10 @@ export interface ProjectForecastRow {
   workloadTrend: "increasing" | "stable" | "decreasing";
   riskLevel: PlanningRiskLevel;
   expectedOutcome: PlanningExpectedOutcome;
+  /** Early-warning headline, e.g. "Lands 4 business days late". */
+  earlyWarningHeadline?: string | null;
+  daysLate?: number | null;
+  earlyWarningReasons?: string[];
 }
 
 export interface TaskForecastRow {

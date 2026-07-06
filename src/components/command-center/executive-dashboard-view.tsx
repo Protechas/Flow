@@ -236,23 +236,26 @@ export function ExecutiveDashboardView({
         </KpiPriorityZone>
       )}
 
-      {data.validationSummary && linkHref(role, "/qa-center/validation") && (
+      {/* Only surface the QA zone once validation has real data — empty "—"
+          tiles read as broken, not as "not started yet". */}
+      {data.validationSummary &&
+        (data.validationSummary.completedRuns > 0 ||
+          data.validationSummary.openFindings > 0) &&
+        linkHref(role, "/qa-center/validation") && (
         <KpiPriorityZone
           title="QA Center"
           description="Library audit compliance and open correction workload"
           variant="overview"
         >
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <EnterpriseKpi
-              label="Library accuracy"
-              value={
-                data.validationSummary.libraryAccuracyPct != null
-                  ? `${data.validationSummary.libraryAccuracyPct}%`
-                  : "—"
-              }
-              sublabel={`${data.validationSummary.completedRuns} completed runs`}
-              href="/qa-center/validation"
-            />
+            {data.validationSummary.libraryAccuracyPct != null && (
+              <EnterpriseKpi
+                label="Library accuracy"
+                value={`${data.validationSummary.libraryAccuracyPct}%`}
+                sublabel={`${data.validationSummary.completedRuns} completed runs`}
+                href="/qa-center/validation"
+              />
+            )}
             <EnterpriseKpi
               label="Open findings"
               value={data.validationSummary.openFindings}
@@ -265,16 +268,14 @@ export function ExecutiveDashboardView({
               warn={data.validationSummary.openFindings > 0}
               critical={data.validationSummary.criticalFindingsOpen > 0}
             />
-            <EnterpriseKpi
-              label="Revalidation improvement"
-              value={
-                data.validationSummary.revalidationImprovementPct != null
-                  ? `${data.validationSummary.revalidationImprovementPct >= 0 ? "+" : ""}${data.validationSummary.revalidationImprovementPct}%`
-                  : "—"
-              }
-              sublabel="Avg compliance delta on linked reruns"
-              href="/qa-center/validation/history"
-            />
+            {data.validationSummary.revalidationImprovementPct != null && (
+              <EnterpriseKpi
+                label="Revalidation improvement"
+                value={`${data.validationSummary.revalidationImprovementPct >= 0 ? "+" : ""}${data.validationSummary.revalidationImprovementPct}%`}
+                sublabel="Avg compliance delta on linked reruns"
+                href="/qa-center/validation/history"
+              />
+            )}
           </section>
         </KpiPriorityZone>
       )}
@@ -545,10 +546,20 @@ export function ExecutiveDashboardView({
                     </div>
                     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>{project.completedPct}% complete</span>
+                      {project.landingHeadline &&
+                        project.status === "at_risk" &&
+                        project.landingHeadline !== "On track for target date" && (
+                          <span className="text-warning">{project.landingHeadline}</span>
+                        )}
                       <span>{project.overdue} overdue</span>
                       <span>QA {project.qaRate}%</span>
                       <span>{project.hoursLogged}h logged</span>
                     </div>
+                    {project.primaryReason && project.status === "at_risk" && (
+                      <p className="text-[11px] text-muted-foreground line-clamp-2">
+                        {project.primaryReason}
+                      </p>
+                    )}
                     <Progress value={project.completedPct} className="h-1.5" />
                   </div>
                 );

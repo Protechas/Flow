@@ -5,7 +5,7 @@ import Link from "next/link";
 import { uploadTaskFileAction } from "@/app/actions/production";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { formatActionError } from "@/lib/errors/action-messages";
-import { fileViewHref } from "@/lib/files/download";
+import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { cn } from "@/lib/utils";
 import type { TaskFileUpload } from "@/types/flow";
 import { FileText, Loader2, Upload } from "lucide-react";
@@ -21,11 +21,14 @@ export function TaskFileUploadZone({
   files,
   disabled,
   onUploaded,
+  employeeViewer,
 }: {
   taskId: string;
   files: TaskFileUpload[];
   disabled?: boolean;
   onUploaded?: () => void;
+  /** Employees can only open the /work viewer — the /files viewer bounces them */
+  employeeViewer?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const { toast } = useFlowToast();
@@ -113,15 +116,20 @@ export function TaskFileUploadZone({
                 className="flex items-center gap-2 text-sm px-3 py-2 enterprise-row-hover"
               >
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                {f.file_data_base64 ? (
+                {taskFileHasContent(f) ? (
                   <Link
-                    href={fileViewHref("task", f.id)}
+                    href={fileViewHref("task", f.id, { employee: employeeViewer })}
                     className="truncate flex-1 text-primary hover:underline"
                   >
                     {f.file_name}
                   </Link>
                 ) : (
-                  <span className="truncate flex-1">{f.file_name}</span>
+                  <span
+                    className="truncate flex-1 text-muted-foreground"
+                    title="File content unavailable — uploaded before file storage was enabled; please re-upload"
+                  >
+                    {f.file_name}
+                  </span>
                 )}
                 <span className="flow-meta shrink-0 tabular-nums">
                   {formatFileSize(f.file_size)}

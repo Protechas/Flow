@@ -30,6 +30,10 @@ import {
   persistTimeClockEntrySync,
 } from "@/lib/data/production-tracking-db";
 import { ensureServerWriteContext } from "@/lib/server/write-context";
+import {
+  persistPackageState,
+  persistTimerSessionLog,
+} from "@/lib/production/persist-helpers";
 import { logActionError, logActionInfo } from "@/lib/logging/action-log";
 import { getWorkEligibility } from "@/lib/work-eligibility";
 
@@ -112,7 +116,11 @@ export async function clockOutAction(outType: "lunch" | "out") {
   const activeTimer = getActiveTaskTimeEntry(user.id);
   if (activeTimer && outType === "out") {
     const stopped = forceStopTaskTimer(user.id);
-    if (stopped) await persistTaskTimeEntrySync(stopped);
+    if (stopped) {
+      await persistTaskTimeEntrySync(stopped);
+      await persistTimerSessionLog(stopped);
+      await persistPackageState(stopped.task_id);
+    }
   }
 
   const entry = clockOut(user.id, outType);

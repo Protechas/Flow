@@ -33,6 +33,7 @@ import { userDisplayName } from "@/lib/users/display-name";
 import { formatMinutes } from "@/lib/production/metrics";
 import {
   appDatetimeLocalToIso,
+  appTodayDate,
   formatAppDateTimeFull,
   toAppDatetimeLocalValue,
 } from "@/lib/datetime/timezone";
@@ -41,6 +42,11 @@ import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
 import { normalizePayType } from "@/lib/users/pay-type";
 import { TeamAvailabilityPanel } from "@/components/production/team-availability-panel";
 import { TimeClockRecordsFilterBar } from "@/components/production/time-clock-records-filter-bar";
+import {
+  TimeClockWeekCalendar,
+  weekDays,
+  weekStartFor,
+} from "@/components/production/time-clock-week-calendar";
 import { WrapUpCompliancePanel } from "@/components/production/wrap-up-compliance-panel";
 import {
   buildTimeClockRecordsHref,
@@ -101,6 +107,8 @@ export function TimeClockAdminView({
   const [addUserId, setAddUserId] = useState(users[0]?.id ?? "");
   const [addDraft, setAddDraft] = useState<EditDraft>(defaultManualDraft);
   const [pending, startTransition] = useTransition();
+  const [recordsView, setRecordsView] = useState<"punches" | "calendar">("punches");
+  const [calWeekStart, setCalWeekStart] = useState(() => weekStartFor(appTodayDate()));
 
   const filtered = filterClockEntriesByEmployee(
     filterClockEntriesByDateRange(entries, dateRange),
@@ -112,6 +120,19 @@ export function TimeClockAdminView({
     if (!syncFiltersToUrl) return;
     router.push(
       buildTimeClockRecordsHref("/time-clock", dateRange, userId === "all" ? undefined : userId)
+    );
+  }
+
+  function onCalendarWeekChange(weekStart: string) {
+    setCalWeekStart(weekStart);
+    // Refetch entries for the selected week (range is capped to today server-side)
+    const days = weekDays(weekStart);
+    const today = appTodayDate();
+    const range = { from: days[0], to: days[6] < today ? days[6] : today };
+    setDateRange(range);
+    if (!syncFiltersToUrl) return;
+    router.push(
+      buildTimeClockRecordsHref("/time-clock", range, userFilter === "all" ? undefined : userFilter)
     );
   }
 
@@ -235,15 +256,38 @@ export function TimeClockAdminView({
         </div>
       )}
 
-      <TimeClockRecordsFilterBar
-        range={dateRange}
-        onRangeChange={setDateRange}
-        employeeId={userFilter !== "all" ? userFilter : undefined}
-        syncToUrl={syncFiltersToUrl}
-        resultCount={filtered.length}
-      />
+      {(isEmployeeVariant || recordsView === "punches") && (
+        <TimeClockRecordsFilterBar
+          range={dateRange}
+          onRangeChange={setDateRange}
+          employeeId={userFilter !== "all" ? userFilter : undefined}
+          syncToUrl={syncFiltersToUrl}
+          resultCount={filtered.length}
+        />
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
+        {!isEmployeeVariant && (
+          <div className="flex items-center rounded-md border border-border/60 p-0.5">
+            <Button
+              size="sm"
+              variant={recordsView === "punches" ? "secondary" : "ghost"}
+              onClick={() => setRecordsView("punches")}
+            >
+              Punches
+            </Button>
+            <Button
+              size="sm"
+              variant={recordsView === "calendar" ? "secondary" : "ghost"}
+              onClick={() => {
+                setRecordsView("calendar");
+                onCalendarWeekChange(calWeekStart);
+              }}
+            >
+              Weekly calendar
+            </Button>
+          </div>
+        )}
         {!isEmployeeVariant && (
           <Select value={userFilter} onValueChange={(v) => onEmployeeFilterChange(v ?? "all")}>
             <SelectTrigger className="w-[220px]">
@@ -288,6 +332,17 @@ export function TimeClockAdminView({
         )}
       </div>
 
+      {!isEmployeeVariant && recordsView === "calendar" && (
+        <TimeClockWeekCalendar
+          entries={entries}
+          users={users}
+          userFilter={userFilter}
+          weekStart={calWeekStart}
+          onWeekChange={onCalendarWeekChange}
+        />
+      )}
+
+      {(isEmployeeVariant || recordsView === "punches") && (
       <EnterpriseSection
         title="Time clock records"
         description={
@@ -462,6 +517,7 @@ export function TimeClockAdminView({
           </tbody>
         </EnterpriseDataTable>
       </EnterpriseSection>
+      )}
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-md">

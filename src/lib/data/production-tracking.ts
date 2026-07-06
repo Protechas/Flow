@@ -7,6 +7,7 @@ import {
   initFlowStore,
   logActivityBridge,
   activateTaskLiveForecastExternal,
+  recordTimerTimeLogExternal,
   refreshTaskLiveForecastExternal,
   updateWorkPackageExternal,
 } from "@/lib/data/production-bridge";
@@ -29,12 +30,29 @@ import { format, isWithinInterval, parseISO, startOfDay, subDays } from "date-fn
 import { appTodayDate, formatAppCalendarDate, isAppCalendarDay } from "@/lib/datetime/timezone";
 import { newPersistedId } from "@/lib/server/persisted-id";
 
-let timeClockEntries: TimeClockEntry[] = [];
-let taskTimeEntries: TaskTimeEntry[] = [];
-let taskFileUploads: TaskFileUpload[] = [];
-let taskSubmissions: TaskSubmissionRecord[] = [];
-let qaReviewRecords: QaReviewRecord[] = [];
-let productionInitialized = false;
+interface ProductionTrackingState {
+  timeClockEntries: TimeClockEntry[];
+  taskTimeEntries: TaskTimeEntry[];
+  taskFileUploads: TaskFileUpload[];
+  taskSubmissions: TaskSubmissionRecord[];
+  qaReviewRecords: QaReviewRecord[];
+  productionInitialized: boolean;
+}
+
+// Next.js instantiates this module once per compilation layer (pages vs route
+// handlers vs actions). Anchor the store on globalThis so every layer in the
+// process shares one state — otherwise demo mode and same-instance reads
+// diverge between pages and API routes.
+const state: ProductionTrackingState = ((
+  globalThis as typeof globalThis & { __flowProductionTracking?: ProductionTrackingState }
+).__flowProductionTracking ??= {
+  timeClockEntries: [],
+  taskTimeEntries: [],
+  taskFileUploads: [],
+  taskSubmissions: [],
+  qaReviewRecords: [],
+  productionInitialized: false,
+});
 
 export function replaceProductionTrackingStore(data: {
   timeClockEntries: TimeClockEntry[];
@@ -43,12 +61,12 @@ export function replaceProductionTrackingStore(data: {
   taskSubmissions: TaskSubmissionRecord[];
   qaReviewRecords: QaReviewRecord[];
 }) {
-  timeClockEntries = data.timeClockEntries;
-  taskTimeEntries = data.taskTimeEntries;
-  taskFileUploads = data.taskFileUploads;
-  taskSubmissions = data.taskSubmissions;
-  qaReviewRecords = data.qaReviewRecords;
-  productionInitialized = true;
+  state.timeClockEntries = data.timeClockEntries;
+  state.taskTimeEntries = data.taskTimeEntries;
+  state.taskFileUploads = data.taskFileUploads;
+  state.taskSubmissions = data.taskSubmissions;
+  state.qaReviewRecords = data.qaReviewRecords;
+  state.productionInitialized = true;
 }
 
 function persistClock(entry: TimeClockEntry) {
@@ -80,19 +98,28 @@ function todayDate() {
 }
 
 export function initProductionTracking() {
-  if (productionInitialized) return;
-  productionInitialized = true;
+  if (state.productionInitialized) return;
+  state.productionInitialized = true;
   initFlowStore();
+  // Feed real per-document timings to the forecast calibration engine.
+  void import("@/lib/forecast/calibration").then((m) =>
+    m.registerSubmissionSampleProvider(() =>
+      state.taskSubmissions.map((s) => ({
+        user_id: s.user_id,
+        average_minutes_per_document: s.average_minutes_per_document,
+      }))
+    )
+  );
 }
 
 export function getProductionStore() {
   initProductionTracking();
   return {
-    timeClockEntries,
-    taskTimeEntries,
-    taskFileUploads,
-    taskSubmissions,
-    qaReviewRecords,
+    timeClockEntries: state.timeClockEntries,
+    taskTimeEntries: state.taskTimeEntries,
+    taskFileUploads: state.taskFileUploads,
+    taskSubmissions: state.taskSubmissions,
+    qaReviewRecords: state.qaReviewRecords,
   };
 }
 
@@ -101,7 +128,7 @@ export function getProductionStore() {
 export function getActiveClockEntry(userId: string): TimeClockEntry | null {
   initProductionTracking();
   return (
-    timeClockEntries.find((e) => e.user_id === userId && e.status === "active") ?? null
+    state.timeClockEntries.find((e) => e.user_id === userId && e.status === "active") ?? null
   );
 }
 
@@ -124,11 +151,11 @@ export function clockIn(userId: string): TimeClockEntry {
     created_at: ts(),
     updated_at: ts(),
   };
-  timeClockEntries = [entry, ...timeClockEntries];
+  state.timeClockEntries = [entry, ...state.timeClockEntries];
   persistClock(entry);
 
   const today = todayDate();
-  const hadLunchToday = timeClockEntries.some(
+  const hadLunchToday = state.timeClockEntries.some(
     (e) =>
       e.user_id === userId &&
       e.id !== entry.id &&
@@ -160,7 +187,7 @@ export function clockOut(userId: string, outType: TimeClockOutType): TimeClockEn
     status: "completed",
     updated_at: now,
   };
-  timeClockEntries = timeClockEntries.map((e) => (e.id === entry.id ? updated : e));
+  state.timeClockEntries = state.timeClockEntries.map((e) => (e.id === entry.id ? updated : e));
   persistClock(updated);
   const label = outType === "lunch" ? "Clocked out for lunch" : "Clocked out for the day";
   logActivityBridge(userId, "time_log", `${label} — ${total}m`);
@@ -178,10 +205,10 @@ export function editClockEntry(
   }
 ) {
   initProductionTracking();
-  const idx = timeClockEntries.findIndex((e) => e.id === entryId);
+  const idx = state.timeClockEntries.findIndex((e) => e.id === entryId);
   if (idx < 0) throw new Error("Clock entry not found");
 
-  const cur = timeClockEntries[idx];
+  const cur = state.timeClockEntries[idx];
   const clockIn = input.clock_in_at ?? cur.clock_in_at;
   const clockOut = input.clock_out_at !== undefined ? input.clock_out_at : cur.clock_out_at;
   const stillActive = clockOut == null;
@@ -209,7 +236,7 @@ export function editClockEntry(
     edit_reason: input.edit_reason,
     updated_at: ts(),
   };
-  timeClockEntries[idx] = updated;
+  state.timeClockEntries[idx] = updated;
   persistClock(updated);
   return updated;
 }
@@ -253,7 +280,7 @@ export function createClockEntry(input: {
     created_at: ts(),
     updated_at: ts(),
   };
-  timeClockEntries = [entry, ...timeClockEntries];
+  state.timeClockEntries = [entry, ...state.timeClockEntries];
   persistClock(entry);
   logActivityBridge(
     input.userId,
@@ -267,9 +294,9 @@ export function createClockEntry(input: {
 
 export function deleteClockEntry(entryId: string): TimeClockEntry {
   initProductionTracking();
-  const idx = timeClockEntries.findIndex((e) => e.id === entryId);
+  const idx = state.timeClockEntries.findIndex((e) => e.id === entryId);
   if (idx < 0) throw new Error("Clock entry not found");
-  const [removed] = timeClockEntries.splice(idx, 1);
+  const [removed] = state.timeClockEntries.splice(idx, 1);
   void import("@/lib/data/production-tracking-db").then((m) =>
     m.deleteTimeClockEntrySync(entryId)
   );
@@ -279,7 +306,7 @@ export function deleteClockEntry(entryId: string): TimeClockEntry {
 export function getClockEntriesForUser(userId: string, days = 14): TimeClockEntry[] {
   initProductionTracking();
   const since = startOfDay(subDays(new Date(), days));
-  return timeClockEntries
+  return state.timeClockEntries
     .filter((e) => e.user_id === userId && parseISO(e.clock_in_at) >= since)
     .sort((a, b) => b.clock_in_at.localeCompare(a.clock_in_at));
 }
@@ -287,7 +314,7 @@ export function getClockEntriesForUser(userId: string, days = 14): TimeClockEntr
 export function getTodayClockEntries(userId: string): TimeClockEntry[] {
   initProductionTracking();
   const today = todayDate();
-  return timeClockEntries
+  return state.timeClockEntries
     .filter((e) => e.user_id === userId && isAppCalendarDay(e.clock_in_at, today))
     .sort((a, b) => a.clock_in_at.localeCompare(b.clock_in_at));
 }
@@ -308,7 +335,7 @@ export function getAllClockEntries(filters?: {
       startOfDay(subDays(parseISO(`${toDay}T12:00:00`), (filters?.days ?? 14) - 1))
     );
 
-  return timeClockEntries
+  return state.timeClockEntries
     .filter((e) => {
       if (filters?.userId && e.user_id !== filters.userId) return false;
       if (userSet && !userSet.has(e.user_id)) return false;
@@ -323,7 +350,7 @@ export function getShiftMinutesToday(userId: string): number {
   if (active) return minutesBetween(active.clock_in_at, ts());
 
   const today = todayDate();
-  const completed = timeClockEntries.filter(
+  const completed = state.timeClockEntries.filter(
     (e) =>
       e.user_id === userId &&
       isAppCalendarDay(e.clock_in_at, today) &&
@@ -336,7 +363,7 @@ export function getTaskMinutesToday(userId: string): number {
   initProductionTracking();
   const today = todayDate();
   let total = 0;
-  for (const entry of taskTimeEntries) {
+  for (const entry of state.taskTimeEntries) {
     if (entry.user_id !== userId || !isAppCalendarDay(entry.started_at, today)) continue;
     if (entry.status === "active") {
       total += minutesBetween(entry.started_at, ts());
@@ -352,7 +379,7 @@ export function getTaskMinutesToday(userId: string): number {
 export function getActiveTaskTimeEntry(userId: string): TaskTimeEntry | null {
   initProductionTracking();
   return (
-    taskTimeEntries.find(
+    state.taskTimeEntries.find(
       (e) => e.user_id === userId && (e.status === "active" || e.status === "paused")
     ) ?? null
   );
@@ -398,7 +425,7 @@ export function startTaskTimer(userId: string, taskId: string): TaskTimeEntry {
     created_at: ts(),
     updated_at: ts(),
   };
-  taskTimeEntries = [entry, ...taskTimeEntries];
+  state.taskTimeEntries = [entry, ...state.taskTimeEntries];
   persistTaskTime(entry);
   activateTaskLiveForecastExternal(taskId, entry.started_at);
   logActivityBridge(userId, "time_log", `Started task timer`, taskId);
@@ -423,7 +450,7 @@ export function pauseTaskTimer(userId: string): TaskTimeEntry {
     pause_events: [...entry.pause_events, pauseEvent],
     updated_at: now,
   };
-  taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  state.taskTimeEntries = state.taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
   persistTaskTime(updated);
   return updated;
 }
@@ -446,7 +473,7 @@ export function resumeTaskTimer(userId: string): TaskTimeEntry {
     pause_events: pauseEvents,
     updated_at: now,
   };
-  taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  state.taskTimeEntries = state.taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
   persistTaskTime(updated);
   return updated;
 }
@@ -470,8 +497,19 @@ export function stopTaskTimer(userId: string): TaskTimeEntry {
     total_active_minutes: total,
     updated_at: now,
   };
-  taskTimeEntries = taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
+  state.taskTimeEntries = state.taskTimeEntries.map((e) => (e.id === entry.id ? updated : e));
   persistTaskTime(updated);
+  // Mirror the session into time_logs so actual_hours, people profiles, and
+  // scorecards see timer work — time_logs is the canonical hours source.
+  if (total > 0) {
+    recordTimerTimeLogExternal({
+      id: entry.id,
+      work_package_id: entry.task_id,
+      user_id: entry.user_id,
+      hours: Math.round((total / 60) * 100) / 100,
+      log_date: formatAppCalendarDate(now),
+    });
+  }
   refreshTaskLiveForecastExternal(entry.task_id, getTotalTaskMinutes(entry.task_id));
   return updated;
 }
@@ -503,7 +541,7 @@ export function forceStopTaskTimer(userId: string): TaskTimeEntry | null {
 
 export function getTaskTimeEntriesForTask(taskId: string): TaskTimeEntry[] {
   initProductionTracking();
-  return taskTimeEntries.filter((e) => e.task_id === taskId);
+  return state.taskTimeEntries.filter((e) => e.task_id === taskId);
 }
 
 export function getTotalTaskMinutes(taskId: string): number {
@@ -516,11 +554,13 @@ export function getTotalTaskMinutes(taskId: string): number {
 // ——— File uploads ———
 
 export function uploadTaskFile(input: {
+  id?: string;
   task_id: string;
   user_id: string;
   file_name: string;
   file_type: string;
   file_size: number;
+  storage_path?: string | null;
   file_data_base64?: string;
 }): TaskFileUpload {
   initProductionTracking();
@@ -528,7 +568,7 @@ export function uploadTaskFile(input: {
   const pkg = store.workPackages.find((p) => p.id === input.task_id);
   if (!pkg) throw new Error("Task not found");
 
-  const fileId = uid("tfu");
+  const fileId = input.id ?? uid("tfu");
   const upload: TaskFileUpload = {
     id: fileId,
     task_id: input.task_id,
@@ -539,14 +579,15 @@ export function uploadTaskFile(input: {
     file_type: input.file_type,
     file_size: input.file_size,
     file_url_or_path: `/api/files/${fileId}`,
+    storage_path: input.storage_path ?? null,
     ...(input.file_data_base64 ? { file_data_base64: input.file_data_base64 } : {}),
     uploaded_at: ts(),
     created_at: ts(),
   };
-  taskFileUploads = [upload, ...taskFileUploads];
+  state.taskFileUploads = [upload, ...state.taskFileUploads];
   persistFile(upload);
 
-  const count = taskFileUploads.filter((f) => f.task_id === input.task_id).length;
+  const count = state.taskFileUploads.filter((f) => f.task_id === input.task_id).length;
   updateWorkPackageExternal(input.task_id, { file_count: count });
   refreshTaskLiveForecastExternal(input.task_id, getTotalTaskMinutes(input.task_id));
   logActivityBridge(input.user_id, "file_upload", `Uploaded ${input.file_name}`, input.task_id);
@@ -555,12 +596,12 @@ export function uploadTaskFile(input: {
 
 export function getTaskFiles(taskId: string): TaskFileUpload[] {
   initProductionTracking();
-  return taskFileUploads.filter((f) => f.task_id === taskId);
+  return state.taskFileUploads.filter((f) => f.task_id === taskId);
 }
 
 export function getTaskFileById(fileId: string): TaskFileUpload | null {
   initProductionTracking();
-  return taskFileUploads.find((f) => f.id === fileId) ?? null;
+  return state.taskFileUploads.find((f) => f.id === fileId) ?? null;
 }
 
 /** ISO timestamp after which the current work session counts (last submission, if any). */
@@ -572,7 +613,7 @@ export function getPendingSessionSince(taskId: string): string | null {
 export function getTaskFilesForPendingSession(taskId: string): TaskFileUpload[] {
   initProductionTracking();
   const since = getPendingSessionSince(taskId);
-  const files = taskFileUploads.filter((f) => f.task_id === taskId);
+  const files = state.taskFileUploads.filter((f) => f.task_id === taskId);
   if (!since) return files;
   return files.filter((f) => f.uploaded_at > since);
 }
@@ -612,7 +653,7 @@ export function getTaskFileCount(taskId: string): number {
 /** All files ever attached to a task (including prior submissions). */
 export function getTotalTaskFileCount(taskId: string): number {
   initProductionTracking();
-  const productionFiles = taskFileUploads.filter((f) => f.task_id === taskId);
+  const productionFiles = state.taskFileUploads.filter((f) => f.task_id === taskId);
   const prodNames = new Set(productionFiles.map((f) => f.file_name.toLowerCase()));
   const store = getFlowStore();
   const legacyOnly = store.files.filter(
@@ -623,7 +664,7 @@ export function getTotalTaskFileCount(taskId: string): number {
 
 export function getAllTaskFileUploads(): TaskFileUpload[] {
   initProductionTracking();
-  return [...taskFileUploads];
+  return [...state.taskFileUploads];
 }
 
 // ——— Submissions ———
@@ -652,7 +693,7 @@ export function submitTaskForReview(input: {
   const totalMinutes = getPendingSessionTaskMinutes(input.task_id, input.user_id);
   const metrics = computeProductionMetrics(totalMinutes, fileCount);
 
-  const priorSubmissions = taskSubmissions.filter((s) => s.task_id === input.task_id);
+  const priorSubmissions = state.taskSubmissions.filter((s) => s.task_id === input.task_id);
   const originalMinutes = priorSubmissions[0]?.original_task_minutes ?? totalMinutes;
   const correctionMinutes = pkg.status === "correction_needed"
     ? totalMinutes - (priorSubmissions[priorSubmissions.length - 1]?.total_task_minutes ?? 0)
@@ -675,7 +716,7 @@ export function submitTaskForReview(input: {
     created_at: ts(),
     updated_at: ts(),
   };
-  taskSubmissions = [record, ...taskSubmissions];
+  state.taskSubmissions = [record, ...state.taskSubmissions];
   persistSubmission(record);
 
   updateWorkPackageExternal(input.task_id, {
@@ -689,7 +730,7 @@ export function submitTaskForReview(input: {
 export function getLatestSubmission(taskId: string): TaskSubmissionRecord | null {
   initProductionTracking();
   return (
-    taskSubmissions
+    state.taskSubmissions
       .filter((s) => s.task_id === taskId)
       .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0] ?? null
   );
@@ -697,7 +738,7 @@ export function getLatestSubmission(taskId: string): TaskSubmissionRecord | null
 
 export function getSubmissionsForTask(taskId: string): TaskSubmissionRecord[] {
   initProductionTracking();
-  return taskSubmissions
+  return state.taskSubmissions
     .filter((s) => s.task_id === taskId)
     .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
 }
@@ -728,7 +769,7 @@ export function recordProductionQaReview(input: {
       : null,
     created_at: ts(),
   };
-  qaReviewRecords = [record, ...qaReviewRecords];
+  state.qaReviewRecords = [record, ...state.qaReviewRecords];
   persistQaReview(record);
 
   if (input.submission_id) {
@@ -738,7 +779,7 @@ export function recordProductionQaReview(input: {
       major_correction: "correction_requested",
       rejected: "rejected",
     };
-    taskSubmissions = taskSubmissions.map((s) => {
+    state.taskSubmissions = state.taskSubmissions.map((s) => {
       if (s.id !== input.submission_id) return s;
       const updated = { ...s, status: statusMap[input.result], updated_at: ts() };
       persistSubmission(updated);
@@ -751,7 +792,7 @@ export function recordProductionQaReview(input: {
 
 export function getQaReviewRecordsForTask(taskId: string): QaReviewRecord[] {
   initProductionTracking();
-  return qaReviewRecords.filter((r) => r.task_id === taskId);
+  return state.qaReviewRecords.filter((r) => r.task_id === taskId);
 }
 
 // ——— Reporting ———
@@ -764,7 +805,7 @@ export function getProductionReport(filters: ProductionReportFilters = {}): Prod
   const start = filters.startDate ? parseISO(filters.startDate) : startOfDay(subDays(new Date(), 30));
   const end = filters.endDate ? parseISO(filters.endDate) : new Date();
 
-  let subs = taskSubmissions.filter((s) =>
+  let subs = state.taskSubmissions.filter((s) =>
     isWithinInterval(parseISO(s.submitted_at), { start, end })
   );
 
@@ -945,7 +986,7 @@ export function getProductionReport(filters: ProductionReportFilters = {}): Prod
 export function getDocumentsUploadedToday(userId: string): number {
   initProductionTracking();
   const today = todayDate();
-  return taskFileUploads.filter(
+  return state.taskFileUploads.filter(
     (f) => f.user_id === userId && isAppCalendarDay(f.uploaded_at, today)
   ).length;
 }

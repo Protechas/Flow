@@ -238,3 +238,68 @@ export const CALENDAR_KIND_LABELS: Record<PlanningCalendarEventKind, string> = {
   project_forecast: "Project forecast",
   department_forecast: "Department peak",
 };
+
+// ——— Capacity heat ———
+
+export type CalendarLoadLevel = "light" | "busy" | "overbooked";
+
+export interface CalendarDayLoad {
+  hours: number;
+  level: CalendarLoadLevel;
+  pct: number;
+}
+
+function isWorkingDay(date: Date): boolean {
+  const dow = date.getDay();
+  return dow >= 1 && dow <= 5;
+}
+
+function remainingHours(pkg: WorkPackage): number {
+  const estimated = pkg.estimated_work_hours ?? pkg.estimated_hours ?? 0;
+  const actual = pkg.actual_hours ?? 0;
+  return Math.max(estimated - actual, 0);
+}
+
+/**
+ * Spread each active task's remaining hours across working days from today
+ * to its forecast completion, then compare each day against team capacity.
+ * Answers the question the calendar never could: "can we actually absorb
+ * what's scheduled to land this week?"
+ */
+export function buildDailyLoadMap(
+  workPackages: WorkPackage[],
+  dailyCapacityHours: number,
+  now = new Date()
+): Map<string, CalendarDayLoad> {
+  const hoursByDay = new Map<string, number>();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  for (const pkg of workPackages) {
+    if (!ACTIVE_TASK.has(pkg.status)) continue;
+    const hours = remainingHours(pkg);
+    if (hours <= 0) continue;
+
+    const end = primaryDueDate(pkg);
+    const endDate = end ? parseISO(end) : today;
+    const spanEnd = endDate > today ? endDate : today;
+    const days = eachDayOfInterval({ start: today, end: spanEnd }).filter(isWorkingDay);
+    const targets = days.length > 0 ? days : [today];
+    const perDay = hours / targets.length;
+    for (const day of targets) {
+      const key = format(day, "yyyy-MM-dd");
+      hoursByDay.set(key, (hoursByDay.get(key) ?? 0) + perDay);
+    }
+  }
+
+  const result = new Map<string, CalendarDayLoad>();
+  if (dailyCapacityHours <= 0) return result;
+  for (const [key, hours] of hoursByDay) {
+    const pct = Math.round((hours / dailyCapacityHours) * 100);
+    result.set(key, {
+      hours: Math.round(hours * 10) / 10,
+      pct,
+      level: pct > 100 ? "overbooked" : pct >= 70 ? "busy" : "light",
+    });
+  }
+  return result;
+}

@@ -4,6 +4,7 @@ import { PLANNING_METRIC_HELP_KEYS } from "@/lib/help/help-text";
 import { getDepartmentName } from "@/lib/departments/resolve";
 import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getProjectHealthList } from "@/lib/data/project-health";
+import { buildProjectEarlyWarning } from "@/lib/forecast/project-early-warning";
 import { initProductionTracking, getProductionStore } from "@/lib/data/production-tracking";
 import { buildForecastDashboardStats } from "@/lib/forecast/metrics";
 import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
@@ -458,6 +459,13 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
   const projectForecasts: ProjectForecastRow[] = scopedHealth.map((ph) => {
     const proj = ph.project;
     const risk = dueStatusToRisk(proj.project_due_date_status);
+    const earlyWarning = buildProjectEarlyWarning(
+      proj,
+      packages,
+      store.users,
+      settings,
+      store.qaReviews
+    );
     return {
       projectId: proj.id,
       projectName: proj.name,
@@ -477,6 +485,12 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
         ph.overdueCount > 0 ? "increasing" : ph.blockedCount > 0 ? "stable" : "decreasing",
       riskLevel: risk,
       expectedOutcome: dueStatusToOutcome(proj.project_due_date_status),
+      earlyWarningHeadline:
+        earlyWarning.severity === "critical" || earlyWarning.severity === "warning"
+          ? earlyWarning.headline
+          : null,
+      daysLate: earlyWarning.daysLate,
+      earlyWarningReasons: earlyWarning.reasons.slice(0, 3),
     };
   });
 

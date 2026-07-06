@@ -133,9 +133,23 @@ export function EmployeeWorkspaceView({
   return (
     <EmployeeWorkflowProvider input={workflowInput}>
       <div className="flow-employee-workspace space-y-5 pb-10">
-        <p className="text-sm text-muted-foreground px-1">
-          Hi, <span className="text-foreground font-medium">{userName.split(" ")[0]}</span>
-        </p>
+        <div className="px-1 pt-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {(() => {
+              const h = new Date().getHours();
+              const greeting =
+                h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+              return (
+                <>
+                  {greeting}, <span className="text-primary">{userName.split(" ")[0]}</span>.
+                </>
+              );
+            })()}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Here&apos;s your day — your mission, your queue, and where you stand.
+          </p>
+        </div>
 
         <EmployeeWorkflowPanel
           todayWrapUp={todayWrapUp}

@@ -58,5 +58,21 @@ export async function submitQaReviewApi(params: {
     error_category: params.errorCategory,
   }).select().single();
   if (error) throw error;
+
+  // Run the same in-memory decision flow the demo path uses — it moves the
+  // package to done/correction_needed, bumps correction counts, and fires the
+  // workflow notifications. Then persist the package, or the new status only
+  // lives in this server instance and reverts on the next request.
+  submitQaReview(
+    params.workPackageId,
+    params.reviewerId,
+    params.analystId,
+    params.result,
+    params.notes,
+    params.errorCategory
+  );
+  const { persistPackageState } = await import("@/lib/production/persist-helpers");
+  await persistPackageState(params.workPackageId);
+
   return data;
 }

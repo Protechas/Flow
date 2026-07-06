@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { submitDailyWrapUpAction } from "@/app/actions/employee";
+import { useEffect, useState, useTransition } from "react";
+import { getWrapUpDraftAction, submitDailyWrapUpAction } from "@/app/actions/employee";
 import { WorkDaySummaryPanel } from "@/components/work-visibility/work-day-summary-panel";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -46,6 +46,29 @@ export function EmployeeWrapUpForm({
   const [showActivityDoc, setShowActivityDoc] = useState(false);
   const [activityCategory, setActivityCategory] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState("");
+  const [draftApplied, setDraftApplied] = useState(false);
+
+  // Pre-fill from today's tracked activity so nobody reconstructs their day
+  // from memory. Only applies while the field is still untouched.
+  useEffect(() => {
+    let cancelled = false;
+    getWrapUpDraftAction()
+      .then((draft) => {
+        if (cancelled || !draft.hasActivity) return;
+        setCompleted((current) => {
+          if (current.trim().length > 0) return current;
+          setDraftApplied(true);
+          return draft.summary;
+        });
+      })
+      .catch(() => {
+        // Draft is a convenience — the form works without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const hasUnassigned = (visibility?.unassignedMinutes ?? 0) > 0;
 
@@ -94,7 +117,19 @@ export function EmployeeWrapUpForm({
 
       <div className="space-y-2">
         <Label htmlFor="completed">What did you complete today?</Label>
-        <Textarea id="completed" name="completed" rows={3} placeholder="Summarize your wins…" />
+        <Textarea
+          id="completed"
+          name="completed"
+          rows={draftApplied ? 5 : 3}
+          placeholder="Summarize your wins…"
+          value={completed}
+          onChange={(e) => setCompleted(e.target.value)}
+        />
+        {draftApplied && (
+          <p className="text-xs text-primary">
+            ✦ Pre-filled from your tracked work today — edit or add anything Flow missed.
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="blockers">Any blockers?</Label>

@@ -7,6 +7,7 @@ import {
   getFlowStore,
   initFlowStore,
   logActivityBridge,
+  recordTimerTimeLog,
   refreshTaskLiveForecast,
   updateWorkPackage,
 } from "@/lib/data/flow-store";
@@ -23,4 +24,14 @@ export function activateTaskLiveForecastExternal(taskId: string, startedAtIso: s
 
 export function refreshTaskLiveForecastExternal(taskId: string, taskActiveMinutes?: number) {
   return refreshTaskLiveForecast(taskId, taskActiveMinutes);
+}
+
+export function recordTimerTimeLogExternal(input: {
+  id: string;
+  work_package_id: string;
+  user_id: string;
+  hours: number;
+  log_date: string;
+}) {
+  return recordTimerTimeLog(input);
 }

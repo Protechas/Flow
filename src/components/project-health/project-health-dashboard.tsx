@@ -2,11 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { ProjectMetricDisplay } from "@/components/projects/project-metric-display";
+import { ProjectEarlyWarningPanel } from "@/components/project-health/project-early-warning-panel";
 import { ProjectHealthIntelligenceRow } from "@/components/project-health/project-health-intelligence-row";
 import { PROJECT_HEALTH_STAT_HELP } from "@/lib/help/help-text";
 import type { HelpTextKey } from "@/lib/help/help-text";
 import { FLOW_MATERIAL } from "@/components/platform";
 import type { ProgramIntelligence } from "@/lib/projects/project-intelligence";
+import type { ProjectEarlyWarning } from "@/lib/forecast/project-early-warning";
 import type { ProjectHealth } from "@/types/flow";
 import { AlertTriangle, Calendar, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,11 +17,13 @@ export function ProjectHealthDashboard({
   projects,
   highlightSearch,
   intelligenceByProject = {},
+  earlyWarningByProject = {},
   highlightProjectId,
 }: {
   projects: ProjectHealth[];
   highlightSearch?: string;
   intelligenceByProject?: Record<string, ProgramIntelligence>;
+  earlyWarningByProject?: Record<string, ProjectEarlyWarning>;
   highlightProjectId?: string;
 }) {
   return (
@@ -34,6 +38,7 @@ export function ProjectHealthDashboard({
         const matchesProject =
           !highlightProjectId || ph.project.id === highlightProjectId;
         const intelligence = intelligenceByProject[ph.project.id];
+        const earlyWarning = earlyWarningByProject[ph.project.id];
 
         return (
           <article
@@ -47,6 +52,8 @@ export function ProjectHealthDashboard({
             )}
             data-accent={accent}
           >
+            {earlyWarning && <ProjectEarlyWarningPanel warning={earlyWarning} />}
+
             {intelligence && (
               <ProjectHealthIntelligenceRow
                 projectId={ph.project.id}

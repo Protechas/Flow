@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ERROR_CATEGORIES, QA_RESULTS } from "@/lib/constants";
-import { fileViewHref } from "@/lib/files/download";
+import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
@@ -156,7 +156,7 @@ export function QaReviewPanel({
                 <ul className="space-y-1 text-sm">
                   {fileMap[selected.id]!.map((f) => (
                     <li key={f.id} className="rounded-md bg-muted/20 px-3 py-2 flex justify-between gap-2">
-                      {f.file_data_base64 ? (
+                      {taskFileHasContent(f) ? (
                         <Link
                           href={fileViewHref("task", f.id)}
                           className="truncate text-primary hover:underline"
@@ -164,7 +164,12 @@ export function QaReviewPanel({
                           {f.file_name}
                         </Link>
                       ) : (
-                        <span className="truncate">{f.file_name}</span>
+                        <span
+                          className="truncate text-muted-foreground"
+                          title="File content unavailable — uploaded before file storage was enabled; please re-upload"
+                        >
+                          {f.file_name}
+                        </span>
                       )}
                       <span className="text-xs text-muted-foreground shrink-0">
                         {(f.file_size / 1024).toFixed(1)} KB

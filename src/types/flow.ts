@@ -577,6 +577,7 @@ export interface TaskFileUpload {
   file_type: string;
   file_size: number;
   file_url_or_path: string;
+  storage_path?: string | null;
   file_data_base64?: string;
   uploaded_at: string;
   created_at: string;
@@ -1445,6 +1446,9 @@ export interface CommandCenterMetrics {
       overdue: number;
       estimatedCompletion: string | null;
       status: "at_risk" | "on_track" | "near_completion";
+      daysLate?: number | null;
+      landingHeadline?: string | null;
+      primaryReason?: string | null;
     }[];
   };
   qaHealth: {

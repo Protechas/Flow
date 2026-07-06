@@ -1017,6 +1017,11 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
 
     if (pathname.startsWith("/people/") && pathname.split("/").length >= 3) return true;
 
+    // Auth routes must stay reachable or employees can never clear a stale session
+    if (pathname === "/login" || pathname === "/unauthorized") return true;
+
+    if (pathname === "/auth" || pathname.startsWith("/auth/")) return true;
+
     return false;
 
   }

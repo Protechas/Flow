@@ -8,7 +8,7 @@ import {
   WorkspaceContainer,
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
-import { getProjectHealthIntelligenceMap, getProjectHealthList } from "@/lib/data/project-health";
+import { getProjectEarlyWarningMap, getProjectHealthIntelligenceMap, getProjectHealthList } from "@/lib/data/project-health";
 import { buildProjectMetricExportRows } from "@/lib/metrics/project-metrics-reporting";
 import { projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
 
@@ -19,9 +19,10 @@ export default async function ProjectHealthPage({
 }) {
   await requirePageAccess("/project-health");
   const { search, risk, projectId } = await searchParams;
-  const [projects, intelligenceByProject] = await Promise.all([
+  const [projects, intelligenceByProject, earlyWarningByProject] = await Promise.all([
     getProjectHealthList(),
     getProjectHealthIntelligenceMap(),
+    getProjectEarlyWarningMap(),
   ]);
   let filtered = projects;
 
@@ -40,6 +41,8 @@ export default async function ProjectHealthPage({
 
   if (risk === "at_risk") {
     filtered = filtered.filter((p) => {
+      const ew = earlyWarningByProject[p.project.id];
+      if (ew?.severity === "critical" || ew?.severity === "warning") return true;
       const intel = intelligenceByProject[p.project.id];
       if (intel) {
         return intel.riskTier === "at_risk" || intel.riskTier === "critical";
@@ -49,6 +52,8 @@ export default async function ProjectHealthPage({
   }
 
   const atRisk = filtered.filter((p) => {
+    const ew = earlyWarningByProject[p.project.id];
+    if (ew?.severity === "critical" || ew?.severity === "warning") return true;
     const intel = intelligenceByProject[p.project.id];
     if (intel) return intel.riskTier === "at_risk" || intel.riskTier === "critical";
     return p.overdueCount > 0 || p.blockedCount > 0;
@@ -150,6 +155,7 @@ export default async function ProjectHealthPage({
             highlightSearch={search?.trim()}
             highlightProjectId={projectId?.trim()}
             intelligenceByProject={intelligenceByProject}
+            earlyWarningByProject={earlyWarningByProject}
           />
         </WorkspaceContainer>
       }

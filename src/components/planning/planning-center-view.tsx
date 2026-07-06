@@ -171,6 +171,7 @@ export function PlanningCenterView({
           workPackages={workPackages}
           projects={projects}
           departments={departments}
+          dailyCapacityHours={analysts.length * (settings.productive_hours_per_day || 6)}
         />
       </EnterpriseSection>
 
@@ -269,7 +270,13 @@ export function PlanningCenterView({
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {p.progressPct}% complete · {p.remainingHours}h remaining ·{" "}
                   {outcomeLabel(p.expectedOutcome)}
+                  {p.earlyWarningHeadline ? ` · ${p.earlyWarningHeadline}` : ""}
                 </p>
+                {p.earlyWarningReasons && p.earlyWarningReasons.length > 0 && (
+                  <p className="text-[11px] text-warning/90 mt-1 line-clamp-2">
+                    {p.earlyWarningReasons[0]}
+                  </p>
+                )}
               </div>
               <Badge
                 variant="outline"

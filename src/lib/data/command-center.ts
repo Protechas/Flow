@@ -7,6 +7,7 @@ import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
 import { getProjectHealthList } from "@/lib/data/project-health";
+import { buildProjectEarlyWarningMap } from "@/lib/forecast/project-early-warning";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import {
   computeQaPassRate,
@@ -199,6 +200,13 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
     getEmployeeScorecards(),
     getProjectHealthList(),
   ]);
+  const earlyWarningByProject = buildProjectEarlyWarningMap({
+    projects: store.projects,
+    packages,
+    users: store.users,
+    settings: store.forecastSettings,
+    qaReviews: store.qaReviews,
+  });
 
   let scorecards = allScorecards;
   if (viewer && !isHierarchyOrgWide(viewer)) {
@@ -268,9 +276,18 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
   const projects = projectHealthList
     .filter((ph) => ph.project.status !== "archived")
     .map((ph) => {
+      const ew = earlyWarningByProject[ph.project.id];
       let status: "at_risk" | "on_track" | "near_completion" = "on_track";
-      if (ph.overdueCount >= 3 || ph.blockedCount >= 2) status = "at_risk";
-      else if (ph.overallProgress >= 85) status = "near_completion";
+      if (
+        ew?.severity === "critical" ||
+        ew?.severity === "warning" ||
+        ph.overdueCount >= 3 ||
+        ph.blockedCount >= 2
+      ) {
+        status = "at_risk";
+      } else if (ph.overallProgress >= 85) {
+        status = "near_completion";
+      }
       return {
         id: ph.project.id,
         name: ph.project.name,
@@ -280,6 +297,9 @@ export async function getCommandCenterMetrics(viewer?: User): Promise<CommandCen
         overdue: ph.overdueCount,
         estimatedCompletion: ph.projectedCompletion ?? null,
         status,
+        daysLate: ew?.daysLate ?? null,
+        landingHeadline: ew?.headline ?? null,
+        primaryReason: ew?.reasons[0] ?? null,
       };
     });
 

@@ -17,6 +17,7 @@ import { EntitySelectValue } from "@/components/ui/entity-select-value";
 import { userDisplayName } from "@/lib/users/display-name";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  buildDailyLoadMap,
   buildPlanningCalendarEvents,
   CALENDAR_KIND_LABELS,
   filterCalendarEvents,
@@ -25,6 +26,7 @@ import {
   getCalendarWeekDays,
   groupEventsByDate,
   summarizeCalendarDay,
+  type CalendarDayLoad,
   type PlanningCalendarEvent,
   type PlanningCalendarEventKind,
 } from "@/lib/planning/calendar";
@@ -79,12 +81,14 @@ export function PlanningCalendarView({
   projects,
   departments,
   forecastRefreshedAt,
+  dailyCapacityHours,
 }: {
   snapshot: PlanningCenterSnapshot;
   workPackages: WorkPackage[];
   projects: Project[];
   departments: Department[];
   forecastRefreshedAt?: string;
+  dailyCapacityHours?: number;
 }) {
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => formatCalendarDateKey(new Date()));
@@ -114,6 +118,13 @@ export function PlanningCalendarView({
   );
 
   const eventsByDate = useMemo(() => groupEventsByDate(filteredEvents), [filteredEvents]);
+  const loadByDate = useMemo(
+    () =>
+      dailyCapacityHours && dailyCapacityHours > 0
+        ? buildDailyLoadMap(workPackages, dailyCapacityHours)
+        : new Map<string, CalendarDayLoad>(),
+    [workPackages, dailyCapacityHours]
+  );
   const monthGrid = useMemo(() => getCalendarMonthGrid(month), [month]);
   const weekDays = useMemo(() => getCalendarWeekDays(new Date(selectedDate)), [selectedDate]);
   const selectedSummary = summarizeCalendarDay(
@@ -243,9 +254,24 @@ export function PlanningCalendarView({
             <MonthGrid
               monthGrid={monthGrid}
               eventsByDate={eventsByDate}
+              loadByDate={loadByDate}
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
+            {loadByDate.size > 0 && (
+              <p className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="font-medium">Team capacity heat:</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-1 w-4 rounded-full bg-primary/50" /> light
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-1 w-4 rounded-full bg-warning" /> busy (70%+)
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-1 w-4 rounded-full bg-danger" /> overbooked
+                </span>
+              </p>
+            )}
           </TabsContent>
 
           <TabsContent value="week" className="mt-0">
@@ -267,11 +293,13 @@ export function PlanningCalendarView({
 function MonthGrid({
   monthGrid,
   eventsByDate,
+  loadByDate,
   selectedDate,
   onSelectDate,
 }: {
   monthGrid: { date: Date; inMonth: boolean }[];
   eventsByDate: Map<string, PlanningCalendarEvent[]>;
+  loadByDate: Map<string, CalendarDayLoad>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
 }) {
@@ -291,6 +319,7 @@ function MonthGrid({
         {monthGrid.map(({ date, inMonth }) => {
           const key = formatCalendarDateKey(date);
           const dayEvents = eventsByDate.get(key) ?? [];
+          const load = loadByDate.get(key);
           const selected = key === selectedDate;
           const today = isToday(date);
 
@@ -326,6 +355,26 @@ function MonthGrid({
                   <p className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - 3} more</p>
                 )}
               </div>
+              {load && inMonth && (
+                <div
+                  className="mt-1"
+                  title={`~${load.hours}h of forecast work · ${load.pct}% of team capacity`}
+                >
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-muted/40">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        load.level === "overbooked"
+                          ? "bg-danger"
+                          : load.level === "busy"
+                            ? "bg-warning"
+                            : "bg-primary/50"
+                      )}
+                      style={{ width: `${Math.min(load.pct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </button>
           );
         })}

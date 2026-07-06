@@ -153,6 +153,14 @@ export async function employeeReopenTaskAction(taskId: string) {
   revalidateWork();
 }
 
+/** Pre-fill the wrap-up from today's tracked activity (timers, uploads, QA submits). */
+export async function getWrapUpDraftAction() {
+  const user = await requireEmployee();
+  await ensureServerWriteContext();
+  const { buildWrapUpDraft } = await import("@/lib/wrap-up/draft");
+  return buildWrapUpDraft(user.id);
+}
+
 export async function submitDailyWrapUpAction(input: {
   completed_summary: string;
   blockers: string;

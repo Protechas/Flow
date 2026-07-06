@@ -29,15 +29,15 @@ export default async function LoginPage({
   const demoUsers = supabaseEnabled ? [] : getDemoUsersForLogin();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-border">
+    <div className="flow-login-scene dark min-h-screen flex items-center justify-center p-4">
+      <Card className="flow-login-card w-full max-w-md">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-primary text-primary-foreground text-sm font-bold">
-            F
-          </div>
-          <CardTitle className="text-xl font-semibold tracking-tight">Flow</CardTitle>
+          <div className="flow-login-brand mx-auto mb-4">F</div>
+          <CardTitle className="flow-login-title-glow text-2xl font-semibold tracking-tight">
+            Flow
+          </CardTitle>
           <CardDescription className="text-sm">
-            Enterprise operations platform
+            Your operations command center
           </CardDescription>
         </CardHeader>
         <CardContent>

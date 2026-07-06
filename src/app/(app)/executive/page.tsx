@@ -3,6 +3,7 @@ import { ExecutiveDashboardView } from "@/components/command-center/executive-da
 import { CommandCenterSkeleton } from "@/components/enterprise/command-center-skeleton";
 import { FlowPageShell, PLATFORM_EYEBROWS, WorkspaceContainer } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
+import { appGreeting } from "@/lib/datetime/timezone";
 import { getCommandCenterMetrics } from "@/lib/data/command-center";
 import type { User } from "@/types/flow";
 
@@ -13,13 +14,14 @@ async function ExecutiveDashboardContent({ user }: { user: User }) {
 
 export default async function ExecutivePage() {
   const user = await requirePageAccess("/executive");
+  const firstName = user.first_name?.trim() || user.full_name?.split(" ")[0] || "there";
 
   return (
     <FlowPageShell
-      title="Executive Dashboard"
+      title={`${appGreeting()}, ${firstName}.`}
       eyebrow={PLATFORM_EYEBROWS.executive}
       breadcrumbs={[{ label: "Executive" }]}
-      description="One screen for how the company is performing — department health, workforce, delivery risk, quality, and management alerts."
+      description="Here's how the company is performing right now — department health, workforce, delivery risk, and quality."
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
           <Suspense fallback={<CommandCenterSkeleton />}>

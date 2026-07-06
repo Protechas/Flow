@@ -64,10 +64,10 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #15803d;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --primary-hover: #16a34a;
-  --primary-soft: #86efac;
+  --primary-hover: #3b82f6;
+  --primary-soft: #bfdbfe;
   --secondary: #f1f5f9;
   --secondary-foreground: #475569;
   --muted: #f1f5f9;
@@ -75,35 +75,35 @@
   --accent: #e2e8f0;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
-  --success: #15803d;
+  --success: #16a34a;
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #0284c7;
   --qa: #9333ea;
   --border: #cbd5e1;
   --input: #cbd5e1;
-  --ring: #15803d;
-  --chart-1: #0284c7;
-  --chart-2: #15803d;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #0891b2;
   --chart-3: #64748b;
   --chart-4: #f59e0b;
   --chart-5: #ef4444;
-  --radius: 0.5rem;
-  --flow-radius-control: 0.6875rem;
-  --flow-radius-card: 0.9375rem;
-  --flow-radius-panel: 1.0625rem;
-  --flow-radius-drawer: 1.25rem;
+  --radius: 0.625rem;
+  --flow-radius-control: 0.75rem;
+  --flow-radius-card: 1.0625rem;
+  --flow-radius-panel: 1.25rem;
+  --flow-radius-drawer: 1.5rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #15803d;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f1f5f9;
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
-  --sidebar-ring: #15803d;
+  --sidebar-ring: #2563eb;
   --surface-primary: #f1f5f9;
   --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-accent: rgba(21, 128, 61, 0.2);
+  --border-accent: rgba(37, 99, 235, 0.22);
   --border-raised: rgba(255, 255, 255, 0.65);
   --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-elevated: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -160,57 +160,57 @@
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Flow Executive Dark — premium operations theme with executive green accent */
+/* Flow 2.0 Deep Space — electric blue command theme */
 .dark {
   color-scheme: dark;
-  --background: #0c0f12;
-  --foreground: #f0f6fc;
-  --card: #141920;
-  --card-elevated: #1a2129;
-  --card-foreground: #f0f6fc;
-  --popover: #141920;
-  --popover-foreground: #f0f6fc;
-  --primary: #34d399;
-  --primary-foreground: #052e1a;
-  --primary-hover: #6ee7b7;
-  --primary-soft: rgba(52, 211, 153, 0.12);
-  --secondary: #1e252d;
-  --secondary-foreground: #9ca3af;
-  --muted: #0c0f12;
-  --muted-foreground: #8b949e;
-  --accent: #1e252d;
-  --accent-foreground: #f0f6fc;
-  --destructive: #f85149;
-  --success: #34d399;
-  --warning: #d29922;
-  --danger: #f85149;
-  --info: #9ca3af;
-  --qa: #a371f7;
-  --border: #2d333b;
-  --input: #2d333b;
-  --ring: #34d399;
-  --chart-1: #34d399;
-  --chart-2: #3fb950;
-  --chart-3: #8b949e;
-  --chart-4: #d29922;
-  --chart-5: #f85149;
-  --surface-1: #0c0f12;
-  --surface-2: #101419;
-  --surface-3: #141920;
-  --surface-4: #1a2129;
-  --surface-5: #212830;
-  --sidebar: #080b0e;
-  --sidebar-foreground: #8b949e;
-  --sidebar-primary: #34d399;
-  --sidebar-primary-foreground: #052e1a;
-  --sidebar-accent: #141920;
-  --sidebar-accent-foreground: #34d399;
-  --sidebar-border: #2d333b;
-  --sidebar-ring: #34d399;
-  --surface-primary: #0c0f12;
-  --border-subtle: rgba(240, 246, 252, 0.06);
-  --border-accent: rgba(52, 211, 153, 0.26);
-  --border-raised: rgba(240, 246, 252, 0.09);
+  --background: #05080f;
+  --foreground: #eef4ff;
+  --card: #0b1120;
+  --card-elevated: #101830;
+  --card-foreground: #eef4ff;
+  --popover: #0b1120;
+  --popover-foreground: #eef4ff;
+  --primary: #3f8cff;
+  --primary-foreground: #ffffff;
+  --primary-hover: #66a5ff;
+  --primary-soft: rgba(63, 140, 255, 0.14);
+  --secondary: #131c33;
+  --secondary-foreground: #93a4c7;
+  --muted: #080d1a;
+  --muted-foreground: #8493b0;
+  --accent: #131c33;
+  --accent-foreground: #eef4ff;
+  --destructive: #f8514e;
+  --success: #2fd67b;
+  --warning: #f5a623;
+  --danger: #f8514e;
+  --info: #6db3ff;
+  --qa: #a78bfa;
+  --border: #1b2742;
+  --input: #1b2742;
+  --ring: #3f8cff;
+  --chart-1: #3f8cff;
+  --chart-2: #22d3ee;
+  --chart-3: #a78bfa;
+  --chart-4: #f5a623;
+  --chart-5: #f8514e;
+  --surface-1: #05080f;
+  --surface-2: #080d1a;
+  --surface-3: #0b1120;
+  --surface-4: #101830;
+  --surface-5: #16203c;
+  --sidebar: #04070d;
+  --sidebar-foreground: #8493b0;
+  --sidebar-primary: #3f8cff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0d1526;
+  --sidebar-accent-foreground: #66a5ff;
+  --sidebar-border: #131c33;
+  --sidebar-ring: #3f8cff;
+  --surface-primary: #05080f;
+  --border-subtle: rgba(147, 180, 255, 0.09);
+  --border-accent: rgba(63, 140, 255, 0.32);
+  --border-raised: rgba(190, 214, 255, 0.11);
   --shadow-primary-glow:
     0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
     0 0 18px color-mix(in srgb, var(--primary) 28%, transparent),
@@ -238,12 +238,12 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
     0 4px 12px rgba(0, 0, 0, 0.34),
     0 14px 32px rgba(0, 0, 0, 0.28);
-  --surface-card-top: color-mix(in srgb, var(--card) 90%, #21262d 10%);
-  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #0d1117 4%);
-  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 88%, #262c36 12%);
-  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #0d1117 6%);
-  --glass-surface: rgba(13, 17, 23, 0.94);
-  --glass-panel: color-mix(in srgb, var(--card) 92%, rgba(1, 4, 9, 0.75));
+  --surface-card-top: color-mix(in srgb, var(--card) 88%, #1c2a4d 12%);
+  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #04070d 4%);
+  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 86%, #23345e 14%);
+  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #04070d 6%);
+  --glass-surface: rgba(6, 10, 20, 0.94);
+  --glass-panel: color-mix(in srgb, var(--card) 92%, rgba(2, 5, 12, 0.78));
   --shadow-material-workspace:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
@@ -265,11 +265,12 @@
     0 8px 24px rgba(0, 0, 0, 0.4),
     0 32px 72px rgba(0, 0, 0, 0.34);
   --app-background-gradient:
-    radial-gradient(ellipse 80% 55% at 50% -8%, rgba(52, 211, 153, 0.05) 0%, transparent 58%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(8, 11, 14, 0.92) 0%, transparent 52%),
-    linear-gradient(168deg, #0c0f12 0%, #0a0d10 48%, #080b0e 100%);
-  --surface-gradient: linear-gradient(180deg, #0c0f12 0%, #0a0d10 50%, #080b0e 100%);
-  --sidebar-gradient: linear-gradient(180deg, #080b0e 0%, #0c0f12 55%, #0a0d10 100%);
+    radial-gradient(ellipse 70% 50% at 50% -12%, rgba(63, 140, 255, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 35% at 88% 8%, rgba(34, 211, 238, 0.04) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(2, 5, 12, 0.9) 0%, transparent 52%),
+    linear-gradient(168deg, #060a14 0%, #05080f 48%, #04070d 100%);
+  --surface-gradient: linear-gradient(180deg, #060a14 0%, #05080f 50%, #04070d 100%);
+  --sidebar-gradient: linear-gradient(180deg, #04070d 0%, #060a14 55%, #05080f 100%);
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 250ms;
@@ -525,6 +526,21 @@
     background: color-mix(in srgb, var(--glass-panel) 88%, var(--sidebar) 12%);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+  }
+  /* Flow 2.0 — floating console panel */
+  @media (min-width: 768px) {
+    .flow-sidebar-console [data-sidebar="sidebar"] {
+      margin: 0.625rem 0 0.625rem 0.625rem;
+      height: calc(100svh - 1.25rem);
+      border-radius: 1.125rem;
+      border: 1px solid var(--sidebar-border);
+      border-top-color: color-mix(in srgb, var(--border-raised) 80%, transparent);
+      box-shadow:
+        0 0 0 1px rgba(63, 140, 255, 0.04),
+        0 8px 28px rgba(2, 5, 12, 0.55),
+        inset 0 1px 0 rgba(190, 214, 255, 0.05);
+      overflow: hidden;
+    }
   }
   .flow-sidebar-console [data-sidebar="content"].flow-sidebar-scroll {
     scrollbar-width: thin;
@@ -1007,10 +1023,10 @@
     background: linear-gradient(90deg, #f59e0b 0%, transparent 100%);
   }
   .flow-org-user-card[data-tier="3"]::before {
-    background: linear-gradient(90deg, #34d399 0%, transparent 100%);
+    background: linear-gradient(90deg, #22d3ee 0%, transparent 100%);
   }
   .flow-org-user-card[data-tier="2"]::before {
-    background: linear-gradient(90deg, #22c55e 0%, transparent 100%);
+    background: linear-gradient(90deg, #66a5ff 0%, transparent 100%);
   }
   .flow-org-user-card[data-tier="1"]::before {
     background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);
@@ -2009,4 +2025,91 @@
 
 .animate-slide-in-right {
   animation: slide-in-right 0.2s ease-out;
+}
+
+/* ——— Flow 2.0 login scene — deep space, electric ring ——— */
+.flow-login-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 32%, rgba(63, 140, 255, 0.16) 0%, transparent 62%),
+    radial-gradient(ellipse 40% 30% at 78% 12%, rgba(34, 211, 238, 0.06) 0%, transparent 58%),
+    radial-gradient(ellipse 50% 38% at 18% 85%, rgba(99, 102, 241, 0.07) 0%, transparent 60%),
+    linear-gradient(170deg, #060a14 0%, #04070d 60%, #030509 100%);
+}
+.flow-login-scene::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(46rem, 92vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1.5px solid rgba(102, 165, 255, 0.35);
+  box-shadow:
+    0 0 24px rgba(63, 140, 255, 0.35),
+    0 0 90px rgba(63, 140, 255, 0.22),
+    0 0 200px rgba(63, 140, 255, 0.14),
+    inset 0 0 60px rgba(63, 140, 255, 0.12),
+    inset 0 0 160px rgba(63, 140, 255, 0.06);
+  animation: flow-login-ring-breathe 7s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+.flow-login-scene::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(52rem, 104vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1px solid rgba(102, 165, 255, 0.1);
+  animation: flow-login-ring-breathe 7s ease-in-out infinite reverse;
+  pointer-events: none;
+  z-index: 0;
+}
+.flow-login-scene > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes flow-login-ring-breathe {
+  0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.015); }
+}
+.flow-login-card {
+  border: 1px solid rgba(147, 180, 255, 0.14);
+  border-top-color: rgba(190, 214, 255, 0.2);
+  background: rgba(8, 13, 26, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 0 1px rgba(63, 140, 255, 0.08),
+    0 8px 32px rgba(2, 5, 12, 0.6),
+    0 24px 80px rgba(2, 5, 12, 0.5),
+    inset 0 1px 0 rgba(190, 214, 255, 0.08);
+}
+.flow-login-brand {
+  display: flex;
+  height: 3rem;
+  width: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.875rem;
+  background: linear-gradient(145deg, #66a5ff 0%, #2f6fe0 100%);
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 1px rgba(63, 140, 255, 0.4),
+    0 0 20px rgba(63, 140, 255, 0.45),
+    0 0 48px rgba(63, 140, 255, 0.2);
+}
+.flow-login-title-glow {
+  text-shadow: 0 0 24px rgba(63, 140, 255, 0.35);
 }

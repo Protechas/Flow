@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { suggestAssigneesAction } from "@/app/actions/assignment";
+import type { AssigneeSuggestion } from "@/lib/operations/assignment-suggest";
+import { Sparkles } from "lucide-react";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +55,27 @@ export function AssignTaskDialog({
   const [assigneeId, setAssigneeId] = useState(initialAssigneeId ?? "__none__");
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
+  const [suggestions, setSuggestions] = useState<AssigneeSuggestion[]>([]);
+
+  // Rank best-fit assignees whenever a task is chosen: capacity, familiarity
+  // with the workstream, and QA pass rate.
+  useEffect(() => {
+    if (!open || !taskId) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    suggestAssigneesAction(taskId)
+      .then((res) => {
+        if (!cancelled) setSuggestions(res);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, taskId]);
 
   const activeTasks = useMemo(
     () => workPackages.filter((p) => p.status !== "done"),
@@ -115,6 +139,39 @@ export function AssignTaskDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {suggestions.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Best fits for this task
+              </p>
+              <div className="space-y-1.5">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={s.userId}
+                    type="button"
+                    onClick={() => setAssigneeId(s.userId)}
+                    className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
+                      assigneeId === s.userId
+                        ? "border-primary bg-primary/10"
+                        : "border-border/60 hover:border-primary/40 hover:bg-primary/5"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {i === 0 ? "★ " : ""}
+                        {s.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {s.reasons.join(" · ")}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Assign to *</Label>
             <Select value={assigneeId} onValueChange={(v) => setAssigneeId(v ?? "__none__")}>

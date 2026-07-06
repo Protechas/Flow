@@ -90,6 +90,7 @@ function mapFile(row: Record<string, unknown>): TaskFileUpload {
     file_type: String(row.file_type),
     file_size: num(row.file_size),
     file_url_or_path: String(row.file_url_or_path),
+    storage_path: str(row.storage_path),
     uploaded_at: String(row.uploaded_at),
     created_at: String(row.created_at),
   };
@@ -275,6 +276,7 @@ export async function persistTaskFileUploadSync(file: TaskFileUpload): Promise<v
       file_type: file.file_type,
       file_size: file.file_size,
       file_url_or_path: file.file_url_or_path,
+      storage_path: file.storage_path ?? null,
       uploaded_at: file.uploaded_at,
     },
     ["department_id"]

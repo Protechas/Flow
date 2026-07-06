@@ -73,8 +73,14 @@ export const REQUIRED_COLUMNS = [
           WHERE table_schema='public' AND table_name='projects' AND column_name='structure_mode'`,
   },
   {
-    label: "projects.productive_day_percent",
+    // 042 adds this to forecast_settings (not projects)
+    label: "forecast_settings.productive_day_percent",
     sql: `SELECT 1 FROM information_schema.columns
-          WHERE table_schema='public' AND table_name='projects' AND column_name='productive_day_percent'`,
+          WHERE table_schema='public' AND table_name='forecast_settings' AND column_name='productive_day_percent'`,
+  },
+  {
+    label: "task_file_uploads.storage_path",
+    sql: `SELECT 1 FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='task_file_uploads' AND column_name='storage_path'`,
   },
 ];

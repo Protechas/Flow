@@ -33,6 +33,17 @@ import {
   updateWorkPackageExternal,
 } from "@/lib/data/production-bridge";
 import { ensureServerWriteContext } from "@/lib/server/write-context";
+import {
+  persistPackageState,
+  persistTimerSessionLog,
+} from "@/lib/production/persist-helpers";
+import { newPersistedId } from "@/lib/server/persisted-id";
+import {
+  removeTaskFileFromStorage,
+  taskFileStoragePath,
+  uploadTaskFileToStorage,
+} from "@/lib/files/task-files";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 function revalidateProduction(taskId?: string) {
   revalidatePath("/work");
@@ -58,6 +69,7 @@ export async function startTaskTimerAction(taskId: string, managerOverride?: boo
     await ensureServerWriteContext();
     const entry = startTaskTimer(user.id, taskId);
     await persistTaskTimeEntrySync(entry);
+    await persistPackageState(taskId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to start task";
     if (msg.startsWith("ACTIVE_TASK:")) {
@@ -103,6 +115,8 @@ export async function stopTaskTimerAction() {
   await ensureServerWriteContext();
   const entry = stopTaskTimer(user.id);
   await persistTaskTimeEntrySync(entry);
+  await persistTimerSessionLog(entry);
+  await persistPackageState(entry.task_id);
   revalidateProduction(entry.task_id);
   return { ok: true as const, taskId: entry.task_id, minutes: entry.total_active_minutes };
 }
@@ -133,15 +147,31 @@ export async function uploadTaskFileAction(formData: FormData) {
       };
     }
     await ensureServerWriteContext();
-    const upload = uploadTaskFile({
-      task_id: taskId,
-      user_id: user.id,
-      file_name: file.name,
-      file_type: file.type || "application/octet-stream",
-      file_size: buffer.length,
-      file_data_base64: buffer.toString("base64"),
-    });
-    await persistTaskFileUploadSync(upload);
+    const fileId = newPersistedId("tfu");
+    const contentType = file.type || "application/octet-stream";
+    const useStorage = isSupabaseConfigured();
+    const storagePath = useStorage ? taskFileStoragePath(taskId, fileId, file.name) : null;
+    if (storagePath) {
+      await uploadTaskFileToStorage({ storagePath, buffer, contentType });
+    }
+    try {
+      const upload = uploadTaskFile({
+        id: fileId,
+        task_id: taskId,
+        user_id: user.id,
+        file_name: file.name,
+        file_type: contentType,
+        file_size: buffer.length,
+        storage_path: storagePath,
+        // Demo mode has no storage bucket — keep bytes in memory instead
+        ...(useStorage ? {} : { file_data_base64: buffer.toString("base64") }),
+      });
+      await persistTaskFileUploadSync(upload);
+    } catch (persistError) {
+      if (storagePath) await removeTaskFileFromStorage(storagePath).catch(() => {});
+      throw persistError;
+    }
+    await persistPackageState(taskId);
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
@@ -178,7 +208,13 @@ export async function submitTaskForReviewAction(
         (e) => e.user_id === user.id && e.task_id === taskId && e.status === "completed"
       )
       .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""))[0];
-    if (completedTimer) await persistTaskTimeEntrySync(completedTimer);
+    if (completedTimer) {
+      await persistTaskTimeEntrySync(completedTimer);
+      await persistTimerSessionLog(completedTimer);
+    }
+    // Without this, the ready_for_qa status never reaches the DB and the
+    // task neither shows as submitted nor appears in the QA queue.
+    await persistPackageState(taskId);
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
@@ -227,6 +263,7 @@ export async function updateTaskDocumentProgressAction(
   const count = Math.max(0, Math.round(completed));
   updateWorkPackageExternal(taskId, { current_documents_completed: count });
   refreshTaskLiveForecastExternal(taskId, getTotalTaskMinutes(taskId));
+  await persistPackageState(taskId);
   revalidateProduction(taskId);
   return { ok: true as const };
 }

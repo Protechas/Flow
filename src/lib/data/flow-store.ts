@@ -39,6 +39,7 @@ import {
 } from "@/lib/forecast/engine";
 import { applyTaskLiveForecast } from "@/lib/forecast/live";
 import { computeAssigneeQueueForecasts } from "@/lib/forecast/assignee-queue";
+import { calibrateSettings } from "@/lib/forecast/calibration";
 import { resolveProjectStructureDefaults } from "@/lib/departments/structure-defaults";
 import { normalizeForecastSettings } from "@/lib/forecast/capacity";
 import {
@@ -341,7 +342,9 @@ function buildForecastFields(
   now?: Date
 ): Partial<WorkPackage> {
   return applyTaskLiveForecast(pkg, {
-    settings: forecastSettings,
+    // Learned minutes-per-document from this assignee's (or the team's)
+    // actual submission history; explicit task estimates still win.
+    settings: calibrateSettings(forecastSettings, pkg.assigned_to),
     taskActiveMinutes,
     now: now ?? new Date(),
   });
@@ -538,7 +541,7 @@ export function recalculateAssigneeForecast(
   const forecasts = computeAssigneeQueueForecasts({
     assigneeId: userId,
     packages: workPackages,
-    settings: forecastSettings,
+    settings: calibrateSettings(forecastSettings, userId),
     activeTaskId,
     taskMinutesById,
     now: options?.now,
@@ -1162,6 +1165,14 @@ export function duplicateWorkPackage(id: string): WorkPackage | null {
 }
 
 // ——— Time logs ———
+function persistTimeLog(log: TimeLog) {
+  void import("@/lib/data/time-logs-db").then((m) => m.persistTimeLogSync(log));
+}
+
+export function replaceTimeLogsStore(list: TimeLog[]): void {
+  timeLogs = list;
+}
+
 export function createTimeLog(input: {
   work_package_id: string;
   user_id: string;
@@ -1171,6 +1182,7 @@ export function createTimeLog(input: {
 }) {
   const log: TimeLog = { id: uid("tl"), ...input, notes: input.notes ?? null, created_at: ts() };
   timeLogs = [log, ...timeLogs];
+  persistTimeLog(log);
   syncPackageHours(input.work_package_id);
   const pkg = workPackages.find((p) => p.id === input.work_package_id);
   if (pkg) syncYearFromPackages(pkg.year_work_item_id);
@@ -1184,9 +1196,35 @@ export function createTimeLog(input: {
   return log;
 }
 
+/**
+ * Record a completed task-timer session as a time log. Id equals the task
+ * time entry id, so re-recording the same session upserts instead of
+ * duplicating. No activity/workflow dispatch — the timer already logged those.
+ */
+export function recordTimerTimeLog(input: {
+  id: string;
+  work_package_id: string;
+  user_id: string;
+  hours: number;
+  log_date: string;
+}): TimeLog {
+  const log: TimeLog = {
+    ...input,
+    notes: "Task timer",
+    created_at: ts(),
+  };
+  timeLogs = [log, ...timeLogs.filter((t) => t.id !== log.id)];
+  persistTimeLog(log);
+  syncPackageHours(input.work_package_id);
+  const pkg = workPackages.find((p) => p.id === input.work_package_id);
+  if (pkg) syncYearFromPackages(pkg.year_work_item_id);
+  return log;
+}
+
 export function deleteTimeLog(id: string) {
   const log = timeLogs.find((t) => t.id === id);
   timeLogs = timeLogs.filter((t) => t.id !== id);
+  void import("@/lib/data/time-logs-db").then((m) => m.deleteTimeLogSync(id));
   if (log) {
     syncPackageHours(log.work_package_id);
     const pkg = workPackages.find((p) => p.id === log.work_package_id);

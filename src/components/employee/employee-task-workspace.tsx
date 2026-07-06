@@ -484,6 +484,7 @@ function EmployeeTaskWorkspaceContent({
           <TaskFileUploadZone
             taskId={task.id}
             files={files}
+            employeeViewer
             disabled={!canWork || pending || !canPerformWork || !wf.actions.uploadFiles}
             onUploaded={() => router.refresh()}
           />

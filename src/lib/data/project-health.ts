@@ -6,6 +6,8 @@ import { productiveDayCapacityHours } from "@/lib/forecast/capacity";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
 import { resolveProjectMetrics } from "@/lib/metrics/project-metrics-resolver";
+import { buildProjectEarlyWarningMap } from "@/lib/forecast/project-early-warning";
+import type { ProjectEarlyWarning } from "@/lib/forecast/project-early-warning";
 import { buildProgramIntelligence, type ProgramIntelligence } from "@/lib/projects/project-intelligence";
 import type { ProjectWithStats } from "@/lib/projects/portfolio-utils";
 import type { ProjectHealth } from "@/types/flow";
@@ -101,4 +103,20 @@ export async function getProjectHealthIntelligenceMap(): Promise<Record<string, 
   }
 
   return map;
+}
+
+export async function getProjectEarlyWarningMap(): Promise<Record<string, ProjectEarlyWarning>> {
+  await hydrateForecastSettings();
+  initFlowStore();
+  const store = getMockStore();
+  const forecastSettings = getFlowStore().forecastSettings;
+  const packages = await getWorkPackages();
+
+  return buildProjectEarlyWarningMap({
+    projects: store.projects,
+    packages,
+    users: store.users,
+    settings: forecastSettings,
+    qaReviews: store.qaReviews,
+  });
 }

@@ -34,6 +34,25 @@ export function isAppCalendarDay(iso: string, day = appTodayDate()): boolean {
   return formatAppCalendarDate(iso) === day;
 }
 
+/** Current hour (0–23) in the organization timezone. */
+export function appCurrentHour(now = new Date()): number {
+  const hour = new Intl.DateTimeFormat("en-US", {
+    timeZone: getAppTimeZone(),
+    hour: "numeric",
+    hour12: false,
+  }).format(now);
+  return Number(hour) % 24;
+}
+
+/** Time-of-day greeting in the organization timezone. */
+export function appGreeting(now = new Date()): string {
+  const hour = appCurrentHour(now);
+  if (hour < 5) return "Working late";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function formatAppTime(
   iso: string,
   options: Intl.DateTimeFormatOptions = {}

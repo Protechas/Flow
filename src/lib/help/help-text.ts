@@ -130,6 +130,10 @@ export const HELP_TEXT = {
     "Whether the employee uses the shift clock (hourly) or task time only (salary).",
   branchViewAccess:
     "Allows a manager to see their full branch in the org chart, not only direct reports.",
+
+  // ——— Forecast intelligence ———
+  projectEarlyWarning:
+    "Compares remaining work, calibrated velocity, and assignee queue depth against the project target date.",
 } as const;
 
 export type HelpTextKey = keyof typeof HELP_TEXT;
