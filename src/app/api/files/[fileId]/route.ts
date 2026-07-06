@@ -1,7 +1,7 @@
 import { assertCanViewTaskFile, getCurrentUser } from "@/lib/auth/session";
 import { inlineFileContentDisposition, attachmentFileContentDisposition } from "@/lib/files/content-disposition";
 import { getTaskFileById, initProductionTracking } from "@/lib/data/production-tracking";
-import { ensureProductionTrackingHydrated } from "@/lib/data/production-tracking-db";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { downloadTaskFileBuffer } from "@/lib/files/task-files";
 import { NextResponse } from "next/server";
 
@@ -16,9 +16,10 @@ export async function GET(
 
   const { fileId } = await context.params;
   initProductionTracking();
-  // Route handlers skip layout hydration — without this, cold serverless
-  // instances have an empty in-memory store and every download 404s
-  await ensureProductionTrackingHydrated();
+  // Route handlers skip layout hydration — without the FULL app hydration,
+  // cold instances 404 every download (empty production store) and 403
+  // employees (the ownership check can't find the work package).
+  await ensureAppDataLoaded();
   const file = getTaskFileById(fileId);
   if (!file) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });

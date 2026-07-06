@@ -1,6 +1,7 @@
 import { EmployeeHeader } from "@/components/employee/employee-header";
-import { getCurrentUser } from "@/lib/auth/session";
-import { getDefaultRoute, isEmployeeRole } from "@/lib/auth/permissions";
+import { getCurrentUser, isEmployeeUser } from "@/lib/auth/session";
+import { getEffectivePermissionRole } from "@/lib/auth/access-level";
+import { getDefaultRoute } from "@/lib/auth/permissions";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getDemoUserId } from "@/lib/auth/demo-session";
@@ -17,7 +18,10 @@ export default async function EmployeeLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isEmployeeRole(user.role)) redirect(getDefaultRoute(user.role));
+  // Must mirror the (app) layout's isEmployeeUser check — deriving from the
+  // legacy role column here while (app) uses the effective permission role
+  // sent mismatched accounts into a /work ↔ /operations redirect loop.
+  if (!isEmployeeUser(user)) redirect(getDefaultRoute(getEffectivePermissionRole(user)));
 
   if (isSupabaseConfigured()) {
     await ensureAppDataLoaded();
