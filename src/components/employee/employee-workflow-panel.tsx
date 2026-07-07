@@ -7,7 +7,7 @@ import { clockInAction, clockOutAction } from "@/app/actions/clock";
 import { startQueueTaskAction } from "@/app/actions/employee";
 import { requestWorkAction } from "@/app/actions/employee-workflow";
 import { recordWrapUpBlockAttemptAction } from "@/app/actions/wrap-up";
-import { resumeTaskTimerAction } from "@/app/actions/production";
+import { pauseTaskTimerAction, resumeTaskTimerAction } from "@/app/actions/production";
 import { EmployeeWrapUp } from "@/components/employee/employee-wrap-up";
 import { useEmployeeWorkflow } from "@/components/employee/employee-workflow-context";
 import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
@@ -145,12 +145,7 @@ export function EmployeeWorkflowPanel({
     });
   }
 
-  function handleClockOutClick() {
-    setError(null);
-    if (wf.activeTaskId) {
-      setActiveTaskDialogOpen(true);
-      return;
-    }
+  function proceedToClockOut() {
     if (wf.wrapUpComplete) {
       performClockOut();
       return;
@@ -160,6 +155,31 @@ export function EmployeeWorkflowPanel({
       await recordWrapUpBlockAttemptAction();
     });
     setWrapUpGateOpen(true);
+  }
+
+  function handleClockOutClick() {
+    setError(null);
+    // Only a RUNNING timer interrupts clock-out; a paused timer already saved
+    // its progress (and the server force-stops any timer on clock-out anyway).
+    if (wf.clockOutBlockedByTask) {
+      setActiveTaskDialogOpen(true);
+      return;
+    }
+    proceedToClockOut();
+  }
+
+  function pauseAndClockOut() {
+    setActiveTaskDialogOpen(false);
+    setError(null);
+    startTransition(async () => {
+      try {
+        await pauseTaskTimerAction();
+      } catch (e) {
+        setError(formatActionError(e));
+        return;
+      }
+      proceedToClockOut();
+    });
   }
 
   return (
@@ -466,9 +486,10 @@ export function EmployeeWorkflowPanel({
       <Dialog open={activeTaskDialogOpen} onOpenChange={setActiveTaskDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Active task in progress</DialogTitle>
+            <DialogTitle>Task timer still running</DialogTitle>
             <DialogDescription>
-              You still have an active task. Submit, pause, or save progress before clocking out.
+              Your task timer is running. Pause it and clock out in one step, or open the task to
+              submit your work first.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -476,8 +497,16 @@ export function EmployeeWorkflowPanel({
               Stay clocked in
             </Button>
             {wf.activeTaskId && (
-              <Button render={<Link href={`/work/${wf.activeTaskId}`} />}>Open task</Button>
+              <Button
+                variant="secondary"
+                render={<Link href={`/work/${wf.activeTaskId}`} />}
+              >
+                Open task
+              </Button>
             )}
+            <Button disabled={pending} onClick={pauseAndClockOut}>
+              Pause &amp; clock out
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

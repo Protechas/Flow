@@ -70,6 +70,8 @@ export interface EmployeeWorkflowSnapshot {
   missionTask: WorkPackage | null;
   missionMode: "none" | "active" | "next" | "paused" | "staged" | "clock_in_to_resume";
   activeTaskId: string | null;
+  /** Clock-out should only be interrupted by a RUNNING timer — a paused one already saved its progress. */
+  clockOutBlockedByTask: boolean;
   stagedTaskId: string | null;
   uploadTaskId: string | null;
   nextTaskId: string | null;
@@ -468,6 +470,7 @@ export function computeEmployeeWorkflowState(
     missionTask,
     missionMode,
     activeTaskId,
+    clockOutBlockedByTask: Boolean(activeTask) && activeTaskTimer?.status === "active",
     stagedTaskId,
     uploadTaskId,
     nextTaskId,
