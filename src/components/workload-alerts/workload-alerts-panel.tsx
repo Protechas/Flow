@@ -102,6 +102,9 @@ function WorkloadAlertCard({
           <p className="text-xs text-muted-foreground">
             {[alert.department_name, alert.team_name].filter(Boolean).join(" · ")}
           </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Raised {new Date(alert.created_at).toLocaleString()}
+          </p>
         </div>
         {alert.remaining_hours != null && (
           <div className="text-right">
@@ -223,9 +226,21 @@ export function WorkloadAlertsPanel({
     );
   }
 
+  const severityRank: Record<WorkloadAlertSeverity, number> = {
+    critical: 0,
+    warning: 1,
+    needs_review: 2,
+    info: 3,
+  };
+  const ordered = [...alerts].sort(
+    (a, b) =>
+      severityRank[a.severity] - severityRank[b.severity] ||
+      b.created_at.localeCompare(a.created_at)
+  );
+
   const content = (
     <div className={cn("grid gap-3", compact ? "grid-cols-1" : "md:grid-cols-2")}>
-      {alerts.map((alert) => (
+      {ordered.map((alert) => (
         <WorkloadAlertCard
           key={alert.id}
           alert={alert}

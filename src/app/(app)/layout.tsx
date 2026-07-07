@@ -12,6 +12,8 @@ import { loadHiddenNavItemIds } from "@/lib/auth/feature-access-loader";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
+import { CriticalAlertPopup } from "@/components/alerts/critical-alert-popup";
+import { canAccessRoute } from "@/lib/auth/permissions";
 import { redirect } from "next/navigation";
 
 export default async function AppLayout({
@@ -47,6 +49,26 @@ export default async function AppLayout({
   const teamDashboardNav = getTeamDashboardNavItemsForUser(user, store.teams, store.users);
   const hiddenNavIds = await loadHiddenNavItemIds(user);
 
+  // Red alerts get a once-per-session popup for anyone who can act on them.
+  let criticalHeadlines: string[] = [];
+  if (canAccessRoute(user.role, "/alert-center")) {
+    const [{ listWorkloadAlertsForViewer }, { listHelpFlagsForViewer }, { getWorkPackages }] =
+      await Promise.all([
+        import("@/lib/workload-alerts/engine"),
+        import("@/lib/help-flags/engine"),
+        import("@/lib/data/work-packages"),
+      ]);
+    const packages = await getWorkPackages();
+    criticalHeadlines = [
+      ...listHelpFlagsForViewer(user, packages, store.users)
+        .filter((f) => f.severity === "critical")
+        .map((f) => `${f.employee_name} needs help${f.task_title ? ` on ${f.task_title}` : ""} (${String(f.reason).replace(/_/g, " ")})`),
+      ...listWorkloadAlertsForViewer(user, packages, store.users)
+        .filter((a) => a.severity === "critical")
+        .map((a) => `${a.employee_name}: ${a.recommended_action}`),
+    ];
+  }
+
   const demoMode = !isSupabaseConfigured();
   const hasDemoCookie = demoMode ? !!(await getDemoUserId()) : false;
 
@@ -60,6 +82,10 @@ export default async function AppLayout({
             {children}
           </div>
           <InnovationHubBubble />
+          <CriticalAlertPopup
+            count={criticalHeadlines.length}
+            headlines={criticalHeadlines}
+          />
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

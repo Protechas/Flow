@@ -583,7 +583,14 @@ export interface TaskFileUpload {
   created_at: string;
 }
 
-export type TaskSubmissionStatus = "submitted" | "in_review" | "approved" | "correction_requested" | "rejected";
+export type TaskSubmissionStatus =
+  | "submitted"
+  | "in_review"
+  | "approved"
+  | "correction_requested"
+  | "rejected"
+  /** Analyst kept working after this submission (pre-fix limbo) — no review expected. */
+  | "superseded";
 
 /** final = whole-task handoff (locks the task for QA); batch = in-progress file batch, task stays workable. */
 export type TaskSubmissionType = "final" | "batch";

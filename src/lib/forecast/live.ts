@@ -127,7 +127,12 @@ export function applyTaskLiveForecast(
       active_due_date: pkg.active_due_date ?? null,
       suggested_due_date: planningDue,
       estimated_remaining_documents: docTotal,
-      current_documents_completed: pkg.current_documents_completed ?? pkg.file_count ?? 0,
+      // 1 uploaded file = 1 completed document; manual progress can only add
+      // to what uploads already prove (a stale manual 0 must not zero it out).
+      current_documents_completed: Math.max(
+        pkg.current_documents_completed ?? 0,
+        pkg.file_count ?? 0
+      ),
       complexity_level: planning.complexity_level,
       complexity_multiplier: planning.complexity_multiplier,
       estimated_minutes_per_document: planning.estimated_minutes_per_document,
@@ -145,8 +150,8 @@ export function applyTaskLiveForecast(
   }
 
   const completed = Math.max(
-    0,
-    pkg.current_documents_completed ?? pkg.file_count ?? 0
+    pkg.current_documents_completed ?? 0,
+    pkg.file_count ?? 0
   );
   const remaining = Math.max(0, docTotal - completed);
   const defaultRate =
