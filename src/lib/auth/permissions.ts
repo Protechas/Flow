@@ -354,6 +354,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     "settings:metrics",
 
+    "innovation_hub:submit",
+
+    "innovation_hub:manage",
+
     "validation:view",
 
     "validation:create",
