@@ -230,7 +230,9 @@ export function AppSidebar({ user, teamDashboardNav = [], hiddenNavIds = [] }: A
                       return (
                         <SidebarMenuItem key={`${group.group}-${item.id}`}>
                           <SidebarMenuButton
-                            render={<Link href={item.href} />}
+                            // prefetch off: with the (app) loading boundary, ~25 dynamic
+                            // sidebar routes would re-prefetch after every server action.
+                            render={<Link href={item.href} prefetch={false} />}
                             isActive={active}
                             tooltip={item.label}
                             className={cn(

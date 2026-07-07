@@ -585,6 +585,9 @@ export interface TaskFileUpload {
 
 export type TaskSubmissionStatus = "submitted" | "in_review" | "approved" | "correction_requested" | "rejected";
 
+/** final = whole-task handoff (locks the task for QA); batch = in-progress file batch, task stays workable. */
+export type TaskSubmissionType = "final" | "batch";
+
 export interface TaskSubmissionRecord {
   id: string;
   task_id: string;
@@ -598,6 +601,8 @@ export interface TaskSubmissionRecord {
   original_task_minutes: number;
   correction_task_minutes: number;
   status: TaskSubmissionStatus;
+  submission_type: TaskSubmissionType;
+  file_ids: string[] | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

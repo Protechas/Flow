@@ -20,6 +20,7 @@ import {
   resumeTaskTimer,
   startTaskTimer,
   stopTaskTimer,
+  submitBatchForReview,
   submitTaskForReview,
   uploadTaskFile,
 } from "@/lib/data/production-tracking";
@@ -228,6 +229,28 @@ export async function submitTaskForReviewAction(
       );
     }
     return { ok: false as const, message };
+  }
+}
+
+export async function submitBatchForReviewAction(taskId: string, notes?: string) {
+  const user = await requireUser();
+  try {
+    await assertCanEditWorkPackage(user, taskId);
+    const gate = await checkWorkEligible(user, "submit_task", { taskId });
+    if (!gate.ok) {
+      return { ok: false as const, code: gate.code, message: gate.message };
+    }
+    await ensureServerWriteContext();
+    const record = submitBatchForReview({
+      task_id: taskId,
+      user_id: user.id,
+      notes,
+    });
+    await persistTaskSubmissionSync(record);
+    revalidateProduction(taskId);
+    return { ok: true as const, fileCount: record.uploaded_file_count };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Batch submission failed" };
   }
 }
 

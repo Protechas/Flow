@@ -680,8 +680,10 @@ export function submitTaskForReview(input: {
   const pkg = store.workPackages.find((p) => p.id === input.task_id);
   if (!pkg) throw new Error("Task not found");
 
+  // Gate on files across the whole task, not just this session — an analyst
+  // who already sent everything in review batches can still complete the task.
   const fileCount = getTaskFileCount(input.task_id);
-  if (fileCount < 1 && !input.manager_override) {
+  if (getTotalTaskFileCount(input.task_id) < 1 && !input.manager_override) {
     throw new Error("At least one file is required before submission");
   }
 
@@ -712,6 +714,8 @@ export function submitTaskForReview(input: {
     original_task_minutes: Math.max(0, originalMinutes),
     correction_task_minutes: Math.max(0, correctionMinutes),
     status: "submitted",
+    submission_type: "final",
+    file_ids: getTaskFiles(input.task_id).map((f) => f.id),
     notes: input.notes ?? null,
     created_at: ts(),
     updated_at: ts(),
@@ -725,6 +729,109 @@ export function submitTaskForReview(input: {
   });
   logActivityBridge(input.user_id, "submit_qa", `Submitted for review (${fileCount} files)`, input.task_id);
   return record;
+}
+
+/**
+ * Submit the files uploaded since the last submission as a reviewable batch.
+ * The task stays workable and the timer keeps running — only a "final" submit
+ * moves the package to ready_for_qa.
+ */
+export function submitBatchForReview(input: {
+  task_id: string;
+  user_id: string;
+  notes?: string;
+}): TaskSubmissionRecord {
+  initProductionTracking();
+  const store = getFlowStore();
+  const pkg = store.workPackages.find((p) => p.id === input.task_id);
+  if (!pkg) throw new Error("Task not found");
+
+  const batchFiles = getTaskFilesForPendingSession(input.task_id);
+  if (batchFiles.length < 1) {
+    throw new Error("Upload at least one new file since your last submission to send a batch");
+  }
+
+  const totalMinutes = getPendingSessionTaskMinutes(input.task_id, input.user_id);
+  const metrics = computeProductionMetrics(totalMinutes, batchFiles.length);
+  const priorSubmissions = state.taskSubmissions.filter((s) => s.task_id === input.task_id);
+  const originalMinutes = priorSubmissions[0]?.original_task_minutes ?? totalMinutes;
+
+  const record: TaskSubmissionRecord = {
+    id: uid("sub"),
+    task_id: input.task_id,
+    project_id: pkg.project_id,
+    user_id: input.user_id,
+    submitted_at: ts(),
+    uploaded_file_count: batchFiles.length,
+    total_task_minutes: metrics.totalTaskMinutes,
+    average_minutes_per_document: metrics.averageMinutesPerDocument,
+    documents_per_hour: metrics.documentsPerHour,
+    original_task_minutes: Math.max(0, originalMinutes),
+    correction_task_minutes: 0,
+    status: "submitted",
+    submission_type: "batch",
+    file_ids: batchFiles.map((f) => f.id),
+    notes: input.notes ?? null,
+    created_at: ts(),
+    updated_at: ts(),
+  };
+  state.taskSubmissions = [record, ...state.taskSubmissions];
+  persistSubmission(record);
+  logActivityBridge(
+    input.user_id,
+    "submit_qa",
+    `Submitted a batch for review (${batchFiles.length} files)`,
+    input.task_id
+  );
+  return record;
+}
+
+/** Batch submissions still waiting on a reviewer, newest first. */
+export function listOpenBatchSubmissions(taskIds?: string[]): TaskSubmissionRecord[] {
+  initProductionTracking();
+  const scoped = taskIds ? new Set(taskIds) : null;
+  return state.taskSubmissions
+    .filter(
+      (s) =>
+        s.submission_type === "batch" &&
+        s.status === "submitted" &&
+        (!scoped || scoped.has(s.task_id))
+    )
+    .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+}
+
+/** Record a reviewer decision on a batch submission; corrections flag the task without locking it. */
+export function resolveBatchSubmission(
+  submissionId: string,
+  decision: "approved" | "correction_requested",
+  notes?: string
+): TaskSubmissionRecord {
+  initProductionTracking();
+  const existing = state.taskSubmissions.find((s) => s.id === submissionId);
+  if (!existing) throw new Error("Submission not found");
+  if (existing.submission_type !== "batch") throw new Error("Not a batch submission");
+  if (existing.status !== "submitted") throw new Error("Batch has already been reviewed");
+
+  const updated: TaskSubmissionRecord = {
+    ...existing,
+    status: decision,
+    notes: notes?.trim() ? notes.trim() : existing.notes,
+    updated_at: ts(),
+  };
+  state.taskSubmissions = state.taskSubmissions.map((s) => (s.id === submissionId ? updated : s));
+  persistSubmission(updated);
+
+  if (decision === "correction_requested") {
+    updateWorkPackageExternal(existing.task_id, { status: "correction_needed" });
+  } else {
+    // An approved batch clears an earlier batch-review correction flag — the
+    // analyst addressed it and the reviewer signed off on the fresh files.
+    const pkgNow = getFlowStore().workPackages.find((p) => p.id === existing.task_id);
+    if (pkgNow?.status === "correction_needed") {
+      updateWorkPackageExternal(existing.task_id, { status: "working_on_it" });
+    }
+  }
+  return updated;
 }
 
 export function getLatestSubmission(taskId: string): TaskSubmissionRecord | null {

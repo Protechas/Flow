@@ -10,8 +10,17 @@ import {
   resumeTaskTimerAction,
   startTaskTimerAction,
   stopTaskTimerAction,
+  submitBatchForReviewAction,
   submitTaskForReviewAction,
 } from "@/app/actions/production";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { HelpFlagDialog } from "@/components/help-flags/help-flag-dialog";
 import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
 import { HelpFlagStatusList } from "@/components/help-flags/help-flag-status";
@@ -46,6 +55,7 @@ import type {
 } from "@/types/flow";
 import {
   AlertTriangle,
+  Layers,
   MessageSquare,
   Pause,
   Play,
@@ -83,6 +93,7 @@ export function EmployeeTaskWorkspace({
   task: WorkPackage;
   comments: Comment[];
   files: TaskFileUpload[];
+  totalFileCount?: number;
   userId: string;
   autostart?: boolean;
   activeTimer: TaskTimeEntry | null;
@@ -104,6 +115,7 @@ function EmployeeTaskWorkspaceContent({
   task,
   comments,
   files,
+  totalFileCount,
   userId,
   autostart,
   activeTimer,
@@ -116,6 +128,7 @@ function EmployeeTaskWorkspaceContent({
   task: WorkPackage;
   comments: Comment[];
   files: TaskFileUpload[];
+  totalFileCount?: number;
   userId: string;
   autostart?: boolean;
   activeTimer: TaskTimeEntry | null;
@@ -134,6 +147,7 @@ function EmployeeTaskWorkspaceContent({
   const [warn, setWarn] = useState<string | null>(null);
   const [autostartFailed, setAutostartFailed] = useState(false);
   const [eligibilityGateOpen, setEligibilityGateOpen] = useState(false);
+  const [confirmFinalOpen, setConfirmFinalOpen] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState(
     "You must be clocked in before starting work."
   );
@@ -156,6 +170,16 @@ function EmployeeTaskWorkspaceContent({
   const canWork = !["done", "ready_for_qa", "in_qa"].includes(task.status);
   const canSubmit = ["working_on_it", "correction_needed", "assigned"].includes(task.status);
   const metrics = computeProductionMetrics(totalMinutes, files.length);
+
+  // `files` is already pending-session scoped (uploads since the last
+  // submission) — exactly what a batch sends to QA. The whole-task count
+  // gates the final handoff so batching everything doesn't block completion.
+  const batchFiles = latestSubmission
+    ? files.filter((f) => f.uploaded_at > latestSubmission.submitted_at)
+    : files;
+  const taskFileTotal = totalFileCount ?? files.length;
+  const estimatedDocs = task.estimated_document_count ?? null;
+  const looksUnfinished = estimatedDocs != null && taskFileTotal < estimatedDocs * 0.8;
 
   const otherActive =
     anyActiveTimer && anyActiveTimer.task_id !== task.id ? anyActiveTimer : null;
@@ -271,12 +295,17 @@ function EmployeeTaskWorkspaceContent({
       openEligibilityGate("You must be clocked in before submitting work.");
       return;
     }
-    if (files.length < 1) {
+    if (taskFileTotal < 1) {
       const msg = "Upload at least one completed file before submitting for review.";
       setWarn(msg);
       toast({ variant: "warning", title: "Files required", description: msg });
       return;
     }
+    setConfirmFinalOpen(true);
+  }
+
+  function confirmFinalSubmit() {
+    setConfirmFinalOpen(false);
     setWarn(null);
     startTransition(async () => {
       if (timerOnThisTask) await stopTaskTimerAction();
@@ -292,6 +321,32 @@ function EmployeeTaskWorkspaceContent({
       }
       toast({ variant: "success", title: "Submitted for QA", description: "Your task is in the review queue." });
       router.push("/work");
+      router.refresh();
+    });
+  }
+
+  function handleSubmitBatch() {
+    if (!canPerformWork) {
+      openEligibilityGate("You must be clocked in before submitting work.");
+      return;
+    }
+    setWarn(null);
+    startTransition(async () => {
+      const res = await submitBatchForReviewAction(task.id);
+      if (!res.ok) {
+        const description =
+          "message" in res && res.message
+            ? res.message
+            : formatActionError(new Error("Batch submission failed"));
+        setWarn(description);
+        toast({ variant: "error", title: "Could not submit batch", description });
+        return;
+      }
+      toast({
+        variant: "success",
+        title: "Batch sent for review",
+        description: `${res.fileCount} file${res.fileCount === 1 ? "" : "s"} sent to QA — keep working, this task stays yours.`,
+      });
       router.refresh();
     });
   }
@@ -550,20 +605,75 @@ function EmployeeTaskWorkspaceContent({
         <div className="fixed bottom-0 left-0 right-0 sm:relative sm:mt-6 p-4 sm:p-0 bg-background/95 sm:bg-transparent border-t sm:border-0 border-border/60 backdrop-blur-md">
           <div className="max-w-3xl mx-auto space-y-3">
             <TaskSubmitChecklistPanel taskId={task.id} refreshKey={files.length} />
-            <Button
-              className="w-full h-12"
-              disabled={pending || files.length < 1 || !canPerformWork}
-              onClick={handleSubmit}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Submit for review
-              {files.length < 1 && (
-                <span className="ml-2 text-xs opacity-80">(upload files first)</span>
-              )}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="secondary"
+                className="h-12 sm:flex-1"
+                disabled={pending || batchFiles.length < 1 || !canPerformWork}
+                onClick={handleSubmitBatch}
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                Submit batch for review
+                <span className="ml-2 text-xs opacity-80">
+                  {batchFiles.length > 0
+                    ? `(${batchFiles.length} new file${batchFiles.length === 1 ? "" : "s"})`
+                    : "(no new files)"}
+                </span>
+              </Button>
+              <Button
+                className="h-12 sm:flex-1"
+                disabled={pending || taskFileTotal < 1 || !canPerformWork}
+                onClick={handleSubmit}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Complete task &amp; submit
+                {taskFileTotal < 1 && (
+                  <span className="ml-2 text-xs opacity-80">(upload files first)</span>
+                )}
+              </Button>
+            </div>
+            <p className="text-center text-[11px] text-muted-foreground">
+              Batches go to QA while you keep working. Completing the task locks it until review.
+            </p>
           </div>
         </div>
       )}
+
+      <Dialog open={confirmFinalOpen} onOpenChange={setConfirmFinalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {looksUnfinished ? "Submit the entire task?" : "Complete this task?"}
+            </DialogTitle>
+            <DialogDescription>
+              This sends <span className="font-medium text-foreground">{task.title}</span> to QA
+              and locks it until a reviewer finishes — you won&apos;t be able to work on it in the
+              meantime.
+            </DialogDescription>
+          </DialogHeader>
+          {looksUnfinished ? (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+              You&apos;ve uploaded {taskFileTotal} of ~{estimatedDocs} estimated documents. If you
+              just want your newest files reviewed, use{" "}
+              <span className="font-medium">Submit batch for review</span> instead and keep
+              working.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {taskFileTotal} file{taskFileTotal === 1 ? "" : "s"} will be included in the final
+              review.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmFinalOpen(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={confirmFinalSubmit} disabled={pending}>
+              {looksUnfinished ? "Yes, submit the whole task" : "Complete task & submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

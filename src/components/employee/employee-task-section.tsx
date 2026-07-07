@@ -58,6 +58,7 @@ export function EmployeeTaskSection({
               <li key={t.id}>
                 <Link
                   href={`/work/${t.id}`}
+              prefetch={false}
                   className="flex items-center gap-3 px-4 py-2.5 enterprise-row-hover transition-colors"
                 >
                   <div className="flex-1 min-w-0">

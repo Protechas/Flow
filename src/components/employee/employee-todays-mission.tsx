@@ -188,6 +188,7 @@ export function EmployeeTodaysMission({ activeTaskTimer }: { activeTaskTimer: Ta
             !panelOwnsPrimaryAction && (
             <Link
               href={`/work/${mission.id}`}
+              prefetch={false}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full text-center")}
             >
               Open full workspace

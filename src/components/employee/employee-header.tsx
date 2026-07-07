@@ -55,6 +55,7 @@ export function EmployeeHeader({
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   className={cn(
                     "text-xs px-3 py-1.5 rounded-sm transition-colors font-medium",
                     active

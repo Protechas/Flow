@@ -111,6 +111,8 @@ function mapSubmission(row: Record<string, unknown>): TaskSubmissionRecord {
     original_task_minutes: num(row.original_task_minutes),
     correction_task_minutes: num(row.correction_task_minutes),
     status: String(row.status ?? "submitted") as TaskSubmissionRecord["status"],
+    submission_type: String(row.submission_type ?? "final") as TaskSubmissionRecord["submission_type"],
+    file_ids: Array.isArray(row.file_ids) ? (row.file_ids as string[]).map(String) : null,
     notes: str(row.notes),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -331,6 +333,8 @@ export async function persistTaskSubmissionSync(record: TaskSubmissionRecord): P
     original_task_minutes: record.original_task_minutes,
     correction_task_minutes: record.correction_task_minutes,
     status: record.status,
+    submission_type: record.submission_type,
+    file_ids: record.file_ids,
     notes: record.notes,
     updated_at: record.updated_at,
   };

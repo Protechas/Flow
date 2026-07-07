@@ -13,8 +13,9 @@ import { requirePageAccess, requireWorkPackageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canReviewQa } from "@/lib/auth/permissions";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
-import { getQaQueue } from "@/lib/data/qa";
+import { getBatchReviewQueue, getQaQueue } from "@/lib/data/qa";
 import { getLatestSubmission, getTaskFiles } from "@/lib/data/production-tracking";
+import { BatchReviewPanel } from "@/components/qa/batch-review-panel";
 import { operationsHref, qaCenterHref } from "@/lib/navigation/deep-links";
 import { parseDepartmentFilter } from "@/lib/departments/filters";
 import { filterDepartmentsForViewer } from "@/lib/departments/scope";
@@ -43,6 +44,24 @@ export default async function QaCenterReviewPage({
   if (departmentFilter) {
     queue = queue.filter((item) => item.department_id === departmentFilter);
   }
+
+  let batchQueue = await getBatchReviewQueue(branchIds ?? undefined);
+  if (departmentFilter) {
+    batchQueue = batchQueue.filter((item) => item.task.department_id === departmentFilter);
+  }
+  const usersById = new Map(getFlowStore().users.map((u) => [u.id, u]));
+  const batchItems = batchQueue.map(({ submission, task }) => {
+    const taskFiles = getTaskFiles(task.id);
+    const batchFileIds = new Set(submission.file_ids ?? []);
+    return {
+      submission,
+      task,
+      files: submission.file_ids
+        ? taskFiles.filter((f) => batchFileIds.has(f.id))
+        : taskFiles,
+      analyst: task.assigned_to ? (usersById.get(task.assigned_to) ?? null) : null,
+    };
+  });
 
   const fileMap = Object.fromEntries(queue.map((item) => [item.id, getTaskFiles(item.id)]));
   const submissionMap = Object.fromEntries(
@@ -104,6 +123,11 @@ export default async function QaCenterReviewPage({
           <div className="p-6 pb-0">
             <QaCenterSubnav />
           </div>
+          {batchItems.length > 0 && (
+            <div className="px-6 pt-4">
+              <BatchReviewPanel items={batchItems} canReview={canReviewQa(user.role)} />
+            </div>
+          )}
           <QaReviewPanel
             queue={queue}
             reviewer={user}

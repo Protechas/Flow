@@ -8,6 +8,7 @@ import {
   getPendingSessionTaskMinutes,
   getTaskFilesForPendingSession,
   getTodayClockEntries,
+  getTotalTaskFileCount,
 } from "@/lib/data/production-tracking";
 import { buildTaskPageWorkflowInput } from "@/lib/employee/workflow-input";
 import { getWorkEligibility } from "@/lib/work-eligibility";
@@ -72,6 +73,7 @@ export default async function EmployeeTaskPage({
       task={task}
       comments={store.comments}
       files={getTaskFilesForPendingSession(task.id)}
+      totalFileCount={getTotalTaskFileCount(task.id)}
       userId={user.id}
       autostart={autostart === "1"}
       activeTimer={activeTimer?.task_id === task.id ? activeTimer : null}

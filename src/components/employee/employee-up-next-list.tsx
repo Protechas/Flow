@@ -23,6 +23,7 @@ export function EmployeeUpNextList({
           <li key={task.id}>
             <Link
               href={`/work/${task.id}`}
+              prefetch={false}
               className="enterprise-panel flex items-start gap-3 p-4 hover:bg-muted/30 transition-colors"
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold tabular-nums">

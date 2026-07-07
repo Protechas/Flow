@@ -7,8 +7,13 @@ import { submitQaReviewApi } from "@/lib/data/qa";
 import {
   getLatestSubmission,
   recordProductionQaReview,
+  resolveBatchSubmission,
 } from "@/lib/data/production-tracking";
-import { persistQaReviewRecordSync } from "@/lib/data/production-tracking-db";
+import {
+  persistQaReviewRecordSync,
+  persistTaskSubmissionSync,
+} from "@/lib/data/production-tracking-db";
+import { persistPackageState } from "@/lib/production/persist-helpers";
 import { ensureServerWriteContext } from "@/lib/server/write-context";
 import type { QaResult } from "@/types/flow";
 
@@ -67,4 +72,42 @@ export async function submitQaReviewAction(params: {
   );
 
   PATHS.forEach((p) => revalidatePath(p));
+}
+
+export async function reviewBatchSubmissionAction(params: {
+  submissionId: string;
+  result: "pass" | "correction";
+  notes?: string;
+}) {
+  const actor = await requirePermission("qa:review");
+  await ensureServerWriteContext();
+  try {
+    const decision = params.result === "pass" ? "approved" : "correction_requested";
+    const updated = resolveBatchSubmission(params.submissionId, decision, params.notes);
+    await persistTaskSubmissionSync(updated);
+
+    const review = recordProductionQaReview({
+      task_id: updated.task_id,
+      submission_id: updated.id,
+      reviewer_id: actor.id,
+      result: params.result === "pass" ? "pass" : "minor_correction",
+      notes: params.notes,
+    });
+    await persistQaReviewRecordSync(review);
+    // resolveBatchSubmission may flip the task status in memory (correction
+    // flag on, or cleared by an approval) — persist it or it dies with this
+    // lambda.
+    await persistPackageState(updated.task_id);
+    await writeAuditLog({
+      action: "qa_decision",
+      entityType: "task_submission",
+      entityId: updated.id,
+      summary: `Batch review ${params.result} (${updated.uploaded_file_count} files)`,
+      metadata: { result: params.result, task_id: updated.task_id, analyst_id: updated.user_id },
+    });
+    PATHS.forEach((p) => revalidatePath(p));
+    return { ok: true as const };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Batch review failed" };
+  }
 }

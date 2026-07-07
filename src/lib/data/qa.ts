@@ -1,9 +1,10 @@
 import { getFlowStore, initFlowStore, submitQaReview } from "@/lib/data/flow-store";
 import { filterWorkPackagesToTeam } from "@/lib/auth/team-scope";
 import { getWorkPackages } from "@/lib/data/work-packages";
+import { listOpenBatchSubmissions } from "@/lib/data/production-tracking";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
-import type { QaResult, QaReview } from "@/types/flow";
+import type { QaResult, QaReview, TaskSubmissionRecord, WorkPackage } from "@/types/flow";
 
 export async function getQaQueue(teamMemberIds?: string[]) {
   let items = (await getWorkPackages()).filter((i) =>
@@ -13,6 +14,23 @@ export async function getQaQueue(teamMemberIds?: string[]) {
     items = filterWorkPackagesToTeam(items, teamMemberIds);
   }
   return items;
+}
+
+export interface BatchReviewItem {
+  submission: TaskSubmissionRecord;
+  task: WorkPackage;
+}
+
+/** Open batch submissions with their tasks — in-progress work awaiting a batch review. */
+export async function getBatchReviewQueue(teamMemberIds?: string[]): Promise<BatchReviewItem[]> {
+  let packages = await getWorkPackages();
+  if (teamMemberIds?.length) {
+    packages = filterWorkPackagesToTeam(packages, teamMemberIds);
+  }
+  const byId = new Map(packages.map((p) => [p.id, p]));
+  return listOpenBatchSubmissions([...byId.keys()])
+    .map((submission) => ({ submission, task: byId.get(submission.task_id)! }))
+    .filter((item) => item.task);
 }
 
 export async function getQaReviews(): Promise<QaReview[]> {

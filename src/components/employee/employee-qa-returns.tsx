@@ -89,6 +89,7 @@ function QaReturnRow({ item }: { item: EmployeeQaReturn }) {
         </Button>
         <Link
           href={`/work/${pkg.id}`}
+              prefetch={false}
           className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-10")}
         >
           View

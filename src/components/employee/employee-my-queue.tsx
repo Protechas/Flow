@@ -151,6 +151,7 @@ export function EmployeeMyQueue({
                   {!readOnly && (
                     <Link
                       href={`/work/${task.id}`}
+              prefetch={false}
                       className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0 h-8")}
                     >
                       View
@@ -264,6 +265,7 @@ function CurrentTaskCard({
           ) : timerActive ? (
             <Link
               href={`/work/${task.id}`}
+              prefetch={false}
               className={cn(buttonVariants({ size: "lg" }), "h-11 flex-1")}
             >
               <Play className="h-4 w-4 mr-2" />
@@ -277,6 +279,7 @@ function CurrentTaskCard({
           )}
           <Link
             href={`/work/${task.id}`}
+              prefetch={false}
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 flex-1")}
           >
             Open workspace
