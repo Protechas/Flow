@@ -165,54 +165,54 @@
   color-scheme: dark;
   /* "Nebula" fusion theme — indigo-violet brand, electric cyan counterpoint,
      translucent surfaces over an ambient gradient field */
-  --background: #060510;
-  --foreground: #f0eeff;
-  --card: #0d0c1f;
-  --card-elevated: #13122e;
-  --card-foreground: #f0eeff;
-  --popover: #0d0c1f;
-  --popover-foreground: #f0eeff;
-  --primary: #7c6dff;
+  --background: #050712;
+  --foreground: #eef2ff;
+  --card: #0b0e20;
+  --card-elevated: #101530;
+  --card-foreground: #eef2ff;
+  --popover: #0b0e20;
+  --popover-foreground: #eef2ff;
+  --primary: #5b7cff;
   --primary-foreground: #ffffff;
-  --primary-hover: #9c8fff;
-  --primary-soft: rgba(124, 109, 255, 0.16);
-  --secondary: #191735;
-  --secondary-foreground: #a09ecb;
-  --muted: #0a0919;
-  --muted-foreground: #8f8db4;
-  --accent: #191735;
-  --accent-foreground: #f0eeff;
+  --primary-hover: #82a0ff;
+  --primary-soft: rgba(91, 124, 255, 0.15);
+  --secondary: #151b38;
+  --secondary-foreground: #9aa6cd;
+  --muted: #090c1c;
+  --muted-foreground: #8b94b8;
+  --accent: #151b38;
+  --accent-foreground: #eef2ff;
   --destructive: #f8514e;
   --success: #2fd67b;
   --warning: #f5a623;
   --danger: #f8514e;
-  --info: #22d3ee;
-  --qa: #c084fc;
-  --border: #232045;
-  --input: #232045;
-  --ring: #7c6dff;
-  --chart-1: #7c6dff;
+  --info: #4fd8f2;
+  --qa: #a78bfa;
+  --border: #202847;
+  --input: #202847;
+  --ring: #5b7cff;
+  --chart-1: #5b7cff;
   --chart-2: #22d3ee;
   --chart-3: #c084fc;
   --chart-4: #f5a623;
   --chart-5: #f8514e;
-  --surface-1: #060510;
-  --surface-2: #0a0919;
-  --surface-3: #0d0c1f;
-  --surface-4: #13122e;
-  --surface-5: #1a1840;
-  --sidebar: #050410;
+  --surface-1: #050712;
+  --surface-2: #090c1c;
+  --surface-3: #0b0e20;
+  --surface-4: #101530;
+  --surface-5: #161d40;
+  --sidebar: #04060f;
   --sidebar-foreground: #8f8db4;
-  --sidebar-primary: #7c6dff;
+  --sidebar-primary: #5b7cff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #100e26;
-  --sidebar-accent-foreground: #b3a8ff;
-  --sidebar-border: #191735;
-  --sidebar-ring: #7c6dff;
-  --surface-primary: #060510;
-  --border-subtle: rgba(170, 158, 255, 0.1);
-  --border-accent: rgba(124, 109, 255, 0.38);
-  --border-raised: rgba(200, 190, 255, 0.13);
+  --sidebar-accent: #0d1228;
+  --sidebar-accent-foreground: #9ab1ff;
+  --sidebar-border: #151b38;
+  --sidebar-ring: #5b7cff;
+  --surface-primary: #050712;
+  --border-subtle: rgba(150, 178, 255, 0.1);
+  --border-accent: rgba(91, 124, 255, 0.36);
+  --border-raised: rgba(185, 205, 255, 0.12);
   --shadow-primary-glow:
     0 0 0 1px color-mix(in srgb, var(--primary) 26%, transparent),
     0 0 22px color-mix(in srgb, var(--primary) 34%, transparent),
@@ -240,10 +240,10 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
     0 4px 12px rgba(0, 0, 0, 0.34),
     0 14px 32px rgba(0, 0, 0, 0.28);
-  --surface-card-top: color-mix(in srgb, var(--card) 86%, #2a2456 14%);
-  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #050410 4%);
-  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 84%, #352d6e 16%);
-  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #050410 6%);
+  --surface-card-top: color-mix(in srgb, var(--card) 86%, #1e2a55 14%);
+  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #04060f 4%);
+  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 84%, #263566 16%);
+  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #04060f 6%);
   --glass-surface: rgba(9, 8, 22, 0.9);
   --glass-panel: color-mix(in srgb, var(--card) 88%, rgba(4, 3, 14, 0.7));
   --shadow-material-workspace:
@@ -266,25 +266,26 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
     0 8px 24px rgba(0, 0, 0, 0.4),
     0 32px 72px rgba(0, 0, 0, 0.34);
-  /* Ambient nebula field — violet crown, blue drift left, cyan wash below.
-     Surfaces above are translucent so this glows through everywhere. */
+  /* Ambient nebula field — electric blue crown, blue drift left, a whisper
+     of violet in one corner, cyan wash below. Surfaces above are translucent
+     so this glows through everywhere. */
   --app-background-gradient:
-    radial-gradient(ellipse 65% 48% at 50% -10%, rgba(124, 109, 255, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 8% 15%, rgba(63, 140, 255, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse 45% 35% at 92% 6%, rgba(192, 132, 252, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 48% at 50% -10%, rgba(91, 124, 255, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 8% 15%, rgba(63, 140, 255, 0.11) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 32% at 94% 5%, rgba(167, 139, 250, 0.07) 0%, transparent 55%),
     radial-gradient(ellipse 55% 45% at 65% 100%, rgba(34, 211, 238, 0.07) 0%, transparent 52%),
-    linear-gradient(168deg, #0a0820 0%, #070613 48%, #050410 100%);
+    linear-gradient(168deg, #081022 0%, #060a17 48%, #04060f 100%);
   --surface-gradient: linear-gradient(
     180deg,
-    rgba(10, 8, 32, 0.5) 0%,
-    rgba(7, 6, 19, 0.62) 50%,
-    rgba(5, 4, 16, 0.72) 100%
+    rgba(8, 12, 34, 0.5) 0%,
+    rgba(6, 9, 22, 0.62) 50%,
+    rgba(4, 6, 16, 0.72) 100%
   );
   --sidebar-gradient: linear-gradient(
     180deg,
-    rgba(5, 4, 16, 0.82) 0%,
-    rgba(9, 7, 26, 0.78) 55%,
-    rgba(6, 5, 18, 0.84) 100%
+    rgba(4, 6, 16, 0.82) 0%,
+    rgba(7, 10, 26, 0.78) 55%,
+    rgba(5, 7, 18, 0.84) 100%
   );
   --motion-fast: 150ms;
   --motion-base: 200ms;
@@ -294,18 +295,18 @@
 
 /* Nebula fusion — neon energy and glass depth, dark theme only */
 .dark .flow-hero-eyebrow {
-  color: #b3a8ff;
-  text-shadow: 0 0 14px rgba(124, 109, 255, 0.45);
+  color: #9ab1ff;
+  text-shadow: 0 0 14px rgba(91, 124, 255, 0.45);
 }
 .dark .flow-kpi-card:hover {
-  border-color: rgba(124, 109, 255, 0.42);
+  border-color: rgba(91, 124, 255, 0.42);
   box-shadow:
-    0 0 0 1px rgba(124, 109, 255, 0.16),
-    0 0 28px rgba(124, 109, 255, 0.16),
+    0 0 0 1px rgba(91, 124, 255, 0.16),
+    0 0 28px rgba(91, 124, 255, 0.16),
     0 12px 30px rgba(0, 0, 0, 0.45);
 }
 .dark .flow-metric-xl {
-  text-shadow: 0 0 20px rgba(124, 109, 255, 0.22);
+  text-shadow: 0 0 20px rgba(91, 124, 255, 0.22);
 }
 .dark .flow-command-bar {
   backdrop-filter: blur(18px) saturate(1.25);
