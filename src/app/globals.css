@@ -163,57 +163,59 @@
 /* Flow 2.0 Deep Space — electric blue command theme */
 .dark {
   color-scheme: dark;
-  --background: #05080f;
-  --foreground: #eef4ff;
-  --card: #0b1120;
-  --card-elevated: #101830;
-  --card-foreground: #eef4ff;
-  --popover: #0b1120;
-  --popover-foreground: #eef4ff;
-  --primary: #3f8cff;
+  /* "Nebula" fusion theme — indigo-violet brand, electric cyan counterpoint,
+     translucent surfaces over an ambient gradient field */
+  --background: #060510;
+  --foreground: #f0eeff;
+  --card: #0d0c1f;
+  --card-elevated: #13122e;
+  --card-foreground: #f0eeff;
+  --popover: #0d0c1f;
+  --popover-foreground: #f0eeff;
+  --primary: #7c6dff;
   --primary-foreground: #ffffff;
-  --primary-hover: #66a5ff;
-  --primary-soft: rgba(63, 140, 255, 0.14);
-  --secondary: #131c33;
-  --secondary-foreground: #93a4c7;
-  --muted: #080d1a;
-  --muted-foreground: #8493b0;
-  --accent: #131c33;
-  --accent-foreground: #eef4ff;
+  --primary-hover: #9c8fff;
+  --primary-soft: rgba(124, 109, 255, 0.16);
+  --secondary: #191735;
+  --secondary-foreground: #a09ecb;
+  --muted: #0a0919;
+  --muted-foreground: #8f8db4;
+  --accent: #191735;
+  --accent-foreground: #f0eeff;
   --destructive: #f8514e;
   --success: #2fd67b;
   --warning: #f5a623;
   --danger: #f8514e;
-  --info: #6db3ff;
-  --qa: #a78bfa;
-  --border: #1b2742;
-  --input: #1b2742;
-  --ring: #3f8cff;
-  --chart-1: #3f8cff;
+  --info: #22d3ee;
+  --qa: #c084fc;
+  --border: #232045;
+  --input: #232045;
+  --ring: #7c6dff;
+  --chart-1: #7c6dff;
   --chart-2: #22d3ee;
-  --chart-3: #a78bfa;
+  --chart-3: #c084fc;
   --chart-4: #f5a623;
   --chart-5: #f8514e;
-  --surface-1: #05080f;
-  --surface-2: #080d1a;
-  --surface-3: #0b1120;
-  --surface-4: #101830;
-  --surface-5: #16203c;
-  --sidebar: #04070d;
-  --sidebar-foreground: #8493b0;
-  --sidebar-primary: #3f8cff;
+  --surface-1: #060510;
+  --surface-2: #0a0919;
+  --surface-3: #0d0c1f;
+  --surface-4: #13122e;
+  --surface-5: #1a1840;
+  --sidebar: #050410;
+  --sidebar-foreground: #8f8db4;
+  --sidebar-primary: #7c6dff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0d1526;
-  --sidebar-accent-foreground: #66a5ff;
-  --sidebar-border: #131c33;
-  --sidebar-ring: #3f8cff;
-  --surface-primary: #05080f;
-  --border-subtle: rgba(147, 180, 255, 0.09);
-  --border-accent: rgba(63, 140, 255, 0.32);
-  --border-raised: rgba(190, 214, 255, 0.11);
+  --sidebar-accent: #100e26;
+  --sidebar-accent-foreground: #b3a8ff;
+  --sidebar-border: #191735;
+  --sidebar-ring: #7c6dff;
+  --surface-primary: #060510;
+  --border-subtle: rgba(170, 158, 255, 0.1);
+  --border-accent: rgba(124, 109, 255, 0.38);
+  --border-raised: rgba(200, 190, 255, 0.13);
   --shadow-primary-glow:
-    0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 0 18px color-mix(in srgb, var(--primary) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary) 26%, transparent),
+    0 0 22px color-mix(in srgb, var(--primary) 34%, transparent),
     0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.28);
   --shadow-elevated: 0 4px 14px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -238,12 +240,12 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
     0 4px 12px rgba(0, 0, 0, 0.34),
     0 14px 32px rgba(0, 0, 0, 0.28);
-  --surface-card-top: color-mix(in srgb, var(--card) 88%, #1c2a4d 12%);
-  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #04070d 4%);
-  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 86%, #23345e 14%);
-  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #04070d 6%);
-  --glass-surface: rgba(6, 10, 20, 0.94);
-  --glass-panel: color-mix(in srgb, var(--card) 92%, rgba(2, 5, 12, 0.78));
+  --surface-card-top: color-mix(in srgb, var(--card) 86%, #2a2456 14%);
+  --surface-card-bottom: color-mix(in srgb, var(--card) 96%, #050410 4%);
+  --surface-elevated-top: color-mix(in srgb, var(--card-elevated) 84%, #352d6e 16%);
+  --surface-elevated-bottom: color-mix(in srgb, var(--card-elevated) 94%, #050410 6%);
+  --glass-surface: rgba(9, 8, 22, 0.9);
+  --glass-panel: color-mix(in srgb, var(--card) 88%, rgba(4, 3, 14, 0.7));
   --shadow-material-workspace:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
@@ -264,17 +266,54 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
     0 8px 24px rgba(0, 0, 0, 0.4),
     0 32px 72px rgba(0, 0, 0, 0.34);
+  /* Ambient nebula field — violet crown, blue drift left, cyan wash below.
+     Surfaces above are translucent so this glows through everywhere. */
   --app-background-gradient:
-    radial-gradient(ellipse 70% 50% at 50% -12%, rgba(63, 140, 255, 0.1) 0%, transparent 60%),
-    radial-gradient(ellipse 45% 35% at 88% 8%, rgba(34, 211, 238, 0.04) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(2, 5, 12, 0.9) 0%, transparent 52%),
-    linear-gradient(168deg, #060a14 0%, #05080f 48%, #04070d 100%);
-  --surface-gradient: linear-gradient(180deg, #060a14 0%, #05080f 50%, #04070d 100%);
-  --sidebar-gradient: linear-gradient(180deg, #04070d 0%, #060a14 55%, #05080f 100%);
+    radial-gradient(ellipse 65% 48% at 50% -10%, rgba(124, 109, 255, 0.2) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 8% 15%, rgba(63, 140, 255, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 35% at 92% 6%, rgba(192, 132, 252, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 65% 100%, rgba(34, 211, 238, 0.07) 0%, transparent 52%),
+    linear-gradient(168deg, #0a0820 0%, #070613 48%, #050410 100%);
+  --surface-gradient: linear-gradient(
+    180deg,
+    rgba(10, 8, 32, 0.5) 0%,
+    rgba(7, 6, 19, 0.62) 50%,
+    rgba(5, 4, 16, 0.72) 100%
+  );
+  --sidebar-gradient: linear-gradient(
+    180deg,
+    rgba(5, 4, 16, 0.82) 0%,
+    rgba(9, 7, 26, 0.78) 55%,
+    rgba(6, 5, 18, 0.84) 100%
+  );
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 250ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Nebula fusion — neon energy and glass depth, dark theme only */
+.dark .flow-hero-eyebrow {
+  color: #b3a8ff;
+  text-shadow: 0 0 14px rgba(124, 109, 255, 0.45);
+}
+.dark .flow-kpi-card:hover {
+  border-color: rgba(124, 109, 255, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(124, 109, 255, 0.16),
+    0 0 28px rgba(124, 109, 255, 0.16),
+    0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.dark .flow-metric-xl {
+  text-shadow: 0 0 20px rgba(124, 109, 255, 0.22);
+}
+.dark .flow-command-bar {
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+.dark .flow-layer-sidebar {
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
 }
 
 @layer base {
