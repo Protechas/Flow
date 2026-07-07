@@ -53,7 +53,7 @@ export function OperationalPulsePanel({
             <p className="flow-command-subtitle mt-1">{subtitle}</p>
           )}
         </div>
-        {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">{actions}</div>}
       </div>
       <div className="flow-operational-pulse-grid">
         {metrics.map((metric) => {

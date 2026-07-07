@@ -43,9 +43,11 @@ export function InfoTooltip({
           <span
             className={cn(
               "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
-              "text-muted-foreground/60 hover:text-muted-foreground",
+              // Nearly invisible at rest — a dozen of these per screen reads
+              // as clutter; they only need presence when sought out
+              "text-muted-foreground opacity-30 hover:opacity-100 focus-visible:opacity-100",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-              "cursor-help transition-colors",
+              "cursor-help transition-opacity",
               className
             )}
             role="img"

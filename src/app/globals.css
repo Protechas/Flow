@@ -338,19 +338,19 @@
     color: var(--muted-foreground);
   }
   .flow-metric-lg {
-    font-size: 1.625rem;
-    line-height: 1.875rem;
-    font-weight: 600;
+    font-size: 1.75rem;
+    line-height: 2rem;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.035em;
     color: var(--foreground);
   }
   .flow-metric-xl {
-    font-size: 2rem;
-    line-height: 2.25rem;
-    font-weight: 600;
+    font-size: 2.125rem;
+    line-height: 2.375rem;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.045em;
     color: var(--foreground);
   }
   .flow-command-title {
@@ -621,23 +621,31 @@
       0 3px 10px color-mix(in srgb, var(--primary) 18%, transparent);
   }
   .flow-hero-eyebrow {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: 0.625rem;
+    font-weight: 650;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--muted-foreground);
+    color: color-mix(in srgb, var(--primary) 60%, var(--muted-foreground) 40%);
   }
   .flow-hero-title {
-    font-size: 1.5rem;
-    line-height: 1.875rem;
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    color: var(--foreground);
+    font-size: 1.625rem;
+    line-height: 2rem;
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    /* Subtle luminance falloff — reads as engineered, not flat */
+    background: linear-gradient(
+      135deg,
+      var(--foreground) 45%,
+      color-mix(in srgb, var(--foreground) 62%, var(--primary) 38%) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   @media (min-width: 640px) {
     .flow-hero-title {
-      font-size: 1.75rem;
-      line-height: 2.125rem;
+      font-size: 2rem;
+      line-height: 2.375rem;
     }
   }
   .flow-hero-description {

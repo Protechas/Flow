@@ -190,7 +190,9 @@ export function ExecutiveDashboardView({
             value: data.wrapUpReview.missingToday,
             sublabel: `${data.wrapUpReview.submittedToday} submitted today`,
             href: linkHref(role, wrapUpsHref({ status: "missing" })),
-            tone: data.wrapUpReview.missingToday > 0 ? "qa" : "healthy",
+            // Missing reports are an attention state, not a QA concept —
+            // purple here made the tile read as unrelated to urgency
+            tone: data.wrapUpReview.missingToday > 0 ? "warning" : "healthy",
             helpKey: "outstandingDailyReports",
           },
           {

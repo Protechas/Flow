@@ -30,12 +30,14 @@ export function AppHeader({ user, demoMode }: AppHeaderProps) {
     <header className="flow-command-bar flex h-12 shrink-0 items-center gap-3 px-4 lg:px-6 sticky top-0 z-10">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="h-5 bg-[var(--border-subtle)]" />
-      <div className="hidden sm:flex items-center gap-2 min-w-0">
+      {/* The hero below the bar already names the page — only show the title
+          here when there's honest room for it, never truncated to nothing */}
+      <div className="hidden lg:flex flex-1 items-center gap-2 min-w-0">
         <span className="flow-hero-eyebrow text-[10px]">Flow</span>
         <h1 className="flow-page-title truncate">{pageTitle}</h1>
       </div>
 
-      <div className="relative hidden md:block flex-1 max-w-xs ml-2">
+      <div className="relative hidden md:block flex-1 lg:flex-none max-w-xs lg:w-72 ml-2">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <Input
           placeholder="Search operations…"

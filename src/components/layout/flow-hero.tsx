@@ -24,14 +24,9 @@ export function FlowHero({
       )}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3.5">
-            <div className="flow-brand-mark shrink-0" aria-hidden>
-              F
-            </div>
-            <div className="min-w-0">
-              <p className="flow-hero-eyebrow">{eyebrow}</p>
-              <h1 className="flow-hero-title">{title}</h1>
-            </div>
+          <div className="min-w-0">
+            <p className="flow-hero-eyebrow">{eyebrow}</p>
+            <h1 className="flow-hero-title mt-1">{title}</h1>
           </div>
           {description && (
             <p className="flow-hero-description mt-4 max-w-3xl">{description}</p>

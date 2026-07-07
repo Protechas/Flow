@@ -181,7 +181,9 @@ export function EmployeeWorkflowPanel({
           <p className="text-sm text-muted-foreground">{wf.statusDescription}</p>
         </div>
 
-        {wf.blockers.length > 0 && (
+        {/* A single blocker repeats what Your Next Step already says — only
+            list blockers separately when there are several to enumerate */}
+        {wf.blockers.length > 1 && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
               Blocked By
@@ -226,8 +228,22 @@ export function EmployeeWorkflowPanel({
           ))}
         </ol>
 
-        <div className="rounded-lg border border-border/50 bg-muted/10 px-4 py-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Your Next Step</p>
+        <div
+          className={cn(
+            "rounded-lg border px-4 py-3 space-y-1",
+            wf.blockers.length > 0
+              ? "border-amber-500/30 bg-amber-500/5"
+              : "border-border/50 bg-muted/10"
+          )}
+        >
+          <p
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest",
+              wf.blockers.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-primary"
+            )}
+          >
+            Your Next Step
+          </p>
           <p className="font-semibold text-sm">{wf.nextStepTitle}</p>
           <p className="text-xs text-muted-foreground">{wf.nextStepDescription}</p>
         </div>
