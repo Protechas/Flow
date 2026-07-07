@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { cache } from "react";
 import { after } from "next/server";
 import { initFlowStore } from "@/lib/data/flow-store";
 import { deliverNotification } from "@/lib/notifications/notifications";
@@ -54,6 +55,19 @@ import {
 const BUCKET = "validation-files";
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
+/**
+ * Read paths want fresh run/job state, but a single page render calls several
+ * of them (runs list, KPIs, findings) — dedupe the force-refresh per request
+ * so one render hydrates from the DB exactly once.
+ */
+const refreshValidationCenterForRead = cache(async (): Promise<void> => {
+  const { hydrateValidationCenterFromDb } = await import(
+    "@/lib/validation-center/validation-center-db"
+  );
+  invalidateValidationHydration();
+  await hydrateValidationCenterFromDb();
+});
+
 function ts() {
   return new Date().toISOString();
 }
@@ -68,11 +82,7 @@ function excelMime() {
 
 export async function listValidationRuns(): Promise<ValidationRunView[]> {
   if (isValidationDbEnabled()) {
-    const { hydrateValidationCenterFromDb } = await import(
-      "@/lib/validation-center/validation-center-db"
-    );
-    invalidateValidationHydration();
-    await hydrateValidationCenterFromDb();
+    await refreshValidationCenterForRead();
     await ensurePendingJobsRunning();
     const { listRunsFromDb } = await import("@/lib/validation-center/validation-center-db");
     return listRunsFromDb();
@@ -82,11 +92,8 @@ export async function listValidationRuns(): Promise<ValidationRunView[]> {
 
 export async function getValidationRun(id: string): Promise<ValidationRunView | null> {
   if (isValidationDbEnabled()) {
-    const { hydrateValidationCenterFromDb, getRunFromDb } = await import(
-      "@/lib/validation-center/validation-center-db"
-    );
-    invalidateValidationHydration();
-    await hydrateValidationCenterFromDb();
+    const { getRunFromDb } = await import("@/lib/validation-center/validation-center-db");
+    await refreshValidationCenterForRead();
     await ensurePendingJobsRunning(id);
     return getRunFromDb(id);
   }

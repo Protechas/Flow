@@ -393,22 +393,36 @@ export async function persistRecalculatedForecastsDb(): Promise<void> {
   const store = getFlowStore();
   const { updateProjectDb } = await import("@/lib/data/projects-db");
 
-  for (const pkg of store.workPackages) {
-    await persistWorkPackageDb(pkg);
+  // One bulk upsert instead of a round-trip per package — this runs on every
+  // /planning load, and row-at-a-time writes made that page take seconds.
+  if (store.workPackages.length) {
+    const client = await dbClient();
+    let { error } = await client
+      .from("work_items")
+      .upsert(store.workPackages.map((p) => packageToRow(p)), { onConflict: "id" });
+    if (error && isMissingColumn(error)) {
+      ({ error } = await client
+        .from("work_items")
+        .upsert(store.workPackages.map((p) => packageToRow(p, false)), { onConflict: "id" }));
+    }
+    if (error && !isUnavailable(error)) throwDbError(error);
   }
-  for (const project of store.projects) {
-    await updateProjectDb(project.id, {
-      estimated_total_documents: project.estimated_total_documents,
-      estimated_total_hours: project.estimated_total_hours,
-      estimated_total_work_days: project.estimated_total_work_days,
-      suggested_project_due_date: project.suggested_project_due_date,
-      planning_project_due_date: project.planning_project_due_date,
-      active_project_due_date: project.active_project_due_date,
-      project_due_date_status: project.project_due_date_status,
-      forecast_confidence: project.forecast_confidence,
-      due_date: project.due_date,
-    });
-  }
+
+  await Promise.all(
+    store.projects.map((project) =>
+      updateProjectDb(project.id, {
+        estimated_total_documents: project.estimated_total_documents,
+        estimated_total_hours: project.estimated_total_hours,
+        estimated_total_work_days: project.estimated_total_work_days,
+        suggested_project_due_date: project.suggested_project_due_date,
+        planning_project_due_date: project.planning_project_due_date,
+        active_project_due_date: project.active_project_due_date,
+        project_due_date_status: project.project_due_date_status,
+        forecast_confidence: project.forecast_confidence,
+        due_date: project.due_date,
+      })
+    )
+  );
 }
 
 export async function persistManufacturerChange(mfr: Manufacturer): Promise<void> {

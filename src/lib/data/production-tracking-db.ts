@@ -6,6 +6,7 @@ import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   replaceProductionTrackingStore,
 } from "@/lib/data/production-tracking";
+import { ensureWorkStructureHydrated } from "@/lib/data/work-items-db";
 import type {
   QaReviewRecord,
   TaskFileUpload,
@@ -131,6 +132,25 @@ function mapQaReview(row: Record<string, unknown>): QaReviewRecord {
   };
 }
 
+async function fetchAllFileUploads(supabase: NonNullable<Awaited<ReturnType<typeof dbClient>>>) {
+  // PostgREST caps a single response at 1000 rows regardless of .limit(), so
+  // page until a short page or uploads beyond the first thousand vanish.
+  const pageSize = 1000;
+  const maxRows = 5000;
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; from < maxRows; from += pageSize) {
+    const { data, error } = await supabase
+      .from("task_file_uploads")
+      .select("*")
+      .order("uploaded_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) return { rows, error };
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return { rows, error: null };
+}
+
 const hydrateProduction = cache(async (): Promise<void> => {
   if (!isSupabaseConfigured()) return;
   const supabase = await dbClient();
@@ -149,7 +169,7 @@ const hydrateProduction = cache(async (): Promise<void> => {
       .select("*")
       .gte("started_at", `${since}T00:00:00Z`)
       .order("started_at", { ascending: false }),
-    supabase.from("task_file_uploads").select("*").order("uploaded_at", { ascending: false }).limit(5000),
+    fetchAllFileUploads(supabase),
     supabase
       .from("task_submission_records")
       .select("*")
@@ -168,10 +188,14 @@ const hydrateProduction = cache(async (): Promise<void> => {
   if (subs.error && !isUnavailable(subs.error)) throw new Error(subs.error.message);
   if (qa.error && !isUnavailable(qa.error)) throw new Error(qa.error.message);
 
+  // enrichTaskTime resolves manufacturer/year ids from store.workPackages, so
+  // the work structure must land in the store before these rows are mapped.
+  await ensureWorkStructureHydrated();
+
   replaceProductionTrackingStore({
     timeClockEntries: (clocks.data ?? []).map((r) => mapClock(r as Record<string, unknown>)),
     taskTimeEntries: (tasks.data ?? []).map((r) => enrichTaskTime(r as Record<string, unknown>)),
-    taskFileUploads: (files.data ?? []).map((r) => mapFile(r as Record<string, unknown>)),
+    taskFileUploads: files.rows.map((r) => mapFile(r)),
     taskSubmissions: (subs.data ?? []).map((r) => mapSubmission(r as Record<string, unknown>)),
     qaReviewRecords: (qa.data ?? []).map((r) => mapQaReview(r as Record<string, unknown>)),
   });

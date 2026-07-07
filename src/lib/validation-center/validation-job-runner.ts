@@ -48,11 +48,12 @@ async function runValidationJobAsync(runId: string): Promise<void> {
 
 export async function ensurePendingJobsRunning(runId?: string): Promise<void> {
   const { getValidationMemoryState } = await import("@/lib/validation-center/store");
-  const { hydrateValidationCenterFromDb, invalidateValidationHydration } = await import(
+  const { hydrateValidationCenterFromDb } = await import(
     "@/lib/validation-center/validation-center-db"
   );
 
-  invalidateValidationHydration();
+  // Callers (listValidationRuns/getValidationRun) refresh right before this
+  // runs, so a plain hydrate only fetches when memory is still cold.
   await hydrateValidationCenterFromDb();
 
   const jobs = getValidationMemoryState().memoryJobs;

@@ -19,17 +19,20 @@ const hydrateApp = cache(async (): Promise<void> => {
     await hydrateOperatingModels();
     return;
   }
-  // Ordered: users/departments feed hierarchy scoping; projects feed
-  // manufacturer linking in the work structure. Everything after that is an
-  // independent store replacement, so load in parallel to cut request latency.
-  await hydrateAppStore();
-  await ensureProjectsHydrated();
-  const [{ hydrateTeamDashboardPacks }, { hydrateOperatingModels }] = await Promise.all([
-    import("@/lib/team-dashboards/hydrate"),
-    import("@/lib/operating-models/hydrate"),
-  ]);
-  const { hydrateForecastSettings } = await import("@/lib/forecast/hydrate");
+  // Every hydrator below fetches independently — ordering constraints live
+  // inside the hydrators themselves (hydrateAppStore sequences users before
+  // hierarchy init; production tracking awaits the work structure before
+  // mapping). Fire everything in one wave so a request pays one DB round-trip
+  // of latency instead of four.
+  const [{ hydrateTeamDashboardPacks }, { hydrateOperatingModels }, { hydrateForecastSettings }] =
+    await Promise.all([
+      import("@/lib/team-dashboards/hydrate"),
+      import("@/lib/operating-models/hydrate"),
+      import("@/lib/forecast/hydrate"),
+    ]);
   await Promise.all([
+    hydrateAppStore(),
+    ensureProjectsHydrated(),
     ensureWorkStructureHydrated(),
     ensureProductionTrackingHydrated(),
     ensureTimeLogsHydrated(),
@@ -38,7 +41,7 @@ const hydrateApp = cache(async (): Promise<void> => {
     ensureWorkloadAlertsHydrated(),
     hydrateTeamDashboardPacks(),
     hydrateOperatingModels(),
-    // Settings must load before the forecast recalc below or dates compute
+    // Settings must resolve before the forecast recalc below or dates compute
     // from defaults instead of the org's configured rates.
     hydrateForecastSettings(),
   ]);

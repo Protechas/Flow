@@ -45,9 +45,10 @@ export async function hydrateAppStore(): Promise<User[]> {
   if (!isSupabaseConfigured()) {
     return getAllUsers();
   }
-  const users = await listUsers();
+  // Users and department structure are independent fetches; hierarchy init
+  // needs both in the store, so it runs after the pair resolves.
+  const [users] = await Promise.all([listUsers(), ensureDepartmentsLoaded()]);
   setStoreUsers(users);
-  await ensureDepartmentsLoaded();
   const { initHierarchyFromStore } = await import("@/lib/auth/team-scope");
   initHierarchyFromStore(users);
   return users;

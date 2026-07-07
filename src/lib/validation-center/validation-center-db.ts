@@ -117,6 +117,53 @@ function mapBridge(row: Record<string, unknown>): ValidationFindingTaskBridge {
   };
 }
 
+const JOB_META_COLUMNS =
+  "id, run_id, engine_id, status, error_message, attempts, created_at, started_at, completed_at";
+
+/**
+ * Job payload/result blobs run hundreds of KB each and nothing reads them for
+ * finished jobs, so hydrate metadata only — unfinished jobs keep full rows
+ * because the runner resumes from their payload.
+ */
+async function fetchJobsSlim(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const [metaRes, activeRes] = await Promise.all([
+    supabase.from("validation_jobs").select(JOB_META_COLUMNS),
+    supabase.from("validation_jobs").select("*").in("status", ["pending", "processing"]),
+  ]);
+  if (metaRes.error) return { data: null, error: metaRes.error };
+  if (activeRes.error) return { data: null, error: activeRes.error };
+  const fullById = new Map(
+    (activeRes.data ?? []).map((r) => [String((r as Record<string, unknown>).id), r])
+  );
+  const data = (metaRes.data ?? []).map(
+    (r) => fullById.get(String((r as Record<string, unknown>).id)) ?? r
+  );
+  return { data, error: null };
+}
+
+/** PostgREST caps one response at 1000 rows; page in parallel so every finding hydrates. */
+async function fetchAllFindings(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const pageSize = 1000;
+  const { count, error: countError } = await supabase
+    .from("validation_findings")
+    .select("*", { count: "exact", head: true });
+  if (countError) return { data: null, error: countError };
+  const pages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
+  const results = await Promise.all(
+    Array.from({ length: pages }, (_, i) =>
+      supabase
+        .from("validation_findings")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(i * pageSize, (i + 1) * pageSize - 1)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { data: null, error: failed.error };
+  return { data: results.flatMap((r) => r.data ?? []), error: null };
+}
+
 export async function hydrateValidationCenterFromDb(force = false): Promise<void> {
   if (!isValidationDbEnabled()) return;
   if (hydrated && !force) return;
@@ -125,9 +172,9 @@ export async function hydrateValidationCenterFromDb(force = false): Promise<void
   const [runsRes, filesRes, jobsRes, settingsRes, findingsRes, bridgesRes] = await Promise.all([
     supabase.from("validation_runs").select("*").order("created_at", { ascending: false }),
     supabase.from("validation_files").select("*"),
-    supabase.from("validation_jobs").select("*"),
+    fetchJobsSlim(supabase),
     supabase.from("validation_settings").select("*"),
-    supabase.from("validation_findings").select("*").order("created_at", { ascending: false }),
+    fetchAllFindings(supabase),
     supabase.from("validation_finding_tasks").select("*"),
   ]);
 
