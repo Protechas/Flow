@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "protech-validation-engine"
+version = "0.1.0"
+description = "ProTech validation processing engines for Flow Validation Center"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas>=2.0.0",
+  "openpyxl>=3.1.0",
+  "reportlab>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0"]
+
+[project.scripts]
+protech-validation = "protech_validation_engine.worker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["protech_validation_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
