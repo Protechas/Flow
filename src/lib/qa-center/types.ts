@@ -4,6 +4,7 @@ export type QaCenterNavId =
   | "dashboard"
   | "upload"
   | "validation"
+  | "library"
   | "review"
   | "knowledge"
   | "rules"

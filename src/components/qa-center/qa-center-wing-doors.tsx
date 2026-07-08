@@ -183,12 +183,15 @@ export function QaCenterWingDoors({
             <FlaskConical className="h-4 w-4" />
             New audit run
           </Button>
+          <Button variant="outline" render={<Link href="/qa-center/library" />}>
+            <Layers className="h-4 w-4" />
+            Library intelligence
+          </Button>
           <Button variant="outline" render={<Link href="/qa-center/upload" />}>
             <Upload className="h-4 w-4" />
             Upload queue
           </Button>
           <Button variant="outline" render={<Link href="/qa-center/validation/findings" />}>
-            <Layers className="h-4 w-4" />
             Findings
           </Button>
         </div>

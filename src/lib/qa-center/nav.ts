@@ -59,6 +59,14 @@ export const QA_CENTER_NAV: QaCenterNavItem[] = [
     permissions: ["validation:view"],
   },
   {
+    id: "library",
+    href: "/qa-center/library",
+    label: "Library Intelligence",
+    description: "Library score, manufacturer scoreboard, what changed, and smart insights",
+    wing: "audit",
+    permissions: ["validation:view"],
+  },
+  {
     id: "rules",
     href: "/qa-center/rules",
     label: "Rule Engine",
