@@ -36,7 +36,13 @@
   leaders.
 - **Accuracy fixes.** Hours and docs-per-hour now derive from real time logs
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
-  persist reliably; theme is the Nebula indigo-blue dark look.
+  persist reliably; task time totals sum every session (starting a new timer
+  no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Employee evaluation (July 8).** Leads and managers see an Evaluation
+  panel on employee profiles: automatic signals (clock punches corrected by a
+  manager, days clocked without a daily report, QA corrections) plus a manual
+  incident log with category, severity, and notes. Employees do not see their
+  own panel.
 
 ---
 
@@ -382,6 +388,25 @@ Role determines permission set (see Section 2). Admins change role via Users pag
 - Roster searchable by name
 - Scoped to team or org based on role
 - Profile pages show scorecard, queue, workload alerts, help flags
+
+## Employee Evaluation (leads and managers)
+
+On an employee's profile (`/people/[id]`), viewers with team or org people
+access see an **Evaluation** panel. Employees never see their own.
+
+**Automatic signals** (computed from operational data, nothing to maintain):
+
+| Signal | Source |
+|--------|--------|
+| Clock corrections (90d) | Punches edited or added by someone other than the employee, with editor and reason |
+| Missed daily reports (30d) | Days clocked in without a wrap-up (today excluded) |
+| QA corrections | Correction count across their assigned tasks |
+
+**Incident log:** the **Log incident** button records manual entries —
+category (time clock, task timer, daily report, QA/quality, attendance,
+conduct, process, other), severity (minor/moderate/serious), date, summary,
+and notes. Entries show who logged them; logging and removal are written to
+the audit log.
 
 ---
 

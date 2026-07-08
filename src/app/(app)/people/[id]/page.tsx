@@ -26,6 +26,11 @@ import {
   defaultClockRecordDateRange,
   MAX_CLOCK_RECORD_RANGE_DAYS,
 } from "@/lib/time-clock/record-filters";
+import { EmployeeEvaluationPanel } from "@/components/people/employee-evaluation-panel";
+import {
+  computeEvaluationSignals,
+  listEmployeeIncidents,
+} from "@/lib/people/employee-evaluation";
 import { notFound } from "next/navigation";
 
 export default async function PersonPage({
@@ -101,6 +106,22 @@ export default async function PersonPage({
     clockEntries = getClockEntriesForUser(id, MAX_CLOCK_RECORD_RANGE_DAYS);
   }
 
+  // Evaluation: leads and up, never for your own profile.
+  const canEvaluate =
+    profile.user.role === "employee" &&
+    viewer.id !== id &&
+    (hasPermission(permissionRole, "people:view_all") ||
+      (hasPermission(permissionRole, "people:view_team") &&
+        canViewerSeeUser(viewer, id, storeUsers, getFlowStore().teams)));
+  let evaluationSignals = null;
+  let incidents: Awaited<ReturnType<typeof listEmployeeIncidents>> = [];
+  if (canEvaluate) {
+    await ensureAppDataLoaded();
+    initProductionTracking();
+    evaluationSignals = computeEvaluationSignals(id);
+    incidents = await listEmployeeIncidents(id);
+  }
+
   return (
     <>
       <PageHeader
@@ -114,6 +135,15 @@ export default async function PersonPage({
         backHref={canDrillDown || canViewBranch ? "/people" : undefined}
         canEditPayType={canEditPayType}
       />
+      {canEvaluate && evaluationSignals && (
+        <div className="mt-6">
+          <EmployeeEvaluationPanel
+            employeeId={id}
+            signals={evaluationSignals}
+            incidents={incidents}
+          />
+        </div>
+      )}
       {canViewClockHistory && (
         <div className="mt-6">
           <TimeClockAdminView
