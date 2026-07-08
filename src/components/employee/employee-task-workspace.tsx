@@ -99,6 +99,7 @@ export function EmployeeTaskWorkspace({
   activeTimer: TaskTimeEntry | null;
   anyActiveTimer: TaskTimeEntry | null;
   totalMinutes: number;
+  allTimeMinutes?: number;
   latestSubmission: TaskSubmissionRecord | null;
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
@@ -121,6 +122,7 @@ function EmployeeTaskWorkspaceContent({
   activeTimer,
   anyActiveTimer,
   totalMinutes,
+  allTimeMinutes,
   latestSubmission,
   helpFlags = [],
   workEligibility,
@@ -134,6 +136,7 @@ function EmployeeTaskWorkspaceContent({
   activeTimer: TaskTimeEntry | null;
   anyActiveTimer: TaskTimeEntry | null;
   totalMinutes: number;
+  allTimeMinutes?: number;
   latestSubmission: TaskSubmissionRecord | null;
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
@@ -475,7 +478,10 @@ function EmployeeTaskWorkspaceContent({
             {display}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            {formatMinutes(totalMinutes)} total on this task
+            {formatMinutes(totalMinutes)} since last submission
+            {allTimeMinutes != null && allTimeMinutes !== totalMinutes
+              ? ` · ${formatMinutes(allTimeMinutes)} total on this task`
+              : ""}
           </p>
           {canWork && (
             <div className="flex flex-wrap justify-center gap-2 mt-5">

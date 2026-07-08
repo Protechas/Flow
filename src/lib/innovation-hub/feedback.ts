@@ -2,6 +2,13 @@ import { randomUUID } from "node:crypto";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
+
+/** Authorization happens at the action layer — prefer the service-role client
+ * so RLS (keyed to legacy roles) cannot reject legitimate app-layer writes. */
+async function dbClient() {
+  return isAdminConfigured() ? createAdminClient() : await createClient();
+}
 import type {
   FeedbackCategory,
   FeedbackPriority,
@@ -73,7 +80,7 @@ export async function listFeedbackSubmissions(): Promise<FeedbackSubmissionView[
     );
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data, error } = await supabase
     .from("feedback_submissions")
     .select("*")
@@ -90,7 +97,7 @@ export async function getFeedbackSubmissionById(
     return memorySubmissions.find((s) => s.id === id) ?? null;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data, error } = await supabase
     .from("feedback_submissions")
     .select("*")
@@ -170,7 +177,7 @@ export async function createFeedbackSubmission(input: {
     return submission;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
 
   if (input.attachment && screenshot_storage_path) {
     const { error: uploadError } = await supabase.storage
@@ -241,7 +248,7 @@ export async function updateFeedbackSubmission(
     return next;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data, error } = await supabase
     .from("feedback_submissions")
     .update({
@@ -269,7 +276,7 @@ export async function downloadFeedbackAttachmentBuffer(
     throw new Error("No attachment on this submission");
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .download(submission.screenshot_storage_path);

@@ -96,7 +96,8 @@ describe("batch submissions", () => {
       taskTimeEntries: [],
       taskFileUploads: [
         fileRow("file-1", "2026-07-07T10:00:00Z"),
-        fileRow("file-2", "2026-07-08T10:00:00Z"),
+        // Uploaded after the batch above — always in the future of ts()
+        fileRow("file-2", new Date(Date.now() + 60_000).toISOString()),
       ],
       taskSubmissions: mod.getSubmissionsForTask(TASK_ID),
       qaReviewRecords: [],

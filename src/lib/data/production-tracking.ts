@@ -545,10 +545,17 @@ export function getTaskTimeEntriesForTask(taskId: string): TaskTimeEntry[] {
 }
 
 export function getTotalTaskMinutes(taskId: string): number {
-  const entries = getTaskTimeEntriesForTask(taskId);
-  const active = entries.find((e) => e.status === "active" || e.status === "paused");
-  if (active) return calcActiveMinutes(active);
-  return entries.reduce((s, e) => s + e.total_active_minutes, 0);
+  // Sum EVERY session — a live timer adds to completed history, it does not
+  // replace it. (Returning only the active entry made totals "reset" whenever
+  // an analyst started a new session.)
+  return getTaskTimeEntriesForTask(taskId).reduce(
+    (s, e) =>
+      s +
+      (e.status === "active" || e.status === "paused"
+        ? calcActiveMinutes(e)
+        : e.total_active_minutes),
+    0
+  );
 }
 
 // ——— File uploads ———
@@ -618,12 +625,11 @@ export function getTaskFilesForPendingSession(taskId: string): TaskFileUpload[] 
   return files.filter((f) => f.uploaded_at > since);
 }
 
-/** Task minutes for the current pending session (active timer or entries after last submission). */
-export function getPendingSessionTaskMinutes(taskId: string, userId: string): number {
+/** Task minutes for the current pending session — every entry since the last
+ * submission, including a live timer. (Early-returning just the active entry
+ * made the session total "reset" to zero on each new start.) */
+export function getPendingSessionTaskMinutes(taskId: string, _userId: string): number {
   initProductionTracking();
-  const active = getActiveTaskTimeEntry(userId);
-  if (active?.task_id === taskId) return calcActiveMinutes(active);
-
   const since = getPendingSessionSince(taskId);
   const entries = getTaskTimeEntriesForTask(taskId).filter(
     (e) => !since || e.started_at > since

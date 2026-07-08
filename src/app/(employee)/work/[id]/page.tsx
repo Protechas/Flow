@@ -9,6 +9,7 @@ import {
   getTaskFilesForPendingSession,
   getTodayClockEntries,
   getTotalTaskFileCount,
+  getTotalTaskMinutes,
 } from "@/lib/data/production-tracking";
 import { buildTaskPageWorkflowInput } from "@/lib/employee/workflow-input";
 import { getWorkEligibility } from "@/lib/work-eligibility";
@@ -79,6 +80,7 @@ export default async function EmployeeTaskPage({
       activeTimer={activeTimer?.task_id === task.id ? activeTimer : null}
       anyActiveTimer={activeTimer}
       totalMinutes={getPendingSessionTaskMinutes(task.id, user.id)}
+      allTimeMinutes={getTotalTaskMinutes(task.id)}
       latestSubmission={getLatestSubmission(task.id)}
       helpFlags={helpFlags}
       workEligibility={getWorkEligibility(user)}

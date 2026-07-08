@@ -5,6 +5,13 @@ import type {
 import type { UserPermissionOverrides } from "@/lib/auth/feature-access";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
+
+/** Authorization happens at the action layer — prefer the service-role client
+ * so RLS (keyed to legacy roles) cannot reject legitimate app-layer writes. */
+async function dbClient() {
+  return isAdminConfigured() ? createAdminClient() : await createClient();
+}
 
 const memoryProfiles = new Map<string, UserPermissionOverrides>();
 
@@ -66,7 +73,7 @@ export async function getUserPermissionOverrides(
     return memoryProfiles.get(userId) ?? null;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const [{ data: profile, error: profileError }, { data: modules, error: modulesError }] =
     await Promise.all([
       supabase.from("user_permission_profiles").select("*").eq("user_id", userId).maybeSingle(),
@@ -93,7 +100,7 @@ export async function listCustomizedPermissionProfiles(): Promise<UserPermission
     return [...memoryProfiles.values()].filter((p) => p.isCustomized);
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data: profiles, error } = await supabase
     .from("user_permission_profiles")
     .select("*")
@@ -142,7 +149,7 @@ export async function saveUserPermissionOverrides(
     return payload;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const now = ts();
 
   const { error: profileError } = await supabase.from("user_permission_profiles").upsert({
@@ -191,7 +198,7 @@ export async function resetUserPermissionOverrides(userId: string): Promise<void
     return;
   }
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const [{ error: modError }, { error: profileError }] = await Promise.all([
     supabase.from("user_permission_modules").delete().eq("user_id", userId),
     supabase.from("user_permission_profiles").delete().eq("user_id", userId),
