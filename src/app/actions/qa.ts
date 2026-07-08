@@ -74,6 +74,41 @@ export async function submitQaReviewAction(params: {
   PATHS.forEach((p) => revalidatePath(p));
 }
 
+export async function requestFileReuploadAction(taskId: string) {
+  const actor = await requirePermission("qa:review");
+  await ensureServerWriteContext();
+  try {
+    const { getFlowStore } = await import("@/lib/data/flow-store");
+    const pkg = getFlowStore().workPackages.find((p) => p.id === taskId);
+    if (!pkg) return { ok: false as const, message: "Task not found" };
+    if (!pkg.assigned_to) {
+      return { ok: false as const, message: "Task has no assigned analyst to notify" };
+    }
+    const { deliverNotification } = await import("@/lib/notifications/notifications");
+    deliverNotification({
+      user_id: pkg.assigned_to,
+      type: "correction_issued",
+      title: "Re-upload needed for QA review",
+      message: `${actor.full_name} needs the files on ${pkg.title} re-uploaded — the originals were saved before file storage was enabled and can't be opened.`,
+      related_entity_type: "work_package",
+      related_entity_id: taskId,
+      link: `/work/${taskId}`,
+    });
+    await writeAuditLog({
+      action: "status_changed",
+      entityType: "work_package",
+      entityId: taskId,
+      summary: `Reviewer requested file re-upload on ${pkg.title}`,
+      metadata: { analyst_id: pkg.assigned_to },
+      actorId: actor.id,
+      actorEmail: actor.email,
+    });
+    return { ok: true as const };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Request failed" };
+  }
+}
+
 export async function reviewBatchSubmissionAction(params: {
   submissionId: string;
   result: "pass" | "correction";

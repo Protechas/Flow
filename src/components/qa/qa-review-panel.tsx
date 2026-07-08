@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { submitQaReviewAction } from "@/app/actions/qa";
+import { requestFileReuploadAction, submitQaReviewAction } from "@/app/actions/qa";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
-import { FileText } from "lucide-react";
+import { AlertTriangle, FileText } from "lucide-react";
 
 interface QaReviewPanelProps {
   queue: WorkPackage[];
@@ -51,7 +51,24 @@ export function QaReviewPanel({
     }
   }, [initialPackageId, queue]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reuploadRequested, setReuploadRequested] = useState<Set<string>>(new Set());
   const selected = queue.find((q) => q.id === selectedId);
+  const selectedFiles = selected ? (fileMap[selected.id] ?? []) : [];
+  const stubCount = selectedFiles.filter((f) => !taskFileHasContent(f)).length;
+
+  function requestReupload() {
+    if (!selected) return;
+    const taskId = selected.id;
+    startTransition(async () => {
+      setSubmitError(null);
+      const res = await requestFileReuploadAction(taskId);
+      if (!res.ok) {
+        setSubmitError(res.message);
+        return;
+      }
+      setReuploadRequested((prev) => new Set(prev).add(taskId));
+    });
+  }
 
   function submit(result: QaResult, form: FormData) {
     if (!selected?.assigned_to) return;
@@ -153,6 +170,30 @@ export function QaReviewPanel({
                   <FileText className="h-3.5 w-3.5" />
                   Submitted files
                 </p>
+                {stubCount > 0 && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 min-w-48">
+                      {stubCount} of {selectedFiles.length} file
+                      {selectedFiles.length === 1 ? "" : "s"} can&apos;t be opened — uploaded
+                      before file storage was enabled. The analyst must re-upload them.
+                    </span>
+                    {canReview &&
+                      (reuploadRequested.has(selected.id) ? (
+                        <span className="text-xs font-medium">Re-upload requested ✓</span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={requestReupload}
+                          className="border-amber-500/50"
+                        >
+                          Request re-upload
+                        </Button>
+                      ))}
+                  </div>
+                )}
                 <ul className="space-y-1 text-sm">
                   {fileMap[selected.id]!.map((f) => (
                     <li key={f.id} className="rounded-md bg-muted/20 px-3 py-2 flex justify-between gap-2">
