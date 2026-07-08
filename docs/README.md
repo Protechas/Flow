@@ -2,7 +2,11 @@
 
 Enterprise operations manual for **Flow** — the Protech production management platform.
 
-**Production URL:** https://flowproduction.space
+**Production URL:** https://flowproduction.space  
+**Last updated:** July 7, 2026 (Flow 2 — batch submissions, QA Center wings, Audit Engine, Library Intelligence, files browser)
+
+Documentation is updated as part of every deploy — see the Documentation
+section of [PRODUCTION_QA_CHECKLIST.md](./PRODUCTION_QA_CHECKLIST.md).
 
 ## Document Index
 

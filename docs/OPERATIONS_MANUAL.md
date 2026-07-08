@@ -1,8 +1,42 @@
 # Flow Operations Manual (Master Document)
 
-**Version:** Based on production codebase  
+**Version:** Flow 2 (v0.8.3-beta) — last updated July 7, 2026  
 **Application:** Flow — Protech Production Management Platform  
 **URL:** https://flowproduction.space
+
+> This manual is updated as part of every deploy (see the Production QA
+> Checklist). If a screen doesn't match this document, the document is the bug —
+> report it in the Innovation Hub.
+
+---
+
+## What's New — Flow 2 (July 2026)
+
+- **Batch submissions.** Analysts on long-running packages can send file
+  batches to QA while continuing to work — "Submit batch for review" next to
+  the final "Complete task & submit," which now shows a confirmation dialog
+  warning when uploads are far below the estimated document count.
+- **QA Center remodeled into two wings.** *Review* (human QA: review queue,
+  in-progress batches, knowledge library, reports) and *Audit Engine* (the SI
+  Library Audit Tool, fully integrated: audit runs, Library Validation,
+  Library Intelligence, rule engine, analytics, settings).
+- **The Audit Engine executes from the live site.** Runs queue in Supabase and
+  an audit worker (`npm run audit-worker` on a machine with the Python engine)
+  processes them; the Audit Engine door shows Worker online/offline.
+- **Library Validation** (ported from the Audit App): validate any external
+  report against the audited library. **Library Intelligence** consolidates
+  Library Score, Executive Rollup, What Changed, and Smart Insights.
+- **Files rebuilt.** Task uploads are a searchable, task-grouped browser with
+  "need re-upload" badges (uploads made before July 6 never stored content and
+  must be re-uploaded).
+- **Time clock.** Workday-style weekly calendar tab; clocking out is no longer
+  blocked by a *paused* timer, and the timer dialog gained "Pause & clock out."
+- **Alerts.** Workload alerts show when they were raised and sort
+  critical-first; open critical alerts trigger a once-per-session popup for
+  leaders.
+- **Accuracy fixes.** Hours and docs-per-hour now derive from real time logs
+  and uploads (1 uploaded file = 1 completed document); submit→QA statuses
+  persist reliably; theme is the Nebula indigo-blue dark look.
 
 ---
 
@@ -626,14 +660,40 @@ Resolved via `resolveProjectMetrics(project)` — included in health list and ex
 
 **Route:** `/qa-center`
 
-## Review Process
+The QA Center has two wings. The dashboard is a two-door landing page showing
+each wing's live stats and quick actions.
 
-1. Employee marks task ready and submits (`submitWorkPackageToQaAction`)
-2. Package status → `ready_for_qa`
-3. QA reviewer opens queue item — sees task files and latest submission
-4. Reviewer submits decision via `submitQaReviewAction`
+- **Review** — human QA of submitted work (Review Queue, Knowledge Library,
+  Reports)
+- **Audit Engine** — the automated SI Library Audit Tool (Upload Queue, Audit
+  Runs, Library Intelligence, Rule Engine, Analytics, Settings)
 
-## Approval Workflow
+## Review Wing
+
+### Submissions from analysts
+
+Analysts have two ways to send work to QA from the task workspace:
+
+1. **Submit batch for review** — sends only the files uploaded since the last
+   submission. The task stays workable and the timer keeps running. Use this
+   throughout a long package.
+2. **Complete task & submit** — the final handoff. The task locks
+   (`ready_for_qa`) until a reviewer decides. A confirmation dialog states the
+   consequences and warns when uploaded files are far below the estimated
+   document count, pointing to batches instead.
+
+### Review Queue (`/qa-center/review`)
+
+- **In-Progress Batches** panel: open batch submissions with analyst, file
+  list, and session stats. Reviewers **Approve batch** (analyst keeps working)
+  or **Request corrections** with notes (task flagged `correction_needed` but
+  still workable; a later approved batch clears the flag).
+- **Package queue**: tasks in `ready_for_qa`/`in_qa` with files and the latest
+  submission. Files with stored content are clickable; files uploaded before
+  July 6, 2026 have no recoverable content — the panel shows an amber banner
+  with a one-click **Request re-upload** that notifies the analyst.
+
+### Approval Workflow (final submissions)
 
 | Result | Package Outcome |
 |--------|-----------------|
@@ -642,22 +702,63 @@ Resolved via `resolveProjectMetrics(project)` — included in health list and ex
 | `major_correction` | Status → `correction_needed`, correction record created |
 | `rejected` | Status → `correction_needed`, higher severity |
 
-## Rejections & Corrections
+All decisions persist immediately (submission record, QA review record, and
+package status are written synchronously).
 
-- `Correction` record linked to package
-- `correction_count` incremented on package
-- Employee sees return on workspace (`employee-qa-returns.tsx`)
-- Employee reworks and resubmits
+### Rejections & Corrections
 
-## Metrics
+- `Correction` record linked to package; `correction_count` incremented
+- Employee sees the return on their workspace and reworks/resubmits
 
-- QA pass rate per analyst (scorecard)
-- QA turnaround hours (command center insights)
-- Correction counts in reports
+### Metrics
 
-## Escalations
+- QA pass rate per analyst (scorecard); turnaround hours; correction counts
 
-Repeated corrections surface in executive attention list (≥3 corrections + pass rate <80%).
+### Escalations
+
+Repeated corrections surface in the executive attention list (≥3 corrections
++ pass rate <80%).
+
+## Audit Engine Wing
+
+The SI Library Audit Tool runs inside Flow. All data lives in Supabase
+(`validation_runs`, `validation_findings`, artifacts in storage).
+
+### Audit Runs (`/qa-center/validation`)
+
+- **New audit run** → *SI Library Audit*: upload a Manufacturer Chart + a
+  OneDrive Export (single or intelligent batch import). The engine scores
+  compliance and produces the audit workbook + Executive Audit Summary PDF as
+  downloadable artifacts. Findings land in the findings hub.
+- **New audit run** → *Library Validation*: upload any external report
+  (Excel/CSV — invoices, RO exports, vendor lists; columns auto-detected).
+  Every row is checked against the latest completed audit per manufacturer and
+  classified (Library File Exists, True Missing, PCS/Mapping Review, Naming
+  Review, Classification Review). Produces a color-coded results workbook and
+  findings.
+
+### The audit worker
+
+Production servers cannot run Python, so runs started on the live site
+**queue** until the audit worker picks them up:
+
+```
+cd flow
+npm run build          # once, after every code update
+npm run audit-worker   # leave the window open
+```
+
+Run it on any machine with the engine installed (the office audit machine).
+The Audit Engine door shows **Worker online / offline**; offline just means
+runs wait — nothing is lost.
+
+### Library Intelligence (`/qa-center/library`)
+
+The Audit App's reporting brain in one page: overall **library score**,
+expected/passing/review totals, true-missing and PCS/naming counts, **smart
+insights**, **What Changed** chips (compliance movement vs each
+manufacturer's previous audit), and a color-coded **manufacturer scoreboard**
+— click any row for that manufacturer's audit history with links to each run.
 
 ---
 
@@ -680,6 +781,16 @@ Repeated corrections surface in executive attention list (≥3 corrections + pas
 **Upload locations:**
 - Employee task workspace (`uploadTaskFile`)
 - Operations package detail
+
+**Browsing (`/files`):** task uploads render as a **task-grouped browser** —
+one collapsible row per task (newest activity first) with analyst, file count,
+and last-upload date. Search covers file names, tasks, and analysts; a project
+filter narrows the list. Each group links into Operations.
+
+**Re-upload badges:** files uploaded before July 6, 2026 were saved without
+content (pre-storage bug) and cannot be opened. Groups show an amber
+"N need re-upload" badge; reviewers can request re-upload from the QA review
+queue with one click.
 
 **Viewer route:** `/files/view/[source]/[id]` where source is `company` or `task`
 
@@ -783,7 +894,16 @@ Employees raise from workspace quick actions or wrap-up blockers field — creat
 **Types:**
 - Clock in — start shift
 - Clock out (lunch) — pause for lunch, remain on shift
-- Clock out (end) — end shift; may force-stop active task timer
+- Clock out (end) — end shift; force-stops any active task timer server-side
+
+**Timer interaction:** only a *running* task timer interrupts clock-out — a
+paused timer has already saved its progress. The dialog offers **Pause & clock
+out** to do both in one step, **Open task** to submit work first, or **Stay
+clocked in**.
+
+**Weekly calendar:** the Time Clock page includes a Workday-style weekly
+calendar tab (employees × days matrix with week totals, org-timezone
+bucketing, and week navigation).
 
 **Hourly employees:** Shift clock required  
 **Salary employees:** `requiresShiftClock` = false — skip shift clock

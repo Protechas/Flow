@@ -98,12 +98,31 @@ Click **New Work**:
 
 ## QA for Team Leads
 
-Many team leads perform QA review:
+The QA Center has two wings; your daily work lives in the **Review** wing
+(`/qa-center/review`).
 
-1. `/qa-center` → select item
-2. Review uploaded files
-3. Pass or correction with notes + error category
-4. Employee sees return on `/work/[id]`
+### In-Progress Batches (top of the review queue)
+
+Analysts on long packages submit **file batches** while continuing to work.
+For each open batch you see the analyst, session stats, and the batch's files:
+
+- **Approve batch** — files pass; the analyst keeps working the task.
+- **Request corrections** — add a note; the task is flagged *Correction
+  Needed* but stays workable. A later approved batch clears the flag.
+
+Review batches promptly — small, steady reviews beat one giant end-of-package
+review.
+
+### Final submissions (package queue)
+
+1. Select a package in `ready_for_qa`
+2. Review uploaded files — files with stored content are clickable
+3. **Files that can't be opened:** uploads from before July 6, 2026 have no
+   recoverable content. The panel shows an amber banner counting them and a
+   one-click **Request re-upload** that notifies the analyst with a link to
+   their task.
+4. Pass or correction with notes + error category
+5. Employee sees the outcome on `/work/[id]`
 
 **QA reports** available via your team reports scope (`reports:view_qa`).
 

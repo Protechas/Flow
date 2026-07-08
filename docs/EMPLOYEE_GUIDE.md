@@ -69,14 +69,26 @@ On the task workspace:
 
 ### Step 4: Submit to QA
 
-When work is complete:
+You have **two submit buttons** on the task workspace:
+
+**Submit batch for review** — sends only the files you've uploaded since your
+last submission. **Your task stays yours** — keep working while QA reviews the
+batch. Use this throughout a long package (hundreds of documents) instead of
+waiting until the end. The button shows how many new files would go
+("2 new files").
+
+**Complete task & submit** — the final handoff when the whole task is done:
 
 1. Ensure required files are uploaded.
-2. Click **Submit to QA**.
-3. Task status becomes **Ready for QA**.
-4. QA reviewer processes it in QA Center.
+2. Click **Complete task & submit**.
+3. A confirmation dialog explains that this **locks the task** until review —
+   and warns you if your uploads look far below the estimated document count
+   (if you just want files checked, use a batch instead).
+4. Task status becomes **Ready for QA**.
 
-You cannot approve your own QA — only submit.
+If a reviewer requests corrections on a batch, the task shows **Correction
+Needed** but stays workable — fix the noted files, upload, and send another
+batch. You cannot approve your own QA — only submit.
 
 ### Step 5: Handle QA Returns
 
@@ -111,7 +123,10 @@ Before **final clock-out** (hourly employees):
 
 1. **Lunch:** Clock out (lunch) — pauses shift, keeps you on clock for the day.
 2. **End of shift:** Clock out (end) — requires wrap-up for hourly employees.
-3. Active task timer may be force-stopped on final clock-out.
+3. If your task timer is **running**, a dialog offers **Pause & clock out**
+   (one click does both), **Open task** to submit first, or **Stay clocked
+   in**. A *paused* timer never blocks clock-out — your progress is already
+   saved, and any running timer is force-stopped safely on final clock-out.
 
 ---
 
@@ -204,7 +219,14 @@ Employees can submit ideas, bugs, and feature requests (`innovation_hub:submit` 
 ## Common Questions
 
 **Why can't I clock out?**  
-Submit your daily wrap-up first. Hourly employees are gated by wrap-up compliance.
+If your task timer is running, use **Pause & clock out** in the dialog. After
+that, submit your daily wrap-up — hourly employees are gated by wrap-up
+compliance.
+
+**Why is a file I uploaded not clickable?**  
+Files uploaded before July 6, 2026 were saved without their content and must
+be re-uploaded. If QA requests a re-upload, you'll get a notification linking
+to the task.
 
 **Why don't I see a task?**  
 It may not be assigned to you yet. Use Request Work or contact your lead.

@@ -271,10 +271,41 @@ To return to production data locally: set `NEXT_PUBLIC_FLOW_DEMO_MODE=false` and
 
 ---
 
+## Audit Worker (Audit Engine execution)
+
+Production servers cannot run Python, so audit and library-validation runs
+started on the live site **queue** until the audit worker picks them up. Run
+it on any machine with the Python engine installed (the office audit machine):
+
+```bash
+cd flow
+npm run build          # once, after every code update
+npm run audit-worker   # leave the window open
+```
+
+- Requires `flow/.env.local` with Supabase keys + `VALIDATION_WORKER_SECRET`,
+  Python 3 with `packages/protech-validation-engine` importable.
+- The QA Center's **Audit Engine door** shows *Worker online / offline*
+  (heartbeat every 20s). Offline just means runs wait — nothing is lost.
+- Queued runs are processed automatically within one tick (~20s) of the
+  worker starting.
+
+---
+
 ## Deployment & Environment
 
 **Production:** Vercel deployment at https://flowproduction.space  
 **Database:** Supabase project (migrations in `supabase/migrations/`)
+
+**Deploys are manual** — pushing to GitHub does NOT deploy:
+```bash
+cd flow
+npx vercel deploy --prod
+npx vercel inspect <deployment-url>   # confirm Ready + flowproduction.space alias
+```
+
+Complete `docs/PRODUCTION_QA_CHECKLIST.md` (including the documentation
+section) with every deploy.
 
 **Apply pending migrations:**
 ```bash

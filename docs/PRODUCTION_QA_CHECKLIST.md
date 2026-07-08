@@ -2,6 +2,17 @@
 
 Use this checklist before team rollout or after any production deploy to [flowproduction.space](https://flowproduction.space).
 
+## Documentation (every deploy)
+
+The operations manual is only useful if it never lies. Before promoting:
+
+- [ ] `docs/OPERATIONS_MANUAL.md` — "What's New" covers this deploy's
+      user-visible changes; affected sections updated
+- [ ] Role guides updated if workflows changed (Employee / Team Lead /
+      Manager / Administrator)
+- [ ] `docs/TROUBLESHOOTING.md` updated if a known failure mode changed
+- [ ] "Last updated" date bumped in the manual header
+
 Run automated gate first:
 
 ```bash

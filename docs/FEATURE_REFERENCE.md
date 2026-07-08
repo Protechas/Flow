@@ -145,7 +145,10 @@ innovation_hub:submit innovation_hub:manage
 | Projects | `/projects` | `project-workspace.tsx`, `project-portfolio-detail-panel.tsx` |
 | Project Health | `/project-health` | Health list + export |
 | Planning | `/planning` | Planning center snapshot |
-| QA | `/qa-center` | QA queue + review form |
+| QA | `/qa-center` | Two-wing dashboard (Review + Audit Engine) |
+| QA Review | `/qa-center/review` | Review queue + in-progress batches |
+| Audit Runs | `/qa-center/validation` | SI Library Audit + Library Validation runs |
+| Library Intelligence | `/qa-center/library` | Library score, scoreboard, what changed, insights |
 | People | `/people` | Roster + profile |
 | Org Chart | `/org-chart` | `org-chart-view.tsx` |
 | Production | `/production` | Production reports |
