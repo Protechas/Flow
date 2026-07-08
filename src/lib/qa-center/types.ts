@@ -11,11 +11,15 @@ export type QaCenterNavId =
   | "analytics"
   | "settings";
 
+export type QaCenterWing = "review" | "audit";
+
 export interface QaCenterNavItem {
   id: QaCenterNavId;
   href: string;
   label: string;
   description: string;
+  /** Which side of the QA Center this belongs to: human review or the audit engine. Null = shared. */
+  wing: QaCenterWing | null;
   permissions: ("validation:view" | "validation:create" | "validation:export" | "validation:manage_settings" | "qa:review" | "qa:view")[];
 }
 
