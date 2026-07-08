@@ -28,7 +28,8 @@
     "deploy:gate": "node scripts/smoke.mjs",
     "enable:signup": "node --env-file=.env.local scripts/enable-employee-signup.mjs",
     "reset:admin": "node --env-file=.env.local scripts/reset-admin-password.mjs",
-    "sync:qa-knowledge": "node scripts/sync-qa-knowledge.mjs"
+    "sync:qa-knowledge": "node scripts/sync-qa-knowledge.mjs",
+    "audit-worker": "node --env-file=.env.local scripts/audit-worker.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

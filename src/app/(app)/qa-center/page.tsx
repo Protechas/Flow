@@ -10,14 +10,16 @@ import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { initFlowStore, getFlowStore } from "@/lib/data/flow-store";
 import { getBatchReviewQueue } from "@/lib/data/qa";
 import { getQaCenterDashboardStats } from "@/lib/qa-center/dashboard";
+import { getAuditWorkerStatus } from "@/lib/validation-center/worker-status";
 
 export default async function QaCenterDashboardPage() {
   const user = await requirePageAccess("/qa-center");
   initFlowStore();
   const branchIds = getScopeMemberIds(user, getFlowStore().users, getFlowStore().teams);
-  const [stats, batchQueue] = await Promise.all([
+  const [stats, batchQueue, workerStatus] = await Promise.all([
     getQaCenterDashboardStats(branchIds ?? null),
     getBatchReviewQueue(branchIds ?? undefined),
+    getAuditWorkerStatus(),
   ]);
 
   return (
@@ -29,7 +31,11 @@ export default async function QaCenterDashboardPage() {
       workspace={
         <WorkspaceContainer elevated={false}>
           <QaCenterSubnav />
-          <QaCenterWingDoors stats={stats} openBatchCount={batchQueue.length} />
+          <QaCenterWingDoors
+            stats={stats}
+            openBatchCount={batchQueue.length}
+            workerStatus={workerStatus}
+          />
         </WorkspaceContainer>
       }
     />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { QaCenterDashboardStats } from "@/lib/qa-center/types";
+import type { AuditWorkerStatus } from "@/lib/validation-center/worker-status";
 import { cn } from "@/lib/utils";
 import {
   ClipboardCheck,
@@ -8,6 +9,35 @@ import {
   Layers,
   Upload,
 } from "lucide-react";
+
+function WorkerStatusBadge({ status }: { status: AuditWorkerStatus }) {
+  const lastSeen = status.lastSeenAt
+    ? new Date(status.lastSeenAt).toLocaleTimeString()
+    : null;
+  return (
+    <span
+      className={cn(
+        "ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+        status.online
+          ? "border-emerald-500/40 text-emerald-400"
+          : "border-amber-500/40 text-amber-500"
+      )}
+      title={
+        status.online
+          ? `Audit worker${status.host ? ` on ${status.host}` : ""} is processing runs${lastSeen ? ` · last tick ${lastSeen}` : ""}`
+          : "No audit worker connected — runs will queue until one starts (npm run audit-worker on the engine machine)"
+      }
+    >
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          status.online ? "bg-emerald-400" : "bg-amber-500"
+        )}
+      />
+      {status.online ? "Worker online" : "Worker offline"}
+    </span>
+  );
+}
 
 function StatTile({
   label,
@@ -53,9 +83,11 @@ function StatTile({
 export function QaCenterWingDoors({
   stats,
   openBatchCount,
+  workerStatus,
 }: {
   stats: QaCenterDashboardStats;
   openBatchCount: number;
+  workerStatus: AuditWorkerStatus;
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -119,6 +151,7 @@ export function QaCenterWingDoors({
               Automated SI Library validation — runs, findings, rules, and analytics
             </p>
           </div>
+          <WorkerStatusBadge status={workerStatus} />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <StatTile

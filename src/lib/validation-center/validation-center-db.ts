@@ -1,4 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
+
+/** Validation writes come from user actions AND the headless audit worker —
+ * prefer the service-role client so the worker (no session) passes RLS. */
+async function dbClient() {
+  return isAdminConfigured() ? createAdminClient() : await createClient();
+}
 import { isValidationDbEnabled } from "@/lib/validation-center/validation-persistence";
 import {
   enrichRunView,
@@ -168,7 +175,7 @@ export async function hydrateValidationCenterFromDb(force = false): Promise<void
   if (!isValidationDbEnabled()) return;
   if (hydrated && !force) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const [runsRes, filesRes, jobsRes, settingsRes, findingsRes, bridgesRes] = await Promise.all([
     supabase.from("validation_runs").select("*").order("created_at", { ascending: false }),
     supabase.from("validation_files").select("*"),
@@ -215,7 +222,7 @@ export async function persistValidationRun(
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
 
   const { error: runError } = await supabase.from("validation_runs").insert({
     id: run.id,
@@ -286,7 +293,7 @@ export async function persistValidationJobUpdate(
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { error } = await supabase
     .from("validation_jobs")
     .update({ status, ...patch })
@@ -323,7 +330,7 @@ export async function persistValidationSettings(
   updatedBy: string
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { error } = await supabase.from("validation_settings").upsert({
     engine_id: engineId,
     settings,
@@ -335,7 +342,7 @@ export async function persistValidationSettings(
 }
 
 export async function downloadValidationFileFromStorage(storagePath: string): Promise<Buffer> {
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
   if (error || !data) throw new Error(error?.message ?? "Download failed");
   return Buffer.from(await data.arrayBuffer());
@@ -347,7 +354,7 @@ export async function persistValidationFindings(
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { error: deleteError } = await supabase
     .from("validation_findings")
     .delete()
@@ -389,7 +396,7 @@ export async function persistValidationFindings(
 export async function persistValidationFindingFullUpdate(finding: ValidationFinding): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { error } = await supabase
     .from("validation_findings")
     .update({
@@ -417,7 +424,7 @@ export async function persistFindingTaskLink(
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   await persistValidationFindingFullUpdate(finding);
 
   const { error } = await supabase.from("validation_finding_tasks").insert({
@@ -442,7 +449,7 @@ export async function persistValidationStoredFiles(
 ): Promise<void> {
   if (!isValidationDbEnabled() || files.length === 0) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
 
   for (const file of files) {
     const storagePath = file.storage_path;
@@ -480,7 +487,7 @@ export async function persistValidationRunLink(
 ): Promise<void> {
   if (!isValidationDbEnabled()) return;
 
-  const supabase = await createClient();
+  const supabase = await dbClient();
   const { error } = await supabase
     .from("validation_runs")
     .update({

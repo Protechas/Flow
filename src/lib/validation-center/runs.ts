@@ -306,6 +306,17 @@ export async function processValidationJob(runId: string): Promise<void> {
     return;
   }
 
+  // Check the engine BEFORE claiming the job. Vercel has no Python — jobs
+  // enqueued in production stay pending until the audit worker (a machine
+  // running `npm run audit-worker` with the engine installed) picks them up.
+  const engineReady = await isValidationEngineAvailable();
+  if (!engineReady) {
+    console.warn(
+      `[validation] engine unavailable on this server — leaving job ${job.id} queued for the audit worker`
+    );
+    return;
+  }
+
   const started = ts();
   updateMemoryRunStatus(runId, "processing", { started_at: started });
   updateMemoryJobStatus(job.id, "processing", {
@@ -318,12 +329,6 @@ export async function processValidationJob(runId: string): Promise<void> {
       started_at: started,
       attempts: job.attempts + 1,
     });
-  }
-
-  const engineReady = await isValidationEngineAvailable();
-  if (!engineReady) {
-    await failJob(runId, job.id, "Python validation engine is not installed on this server.");
-    return;
   }
 
   try {
