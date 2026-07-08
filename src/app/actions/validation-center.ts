@@ -71,27 +71,35 @@ export async function createValidationRunAction(formData: FormData) {
   }
 
   const engineId = String(formData.get("engine_id") ?? "si_library_audit") as ValidationEngineId;
+  const isLibraryValidation = engineId === "si_library_external";
   const mcFile = formData.get("manufacturer_chart") as File | null;
   const exportFile = formData.get("onedrive_export") as File | null;
 
-  if (!mcFile?.size) {
+  if (!isLibraryValidation && !mcFile?.size) {
     return { ok: false as const, message: "Manufacturer chart file is required" };
   }
   if (!exportFile?.size) {
-    return { ok: false as const, message: "OneDrive export file is required" };
+    return {
+      ok: false as const,
+      message: isLibraryValidation
+        ? "Upload the report to validate (Excel or CSV)"
+        : "OneDrive export file is required",
+    };
   }
 
   try {
-    const mcBuffer = Buffer.from(await mcFile.arrayBuffer());
     const exportBuffer = Buffer.from(await exportFile.arrayBuffer());
     const run = await createValidationRun({
       engine_id: engineId,
       created_by: user.id,
-      mc_file: {
-        name: mcFile.name,
-        buffer: mcBuffer,
-        mime_type: mcFile.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      },
+      mc_file: mcFile?.size
+        ? {
+            name: mcFile.name,
+            buffer: Buffer.from(await mcFile.arrayBuffer()),
+            mime_type:
+              mcFile.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        : null,
       export_file: {
         name: exportFile.name,
         buffer: exportBuffer,

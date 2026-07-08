@@ -153,13 +153,20 @@ export async function saveSiLibrarySettings(
 export async function createValidationRun(input: {
   engine_id: ValidationEngineId;
   created_by: string;
-  mc_file: { name: string; buffer: Buffer; mime_type: string };
+  /** Required for si_library_audit; unused by si_library_external. */
+  mc_file?: { name: string; buffer: Buffer; mime_type: string } | null;
   export_file: { name: string; buffer: Buffer; mime_type: string };
 }): Promise<ValidationRunView> {
-  if (input.engine_id !== "si_library_audit") {
-    throw new Error("Only SI Library Audit is available in Phase 2");
+  if (input.engine_id !== "si_library_audit" && input.engine_id !== "si_library_external") {
+    throw new Error("This validation engine is not available yet");
   }
-  if (input.mc_file.buffer.length > MAX_UPLOAD_BYTES || input.export_file.buffer.length > MAX_UPLOAD_BYTES) {
+  if (input.engine_id === "si_library_audit" && !input.mc_file) {
+    throw new Error("Manufacturer chart file is required for an SI Library Audit");
+  }
+  if (
+    (input.mc_file && input.mc_file.buffer.length > MAX_UPLOAD_BYTES) ||
+    input.export_file.buffer.length > MAX_UPLOAD_BYTES
+  ) {
     throw new Error("Each upload must be 50 MB or smaller");
   }
 
@@ -173,7 +180,10 @@ export async function createValidationRun(input: {
     engine_id: input.engine_id,
     status: "pending",
     manufacturer: null,
-    title: `SI Library Audit — ${input.mc_file.name}`,
+    title:
+      input.engine_id === "si_library_external"
+        ? `Library Validation — ${input.export_file.name}`
+        : `SI Library Audit — ${input.mc_file!.name}`,
     compliance_rate: null,
     run_summary: {
       engine_id: input.engine_id,
@@ -195,8 +205,11 @@ export async function createValidationRun(input: {
     updated_at: now,
   };
 
-  const mcFile = await storeInputFile(runId, "manufacturer_chart", input.mc_file);
+  const mcFile = input.mc_file
+    ? await storeInputFile(runId, "manufacturer_chart", input.mc_file)
+    : null;
   const exportFile = await storeInputFile(runId, "onedrive_export", input.export_file);
+  const inputFiles = mcFile ? [mcFile, exportFile] : [exportFile];
 
   const job: ValidationJob = {
     id: jobId,
@@ -204,7 +217,7 @@ export async function createValidationRun(input: {
     engine_id: input.engine_id,
     status: "pending",
     payload: {
-      mc_file_id: mcFile.id,
+      ...(mcFile ? { mc_file_id: mcFile.id } : {}),
       export_file_id: exportFile.id,
     },
     result: null,
@@ -219,7 +232,7 @@ export async function createValidationRun(input: {
   upsertMemoryJob(job);
 
   if (isValidationDbEnabled()) {
-    await persistValidationRun(run, [mcFile, exportFile], job);
+    await persistValidationRun(run, inputFiles, job);
   }
 
   after(() => {
@@ -290,7 +303,8 @@ export async function processValidationJob(runId: string): Promise<void> {
   const files = listMemoryFilesForRun(runId);
   const mcFile = files.find((f) => f.role === "manufacturer_chart");
   const exportFile = files.find((f) => f.role === "onedrive_export");
-  if (!mcFile || !exportFile) {
+  const needsMcChart = run.engine_id !== "si_library_external";
+  if ((needsMcChart && !mcFile) || !exportFile) {
     const message = "Missing input files for job";
     updateMemoryRunStatus(runId, "failed", { error_message: message });
     updateMemoryJobStatus(job.id, "failed", {
@@ -332,16 +346,37 @@ export async function processValidationJob(runId: string): Promise<void> {
   }
 
   try {
-    const mcBuffer = await getValidationFileBuffer(mcFile);
     const exportBuffer = await getValidationFileBuffer(exportFile);
 
-    const result = await runSiLibraryAuditJob({
-      mc_bytes_b64: mcBuffer.toString("base64"),
-      export_bytes_b64: exportBuffer.toString("base64"),
-      mc_filename: mcFile.file_name,
-      export_filename: exportFile.file_name,
-      settings_snapshot: run.settings_snapshot,
-    });
+    let result;
+    if (run.engine_id === "si_library_external") {
+      // Library validation checks the uploaded report against the audited
+      // library — the latest completed audit workbook per manufacturer.
+      const audits = await collectLatestAuditWorkbooks();
+      if (audits.length === 0) {
+        await failJob(
+          runId,
+          job.id,
+          "No completed SI Library Audits in the repository yet — run at least one audit first."
+        );
+        return;
+      }
+      result = await runSiLibraryAuditJob({
+        job_type: "library_validation",
+        export_bytes_b64: exportBuffer.toString("base64"),
+        export_filename: exportFile.file_name,
+        audits,
+      });
+    } else {
+      const mcBuffer = await getValidationFileBuffer(mcFile!);
+      result = await runSiLibraryAuditJob({
+        mc_bytes_b64: mcBuffer.toString("base64"),
+        export_bytes_b64: exportBuffer.toString("base64"),
+        mc_filename: mcFile!.file_name,
+        export_filename: exportFile.file_name,
+        settings_snapshot: run.settings_snapshot,
+      });
+    }
 
     if (result.status === "failed" || result.error) {
       await failJob(runId, job.id, result.error ?? "Audit engine returned failure");
@@ -404,6 +439,38 @@ export async function processValidationJob(runId: string): Promise<void> {
   } catch (err) {
     await failJob(runId, job.id, err instanceof Error ? err.message : "Validation job failed");
   }
+}
+
+/** Latest completed audit workbook per manufacturer — the "audited library" a validation checks against. */
+async function collectLatestAuditWorkbooks(): Promise<
+  { manufacturer: string; workbook_b64: string }[]
+> {
+  const completedAudits = listMemoryRuns().filter(
+    (r) => r.engine_id === "si_library_audit" && r.status === "completed" && r.manufacturer
+  );
+  const latest = new Map<string, (typeof completedAudits)[number]>();
+  for (const r of completedAudits) {
+    const key = r.manufacturer!;
+    const current = latest.get(key);
+    if (!current || (r.completed_at ?? "") > (current.completed_at ?? "")) {
+      latest.set(key, r);
+    }
+  }
+
+  const audits: { manufacturer: string; workbook_b64: string }[] = [];
+  for (const [manufacturer, auditRun] of latest) {
+    const workbook = listMemoryFilesForRun(auditRun.id).find(
+      (f) => f.role === "output_workbook"
+    );
+    if (!workbook) continue;
+    try {
+      const buffer = await getValidationFileBuffer(workbook);
+      audits.push({ manufacturer, workbook_b64: buffer.toString("base64") });
+    } catch {
+      // Workbook missing from storage — skip this manufacturer rather than fail the run.
+    }
+  }
+  return audits;
 }
 
 async function failJob(runId: string, jobId: string, message: string) {

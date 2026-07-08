@@ -71,7 +71,16 @@ function spawnPython(
   });
 }
 
-export async function runSiLibraryAuditJob(input: PythonJobInput): Promise<PythonJobResult> {
+export interface LibraryValidationJobInput {
+  job_type: "library_validation";
+  export_bytes_b64: string;
+  export_filename: string;
+  audits: { manufacturer: string; workbook_b64: string }[];
+}
+
+export async function runSiLibraryAuditJob(
+  input: PythonJobInput | LibraryValidationJobInput
+): Promise<PythonJobResult> {
   const engineRoot = resolveEngineRoot();
   const candidates = resolvePythonCandidates();
   const payload = JSON.stringify(input);

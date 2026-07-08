@@ -14,10 +14,11 @@ export const VALIDATION_ENGINES: ValidationEngineDefinition[] = [
   },
   {
     id: "si_library_external",
-    label: "SI External Report Validation",
-    description: "Validate external reports against the audited library baseline.",
-    status: "planned",
-    inputRoles: [{ role: "external_report", label: "External Report", required: true }],
+    label: "Library Validation",
+    description:
+      "Validate external reports (invoices, RO exports, vendor lists) against the audited SI Library baseline.",
+    status: "active",
+    inputRoles: [{ role: "onedrive_export", label: "Report to Validate", required: true }],
   },
   {
     id: "id3_validation",

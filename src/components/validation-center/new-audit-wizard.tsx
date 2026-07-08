@@ -43,6 +43,70 @@ export function NewAuditWizard({ engineId }: { engineId: ValidationEngineId }) {
     );
   }
 
+  function runLibraryValidation() {
+    if (!exportFile) {
+      setError("Upload the report to validate (Excel or CSV)");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("engine_id", engineId);
+      formData.set("onedrive_export", exportFile);
+      const result = await createValidationRunAction(formData);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      router.push(validationPath(`/runs/${result.runId}`));
+      router.refresh();
+    });
+  }
+
+  if (engineId === "si_library_external") {
+    return (
+      <div className="max-w-3xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>{engine.label}</CardTitle>
+            <CardDescription>
+              Validate an external report (calibration invoices, RO exports, vendor lists) against
+              the audited SI Library — every row is checked against the latest completed audit for
+              its manufacturer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <ValidationFileDropzone
+              id="onedrive_export"
+              name="onedrive_export"
+              label="Report to Validate (.xlsx, .xls, .csv)"
+              description="Columns are detected automatically — Year, Make, Model, System, VIN, and Repair Order are all optional but improve matching."
+              file={exportFile}
+              onFileChange={setExportFile}
+              disabled={pending}
+              required
+              status={exportFile ? "ready" : "empty"}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="button" onClick={runLibraryValidation} disabled={pending || !exportFile}>
+              {pending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting validation…
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Validate Against Library
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   function runSingle() {
     if (!mcFile) {
       setError("Manufacturer chart file is required");
