@@ -124,16 +124,33 @@ export function computeProductivityBreakdown(
   teamAvgWeekCompletions = 3
 ): ComponentScore {
   const mine = userPackages(slice, userId);
-  const logs = slice.timeLogs.filter((t) => t.user_id === userId);
-  const weekStart = subDays(startOfDay(new Date()), 7);
-  const weekEnd = new Date();
 
   const completedAll = mine.filter((p) => p.status === "done").length;
   const completedWeek = completedThisWeek(mine);
   const completedMonth = completedThisMonth(mine);
-  const hoursWeek = logs
-    .filter((t) => isWithinInterval(parseISO(t.log_date), { start: weekStart, end: weekEnd }))
-    .reduce((s, t) => s + Number(t.hours), 0);
+
+  // Output rate: effective documents produced per logged hour, benchmarked
+  // against the team median. Hours alone are input, not output — logging
+  // many hours with little to show must not score as productivity.
+  const rateFor = (uid: string): number | null => {
+    const docs = slice.workPackages
+      .filter((p) => p.assigned_to === uid)
+      .reduce((s, p) => s + (p.file_count ?? 0), 0);
+    const hours = slice.timeLogs
+      .filter((t) => t.user_id === uid)
+      .reduce((s, t) => s + Number(t.hours), 0);
+    return hours >= 1 ? docs / hours : null;
+  };
+  const myRate = rateFor(userId);
+  const teamRates = [...new Set(slice.workPackages.map((p) => p.assigned_to).filter(Boolean))]
+    .map((id) => rateFor(id as string))
+    .filter((r): r is number => r !== null && r > 0)
+    .sort((a, b) => a - b);
+  const medianRate = teamRates.length > 0 ? teamRates[Math.floor(teamRates.length / 2)] : null;
+  const outputScore =
+    myRate === null || medianRate === null || medianRate === 0
+      ? 60
+      : clamp((myRate / medianRate) * 75);
 
   const doneWithEst = mine.filter(
     (p) => p.status === "done" && p.estimated_hours > 0 && p.actual_hours > 0
@@ -162,12 +179,12 @@ export function computeProductivityBreakdown(
       `${completedAll} total done (${completedMonth} this month, ${completedWeek} this week) from work_packages where status = done`
     ),
     factor(
-      "hours_logged",
-      "Hours logged",
-      Math.round(hoursWeek * 10) / 10,
-      clamp((hoursWeek / 35) * 100),
+      "output_rate",
+      "Output rate (docs/hour)",
+      myRate === null ? "no hours logged" : `${(Math.round(myRate * 10) / 10).toFixed(1)}/h`,
+      outputScore,
       0.2,
-      `${hoursWeek}h logged in the last 7 days from time_logs`
+      "Effective documents per logged hour vs team median (median performer = 75)"
     ),
     factor(
       "estimate_accuracy",

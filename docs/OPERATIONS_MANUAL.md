@@ -43,8 +43,10 @@
   documents*: a file split into "-Part-N" pieces counts as one document, and
   exact duplicate re-uploads count once. Flow Score also stopped giving
   perfect marks for missing history: no QA reviews and no completions now
-  score neutral (60) instead of 100. File-count inflation is auto-captured on
-  the Evaluation panel.
+  score neutral (60) instead of 100, and productivity measures *output rate*
+  (effective documents per logged hour vs the team median) instead of raw
+  hours logged. File-count inflation is auto-captured on the Evaluation
+  panel.
 - **Employee preview (July 8).** Leads and managers have an "Employee view"
   button in the header that flips them into the employee shell — their own
   identity, the exact UI the team sees (workspace, coach, badges,
