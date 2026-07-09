@@ -715,6 +715,8 @@ export type NavItemId =
 
   | "people"
 
+  | "performance"
+
   | "org-chart"
 
   | "alert-center"
@@ -813,7 +815,7 @@ export const NAV_ITEM_ORDER: Record<NavGroupId, NavItemId[]> = {
 
   operations: ["operations", "projects", "production", "project-health", "files"],
 
-  workforce: ["people", "time-clock", "org-chart"],
+  workforce: ["people", "performance", "time-clock", "org-chart"],
 
   reporting: ["reports", "analytics", "planning", "team-reports", "team-analytics", "docs"],
 
@@ -870,6 +872,8 @@ export const NAV_CONFIG: {
   { id: "files", href: "/files", label: "Files", icon: "FileStack", group: "operations", permissions: "company_documents:view", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "employee", "viewer"] },
 
   { id: "people", href: "/people", label: "People", icon: "Users", group: "workforce", permissions: ["people:view_all", "people:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+
+  { id: "performance", href: "/performance", label: "Performance", icon: "Trophy", group: "workforce", permissions: ["people:view_all", "reports:view_all", "people:view_team", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
   { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "workforce", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 

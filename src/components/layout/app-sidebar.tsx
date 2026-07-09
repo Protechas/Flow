@@ -26,6 +26,7 @@ import {
   Settings,
   ShieldCheck,
   TrendingUp,
+  Trophy,
   UserCog,
   Users,
 } from "lucide-react";
@@ -79,6 +80,7 @@ const ICONS = {
   Factory,
   HeartPulse,
   TrendingUp,
+  Trophy,
   BookOpen,
 } as const;
 
