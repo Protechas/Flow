@@ -72,26 +72,29 @@ export async function createValidationRunAction(formData: FormData) {
 
   const engineId = String(formData.get("engine_id") ?? "si_library_audit") as ValidationEngineId;
   const isLibraryValidation = engineId === "si_library_external";
+  const useSavedRules = engineId === "id3_validation" && formData.get("use_saved_rules") === "1";
   const mcFile = formData.get("manufacturer_chart") as File | null;
   const exportFile = formData.get("onedrive_export") as File | null;
 
   if (!isLibraryValidation && !mcFile?.size) {
     return { ok: false as const, message: "Manufacturer chart file is required" };
   }
-  if (!exportFile?.size) {
+  if (!exportFile?.size && !useSavedRules) {
     return {
       ok: false as const,
       message: isLibraryValidation
         ? "Upload the report to validate (Excel or CSV)"
-        : "OneDrive export file is required",
+        : engineId === "id3_validation"
+          ? "Upload a rules workbook or tick 'Use the saved rules'"
+          : "OneDrive export file is required",
     };
   }
 
   try {
-    const exportBuffer = Buffer.from(await exportFile.arrayBuffer());
     const run = await createValidationRun({
       engine_id: engineId,
       created_by: user.id,
+      use_saved_rules: useSavedRules,
       mc_file: mcFile?.size
         ? {
             name: mcFile.name,
@@ -100,11 +103,14 @@ export async function createValidationRunAction(formData: FormData) {
               mcFile.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           }
         : null,
-      export_file: {
-        name: exportFile.name,
-        buffer: exportBuffer,
-        mime_type: exportFile.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      },
+      export_file: exportFile?.size
+        ? {
+            name: exportFile.name,
+            buffer: Buffer.from(await exportFile.arrayBuffer()),
+            mime_type:
+              exportFile.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        : null,
     });
     revalidateValidation();
     revalidatePath(`/qa-center/validation/runs/${run.id}`);

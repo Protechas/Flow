@@ -4,6 +4,7 @@ export type ValidationEngineId =
   | "si_library_audit"
   | "si_library_external"
   | "id3_validation"
+  | "qa_engine"
   | "oem_validation"
   | "document_validation";
 
@@ -52,6 +53,7 @@ export type ValidationJobStatus = "pending" | "processing" | "completed" | "fail
 export type ValidationFileRole =
   | "manufacturer_chart"
   | "onedrive_export"
+  | "qa_reference"
   | "output_workbook"
   | "output_pdf"
   | "external_report";

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { QaCenterSubnav } from "@/components/qa-center/qa-center-subnav";
+import { Id3Tabs } from "@/components/qa-center/id3-tabs";
 import { Id3UploadForm } from "@/components/qa-center/id3-upload-form";
+import { listId3Rules } from "@/lib/validation-center/id3-rules";
 import { Badge } from "@/components/ui/badge";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { listValidationRuns } from "@/lib/validation-center/runs";
@@ -19,7 +21,11 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default async function Id3ValidationPage() {
   await requirePageAccess("/qa-center/id3");
-  const [runs, worker] = await Promise.all([listValidationRuns(), getAuditWorkerStatus()]);
+  const [runs, worker, rules] = await Promise.all([
+    listValidationRuns(),
+    getAuditWorkerStatus(),
+    listId3Rules(),
+  ]);
   const id3Runs = runs.filter((r) => r.engine_id === "id3_validation");
 
   return (
@@ -29,6 +35,7 @@ export default async function Id3ValidationPage() {
         description="Compare manufacturer charts against the rules workbook — coverage, mismatches, and unruled entries"
       />
       <QaCenterSubnav />
+      <Id3Tabs />
 
       {!worker.online && (
         <p className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
@@ -37,7 +44,7 @@ export default async function Id3ValidationPage() {
         </p>
       )}
 
-      <Id3UploadForm />
+      <Id3UploadForm savedRulesCount={rules.length} />
 
       <section className="mt-6">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

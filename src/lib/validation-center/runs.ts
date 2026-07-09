@@ -150,27 +150,44 @@ export async function saveSiLibrarySettings(
   }
 }
 
+type UploadedFile = { name: string; buffer: Buffer; mime_type: string };
+
+const ACTIVE_ENGINES: ValidationEngineId[] = [
+  "si_library_audit",
+  "si_library_external",
+  "id3_validation",
+  "qa_engine",
+];
+
 export async function createValidationRun(input: {
   engine_id: ValidationEngineId;
   created_by: string;
-  /** Required for si_library_audit; unused by si_library_external. */
-  mc_file?: { name: string; buffer: Buffer; mime_type: string } | null;
-  export_file: { name: string; buffer: Buffer; mime_type: string };
+  /** Required for si_library_audit, id3_validation, and qa_engine. */
+  mc_file?: UploadedFile | null;
+  /** SI audit: OneDrive export. Library validation: the report. ID3: the rules workbook (unless saved rules). */
+  export_file?: UploadedFile | null;
+  /** QA Engine: additional reference workbooks. */
+  reference_files?: UploadedFile[];
+  /** ID3: compare against the saved rules table instead of an uploaded workbook. */
+  use_saved_rules?: boolean;
 }): Promise<ValidationRunView> {
-  if (
-    input.engine_id !== "si_library_audit" &&
-    input.engine_id !== "si_library_external" &&
-    input.engine_id !== "id3_validation"
-  ) {
+  if (!ACTIVE_ENGINES.includes(input.engine_id)) {
     throw new Error("This validation engine is not available yet");
   }
   if (input.engine_id !== "si_library_external" && !input.mc_file) {
     throw new Error("Manufacturer chart file is required for this engine");
   }
-  if (
-    (input.mc_file && input.mc_file.buffer.length > MAX_UPLOAD_BYTES) ||
-    input.export_file.buffer.length > MAX_UPLOAD_BYTES
-  ) {
+  const id3SavedRules = input.engine_id === "id3_validation" && input.use_saved_rules === true;
+  const exportRequired = input.engine_id !== "qa_engine" && !id3SavedRules;
+  if (exportRequired && !input.export_file) {
+    throw new Error("Missing a required input file");
+  }
+  const allUploads = [
+    ...(input.mc_file ? [input.mc_file] : []),
+    ...(input.export_file ? [input.export_file] : []),
+    ...(input.reference_files ?? []),
+  ];
+  if (allUploads.some((f) => f.buffer.length > MAX_UPLOAD_BYTES)) {
     throw new Error("Each upload must be 50 MB or smaller");
   }
 
@@ -186,10 +203,12 @@ export async function createValidationRun(input: {
     manufacturer: null,
     title:
       input.engine_id === "si_library_external"
-        ? `Library Validation — ${input.export_file.name}`
+        ? `Library Validation — ${input.export_file!.name}`
         : input.engine_id === "id3_validation"
           ? `ID³ Validation — ${input.mc_file!.name}`
-          : `SI Library Audit — ${input.mc_file!.name}`,
+          : input.engine_id === "qa_engine"
+            ? `QA Engine Scan — ${input.mc_file!.name}`
+            : `SI Library Audit — ${input.mc_file!.name}`,
     compliance_rate: null,
     run_summary: {
       engine_id: input.engine_id,
@@ -214,8 +233,18 @@ export async function createValidationRun(input: {
   const mcFile = input.mc_file
     ? await storeInputFile(runId, "manufacturer_chart", input.mc_file)
     : null;
-  const exportFile = await storeInputFile(runId, "onedrive_export", input.export_file);
-  const inputFiles = mcFile ? [mcFile, exportFile] : [exportFile];
+  const exportFile = input.export_file
+    ? await storeInputFile(runId, "onedrive_export", input.export_file)
+    : null;
+  const referenceFiles = [];
+  for (const ref of input.reference_files ?? []) {
+    referenceFiles.push(await storeInputFile(runId, "qa_reference", ref));
+  }
+  const inputFiles = [
+    ...(mcFile ? [mcFile] : []),
+    ...(exportFile ? [exportFile] : []),
+    ...referenceFiles,
+  ];
 
   const job: ValidationJob = {
     id: jobId,
@@ -224,7 +253,8 @@ export async function createValidationRun(input: {
     status: "pending",
     payload: {
       ...(mcFile ? { mc_file_id: mcFile.id } : {}),
-      export_file_id: exportFile.id,
+      ...(exportFile ? { export_file_id: exportFile.id } : {}),
+      ...(id3SavedRules ? { use_saved_rules: true } : {}),
     },
     result: null,
     error_message: null,
@@ -250,7 +280,7 @@ export async function createValidationRun(input: {
 
 async function storeInputFile(
   runId: string,
-  role: "manufacturer_chart" | "onedrive_export",
+  role: "manufacturer_chart" | "onedrive_export" | "qa_reference",
   file: { name: string; buffer: Buffer; mime_type: string }
 ): Promise<ValidationStoredFile> {
   const id = randomUUID();
@@ -309,8 +339,12 @@ export async function processValidationJob(runId: string): Promise<void> {
   const files = listMemoryFilesForRun(runId);
   const mcFile = files.find((f) => f.role === "manufacturer_chart");
   const exportFile = files.find((f) => f.role === "onedrive_export");
+  const referenceFiles = files.filter((f) => f.role === "qa_reference");
+  const usesSavedRules = job.payload?.use_saved_rules === true;
   const needsMcChart = run.engine_id !== "si_library_external";
-  if ((needsMcChart && !mcFile) || !exportFile) {
+  const needsExport =
+    run.engine_id !== "qa_engine" && !(run.engine_id === "id3_validation" && usesSavedRules);
+  if ((needsMcChart && !mcFile) || (needsExport && !exportFile)) {
     const message = "Missing input files for job";
     updateMemoryRunStatus(runId, "failed", { error_message: message });
     updateMemoryJobStatus(job.id, "failed", {
@@ -352,7 +386,7 @@ export async function processValidationJob(runId: string): Promise<void> {
   }
 
   try {
-    const exportBuffer = await getValidationFileBuffer(exportFile);
+    const exportBuffer = exportFile ? await getValidationFileBuffer(exportFile) : null;
 
     let result;
     if (run.engine_id === "si_library_external") {
@@ -369,28 +403,60 @@ export async function processValidationJob(runId: string): Promise<void> {
       }
       result = await runSiLibraryAuditJob({
         job_type: "library_validation",
-        export_bytes_b64: exportBuffer.toString("base64"),
-        export_filename: exportFile.file_name,
+        export_bytes_b64: exportBuffer!.toString("base64"),
+        export_filename: exportFile!.file_name,
         audits,
       });
     } else if (run.engine_id === "id3_validation") {
-      // ID3: compare the manufacturer chart against the rules workbook
-      // (stored in the export slot).
+      // ID3: compare the manufacturer chart against the rules — either the
+      // uploaded workbook (export slot) or the saved rules table.
       const mcBuffer = await getValidationFileBuffer(mcFile!);
+      if (usesSavedRules) {
+        const { listId3Rules } = await import("@/lib/validation-center/id3-rules");
+        const rules = await listId3Rules();
+        if (rules.length === 0) {
+          await failJob(runId, job.id, "No saved ID3 rules yet — add rules or upload a rules workbook.");
+          return;
+        }
+        result = await runSiLibraryAuditJob({
+          job_type: "id3_validation",
+          mc_bytes_b64: mcBuffer.toString("base64"),
+          mc_filename: mcFile!.file_name,
+          rules_records: rules.map((r) => r.fields),
+        });
+      } else {
+        result = await runSiLibraryAuditJob({
+          job_type: "id3_validation",
+          mc_bytes_b64: mcBuffer.toString("base64"),
+          rules_bytes_b64: exportBuffer!.toString("base64"),
+          mc_filename: mcFile!.file_name,
+          rules_filename: exportFile!.file_name,
+        });
+      }
+    } else if (run.engine_id === "qa_engine") {
+      // QA Engine: scan the MC chart plus every reference workbook.
+      const payloadFiles: { name: string; bytes_b64: string; is_chart: boolean }[] = [];
+      const mcBuffer = await getValidationFileBuffer(mcFile!);
+      payloadFiles.push({
+        name: mcFile!.file_name,
+        bytes_b64: mcBuffer.toString("base64"),
+        is_chart: true,
+      });
+      for (const ref of referenceFiles) {
+        const buf = await getValidationFileBuffer(ref);
+        payloadFiles.push({ name: ref.file_name, bytes_b64: buf.toString("base64"), is_chart: false });
+      }
       result = await runSiLibraryAuditJob({
-        job_type: "id3_validation",
-        mc_bytes_b64: mcBuffer.toString("base64"),
-        rules_bytes_b64: exportBuffer.toString("base64"),
-        mc_filename: mcFile!.file_name,
-        rules_filename: exportFile.file_name,
+        job_type: "qa_engine_scan",
+        files: payloadFiles,
       });
     } else {
       const mcBuffer = await getValidationFileBuffer(mcFile!);
       result = await runSiLibraryAuditJob({
         mc_bytes_b64: mcBuffer.toString("base64"),
-        export_bytes_b64: exportBuffer.toString("base64"),
+        export_bytes_b64: exportBuffer!.toString("base64"),
         mc_filename: mcFile!.file_name,
-        export_filename: exportFile.file_name,
+        export_filename: exportFile!.file_name,
         settings_snapshot: run.settings_snapshot,
       });
     }
@@ -426,6 +492,13 @@ export async function processValidationJob(runId: string): Promise<void> {
 
     const rawFindings = Array.isArray(result.findings) ? result.findings : [];
     await importFindingsFromJobResult(runId, run.engine_id, rawFindings);
+
+    // QA Engine findings land in their own reviewable table.
+    const qaFindings = (result as unknown as { qa_findings?: unknown }).qa_findings;
+    if (run.engine_id === "qa_engine" && Array.isArray(qaFindings)) {
+      const { importQaEngineFindings } = await import("@/lib/validation-center/qa-engine-findings");
+      await importQaEngineFindings(runId, qaFindings as Record<string, unknown>[]);
+    }
 
     const completed = ts();
     updateMemoryJobStatus(job.id, "completed", {

@@ -38,6 +38,22 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **ID³ Rules editor (July 9).** The ID³ room has a Rules tab: a plain
+  table where anyone can add, edit, and delete validation rules — no
+  spreadsheets, no code. The Compare tab can run charts against the saved
+  rules with one checkbox instead of uploading a rules workbook each time.
+- **QA Engine — Phase 1 (July 9).** ID³ room → QA Engine tab. Upload an MC
+  chart plus any reference workbooks; the engine parses every sheet and runs
+  structured checks: blanks in important columns, duplicate rows/components,
+  inconsistent manufacturer spellings, malformed values, conflicting
+  component data, and mismatches between reference files and the chart. Each
+  finding carries expected vs found, an explanation, and a suggested task
+  (title, details, priority, team). Review findings in the dashboard —
+  filter by severity, file, sheet, issue type, and status; mark Reviewed,
+  Dismissed, or Ready for task — and download the formatted Excel report
+  (Summary, All Findings, High Severity, grouped views; frozen headers and
+  filters). Rules-based by design: future phases can add AI summaries and
+  automatic task creation.
 - **ID³ Validation (July 9).** New QA Center section: upload a manufacturer
   chart and the rules workbook (Excel), and the engine compares them row by
   row — rule mismatches, entries missing from the chart, and chart entries no

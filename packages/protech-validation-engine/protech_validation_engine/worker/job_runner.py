@@ -155,13 +155,28 @@ def _run_id3_validation(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
     chart_bytes = base64.b64decode(payload["mc_bytes_b64"])
-    rules_bytes = base64.b64decode(payload["rules_bytes_b64"])
+
+    # Rules come either as an uploaded workbook or as saved rule records
+    # maintained in Flow's ID3 rules editor.
+    records = payload.get("rules_records")
+    if records:
+        import io
+
+        import pandas as pd
+
+        buffer = io.BytesIO()
+        pd.DataFrame(records).to_excel(buffer, index=False)
+        rules_bytes = buffer.getvalue()
+        rules_filename = "saved_rules.xlsx"
+    else:
+        rules_bytes = base64.b64decode(payload["rules_bytes_b64"])
+        rules_filename = str(payload.get("rules_filename") or "")
 
     result = compare_chart_to_rules(
         chart_bytes,
         rules_bytes,
         chart_filename=str(payload.get("mc_filename") or ""),
-        rules_filename=str(payload.get("rules_filename") or ""),
+        rules_filename=rules_filename,
     )
 
     checked = result.matched + result.mismatched + result.not_covered_by_rules
@@ -194,12 +209,66 @@ def _run_id3_validation(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _run_qa_engine_scan(payload: dict[str, Any]) -> dict[str, Any]:
+    from protech_validation_engine.si_library.qa_engine import run_qa_scan, write_qa_report
+
+    files = [
+        {
+            "name": str(f.get("name") or "workbook.xlsx"),
+            "bytes": base64.b64decode(f["bytes_b64"]),
+            "is_chart": bool(f.get("is_chart")),
+        }
+        for f in payload.get("files") or []
+    ]
+    if not files:
+        return {"status": "failed", "error": "No files supplied to the QA Engine"}
+
+    result = run_qa_scan(files)
+    high = sum(1 for f in result.findings if f.severity == "high")
+    medium = sum(1 for f in result.findings if f.severity == "medium")
+    low = sum(1 for f in result.findings if f.severity == "low")
+
+    finding_dicts = [{**f.to_dict(), "status": "open"} for f in result.findings]
+    summary = {
+        "files_scanned": result.files_scanned,
+        "sheets_scanned": result.sheets_scanned,
+        "rows_scanned": result.rows_scanned,
+    }
+    workbook = write_qa_report(summary, finding_dicts)
+
+    return {
+        "status": "completed",
+        "run_summary": {
+            "engine_id": "qa_engine",
+            "manufacturer": None,
+            "compliance_rate": None,
+            "expected_deliverables": result.rows_scanned,
+            "passing_compliance": None,
+            "needs_review": len(finding_dicts),
+            "executive_summary": (
+                f"Scanned {result.files_scanned} file(s), {result.sheets_scanned} sheet(s), "
+                f"{result.rows_scanned} rows: {len(finding_dicts)} findings "
+                f"({high} high, {medium} medium, {low} low)."
+            ),
+            **summary,
+            "high": high,
+            "medium": medium,
+            "low": low,
+        },
+        "qa_findings": finding_dicts,
+        "workbook_b64": base64.b64encode(workbook.getvalue()).decode("ascii"),
+        "workbook_filename": "QA_Engine_Findings.xlsx",
+    }
+
+
 def run_job(payload: dict[str, Any]) -> dict[str, Any]:
     job_type = str(payload.get("job_type") or "si_library_audit")
     if job_type == "library_validation":
         return _run_library_validation(payload)
     if job_type == "id3_validation":
         return _run_id3_validation(payload)
+    if job_type == "qa_engine_scan":
+        return _run_qa_engine_scan(payload)
     return _run_si_library_audit(payload)
 
 

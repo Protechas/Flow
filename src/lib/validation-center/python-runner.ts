@@ -81,13 +81,25 @@ export interface LibraryValidationJobInput {
 export interface Id3ValidationJobInput {
   job_type: "id3_validation";
   mc_bytes_b64: string;
-  rules_bytes_b64: string;
   mc_filename: string;
-  rules_filename: string;
+  /** Uploaded rules workbook… */
+  rules_bytes_b64?: string;
+  rules_filename?: string;
+  /** …or saved rules maintained in Flow's ID3 rules editor. */
+  rules_records?: Record<string, string>[];
+}
+
+export interface QaEngineScanJobInput {
+  job_type: "qa_engine_scan";
+  files: { name: string; bytes_b64: string; is_chart: boolean }[];
 }
 
 export async function runSiLibraryAuditJob(
-  input: PythonJobInput | LibraryValidationJobInput | Id3ValidationJobInput
+  input:
+    | PythonJobInput
+    | LibraryValidationJobInput
+    | Id3ValidationJobInput
+    | QaEngineScanJobInput
 ): Promise<PythonJobResult> {
   const engineRoot = resolveEngineRoot();
   const candidates = resolvePythonCandidates();

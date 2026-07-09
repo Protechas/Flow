@@ -32,6 +32,17 @@ export const VALIDATION_ENGINES: ValidationEngineDefinition[] = [
     ],
   },
   {
+    id: "qa_engine",
+    label: "QA Engine",
+    description:
+      "Rules-based QA scan: blanks, duplicates, inconsistent names, malformed values, conflicts, and cross-file mismatches.",
+    status: "active",
+    inputRoles: [
+      { role: "manufacturer_chart", label: "MC Chart", required: true },
+      { role: "qa_reference", label: "Reference Files", required: false },
+    ],
+  },
+  {
     id: "oem_validation",
     label: "OEM Validation",
     description: "OEM-specific validation rules and deliverable checks.",
