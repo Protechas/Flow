@@ -38,6 +38,10 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Leaderboard (July 8).** The Performance page leaderboard shows real badge
+  counts with tier-colored badge icons, avatar frames, and flair titles;
+  Flow Score still rules the ranking, with badge count breaking ties. The
+  badge showcase lists each employee''s earned badges.
 - **Cosmetic unlocks (July 8).** Badges unlock account cosmetics: avatar
   frames (Bronze ring at 2 badges up to Nebula glow at 11), a wearable title
   from any earned badge, and workspace accent colors (Teal at 3, Amber at 5,

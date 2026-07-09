@@ -52,6 +52,35 @@ function reportStreak(wrapDates: Set<string>, today: string): number {
 
 /** Compute every badge's earned/progress state for one employee. */
 export async function computeBadges(userId: string): Promise<BadgeState[]> {
+  let ideas = 0;
+  try {
+    ideas = (await listFeedbackSubmissions()).filter((f) => f.user_id === userId).length;
+  } catch {
+    // feedback unavailable — badge stays locked
+  }
+  return computeBadgesWithIdeas(userId, ideas);
+}
+
+/** Batch variant: one feedback fetch for the whole roster. */
+export async function computeBadgesForUsers(
+  userIds: string[]
+): Promise<Record<string, BadgeState[]>> {
+  const ideasByUser = new Map<string, number>();
+  try {
+    for (const f of await listFeedbackSubmissions()) {
+      ideasByUser.set(f.user_id, (ideasByUser.get(f.user_id) ?? 0) + 1);
+    }
+  } catch {
+    // feedback unavailable — idea badges stay locked
+  }
+  const result: Record<string, BadgeState[]> = {};
+  for (const id of userIds) {
+    result[id] = computeBadgesWithIdeas(id, ideasByUser.get(id) ?? 0);
+  }
+  return result;
+}
+
+function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
   initFlowStore();
   initProductionTracking();
   const production = getProductionStore();
@@ -91,13 +120,6 @@ export async function computeBadges(userId: string): Promise<BadgeState[]> {
     minutesByDay.set(day, (minutesByDay.get(day) ?? 0) + entry.total_active_minutes);
   }
   const bestDayMinutes = Math.max(0, ...minutesByDay.values());
-
-  let ideas = 0;
-  try {
-    ideas = (await listFeedbackSubmissions()).filter((f) => f.user_id === userId).length;
-  } catch {
-    // feedback unavailable — badge stays locked
-  }
 
   const stats: Record<string, { progress: number; target: number }> = {
     first_upload: { progress: Math.min(uploads, 1), target: 1 },
