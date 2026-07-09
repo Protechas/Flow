@@ -15,6 +15,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { LogOut } from "lucide-react";
 import { userDisplayInitials } from "@/lib/users/format";
+import { frameClassName } from "@/lib/badges/cosmetic-types";
 import { cn } from "@/lib/utils";
 import type { TimeClockEntry, User } from "@/types/flow";
 
@@ -77,7 +78,20 @@ export function EmployeeHeader({
             )}
             <ThemeSwitcher compact />
             <NotificationBell />
-            <div className="h-7 w-7 rounded-sm bg-muted flex items-center justify-center text-[10px] font-semibold hidden sm:flex text-muted-foreground">
+            {user.flair_title && (
+              <Badge
+                variant="outline"
+                className="hidden border-primary/40 text-[10px] text-primary md:inline-flex"
+              >
+                {user.flair_title}
+              </Badge>
+            )}
+            <div
+              className={cn(
+                "h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold hidden sm:flex text-muted-foreground",
+                frameClassName(user.avatar_frame)
+              )}
+            >
               {userDisplayInitials(user)}
             </div>
             {demoMode && (

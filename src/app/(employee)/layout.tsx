@@ -10,6 +10,7 @@ import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
+import { accentValue } from "@/lib/badges/cosmetic-types";
 import { redirect } from "next/navigation";
 
 export default async function EmployeeLayout({
@@ -36,8 +37,14 @@ export default async function EmployeeLayout({
   const activeClock = getActiveClockEntry(user.id);
   const todayClockEntries = getTodayClockEntries(user.id);
 
+  // Cosmetic accent: earned via badges, applies to this employee's own view.
+  const accent = accentValue(user.accent_color);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={accent ? ({ "--primary": accent } as React.CSSProperties) : undefined}
+    >
       <EmployeeHeader
         user={user}
         demoMode={demoMode && hasDemoCookie}

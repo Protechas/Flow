@@ -376,6 +376,10 @@ export interface User {
   pay_type?: PayType | null;
   /** Workspace coach attitude: professional | encouraging | drill_sergeant | smartass */
   coach_persona?: string | null;
+  /** Cosmetic unlocks earned via badges */
+  avatar_frame?: string | null;
+  flair_title?: string | null;
+  accent_color?: string | null;
   team_id?: string | null;
   manager_id?: string | null;
   assigned_position_id?: string | null;

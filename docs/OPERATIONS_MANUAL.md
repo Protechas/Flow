@@ -38,6 +38,11 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Cosmetic unlocks (July 8).** Badges unlock account cosmetics: avatar
+  frames (Bronze ring at 2 badges up to Nebula glow at 11), a wearable title
+  from any earned badge, and workspace accent colors (Teal at 3, Amber at 5,
+  Rose at 7, Emerald at 9). Customize from the Badges panel; unlocks are
+  validated server-side against real badge state.
 - **Badges (July 8).** Employees earn achievement badges automatically from
   their real work — Century Club (100 uploads), QA Darling (5 passes), Early
   Bird, Paper Trail (report streak), Timekeeper (30 clean days), and more.

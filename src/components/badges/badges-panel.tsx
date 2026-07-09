@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { BadgeState, BadgeTier } from "@/lib/badges/badge-types";
+import { CustomizeDialog, type CosmeticsState } from "@/components/badges/customize-dialog";
 import { cn } from "@/lib/utils";
 import {
   Award,
@@ -70,7 +71,13 @@ function BadgeChip({ badge, size = "md" }: { badge: BadgeState; size?: "sm" | "m
   );
 }
 
-export function BadgesPanel({ badges }: { badges: BadgeState[] }) {
+export function BadgesPanel({
+  badges,
+  cosmetics,
+}: {
+  badges: BadgeState[];
+  cosmetics?: CosmeticsState;
+}) {
   const [open, setOpen] = useState(false);
   const earned = badges.filter((b) => b.earned);
   const next = badges
@@ -88,9 +95,12 @@ export function BadgesPanel({ badges }: { badges: BadgeState[] }) {
               {earned.length} of {badges.length}
             </span>
           </h2>
-          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen(true)}>
-            View all
-          </Button>
+          <div className="flex items-center gap-1">
+            {cosmetics && <CustomizeDialog badges={badges} cosmetics={cosmetics} />}
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen(true)}>
+              View all
+            </Button>
+          </div>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -70,7 +70,14 @@ export default async function EmployeeWorkPage() {
       pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
     />
       <div className="mt-4">
-        <BadgesPanel badges={badges} />
+        <BadgesPanel
+          badges={badges}
+          cosmetics={{
+            frame: user.avatar_frame ?? null,
+            title: user.flair_title ?? null,
+            accent: user.accent_color ?? null,
+          }}
+        />
       </div>
     </>
   );
