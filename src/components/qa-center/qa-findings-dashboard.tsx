@@ -12,6 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type {
   QaEngineFinding,
   QaEngineFindingStatus,
@@ -120,6 +121,7 @@ export function QaFindingsDashboard({ findings }: { findings: QaEngineFinding[] 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
+        <InfoTooltip helpKey="qaEngineFindings" className="mr-1" />
         <FilterSelect label="Severity" value={severity} options={uniq((f) => f.severity)} onChange={setSeverity} />
         <FilterSelect label="File" value={file} options={uniq((f) => f.source_file)} onChange={setFile} />
         <FilterSelect label="Sheet" value={sheet} options={uniq((f) => f.sheet_name)} onChange={setSheet} />

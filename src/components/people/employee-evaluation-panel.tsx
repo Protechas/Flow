@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/employee-evaluation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   Dialog,
   DialogContent,
@@ -139,6 +140,7 @@ export function EmployeeEvaluationPanel({
         <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <ClipboardList className="h-3.5 w-3.5" />
           Evaluation — signals &amp; incident log
+          <InfoTooltip helpKey="employeeEvaluation" />
         </h2>
         <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="h-3.5 w-3.5" />

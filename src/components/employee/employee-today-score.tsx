@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { EmployeeDailySummary } from "@/types/flow";
 import { CheckCircle2, Clock, FileText, RotateCcw } from "lucide-react";
 
@@ -30,8 +31,9 @@ export function EmployeeTodayScore({
   return (
     <section className="enterprise-panel p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Today&apos;s Score
+          <InfoTooltip helpKey="todaysScore" />
         </h2>
         {scorecardHref && (
           <Link href={scorecardHref} className="text-xs text-primary hover:underline">

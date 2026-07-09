@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { EmployeeDailySummaryBar } from "@/components/employee/employee-daily-summary";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { EmployeeDailySummary, EmployeeScorecard } from "@/types/flow";
 import { Activity, Target, ThumbsUp, Award } from "lucide-react";
 
@@ -43,7 +44,10 @@ export function EmployeeProfileView({
           </div>
         </FlowScoreExplainDialog>
         <div className="text-center sm:text-left flex-1">
-          <p className="text-sm text-muted-foreground">Your Flow Score</p>
+          <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start">
+            Your Flow Score
+            <InfoTooltip helpKey="flowScore" />
+          </p>
           <p className="text-3xl font-bold tabular-nums">{scorecard.flowScore}</p>
           <p className="text-xs text-muted-foreground mt-1">
             {scorecard.completedThisWeek} completed this week · {scorecard.actionPointsToday} pts today

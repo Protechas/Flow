@@ -38,6 +38,18 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Info tips everywhere (July 9).** The little "?" tooltips that explain
+  metrics on the executive dashboard now cover the newer surfaces too. Hover
+  (or tap) the faint circle next to a label for a plain-English explanation:
+  every Library Intelligence KPI (Library score, Expected deliverables, True
+  missing, PCS/naming review…), the Journey and Estimated savings panels,
+  all four Flow ROI KPIs and its three section headers, the employee Coach
+  and Badges panels, Today's Score, the task timer (what "since last
+  submission" vs "total on this task" means — your time never resets), Your
+  Flow Score on the scorecard, both leaderboards (how ranking works: Flow
+  Score rules, badges break ties), the Evaluation panel, QA Engine findings,
+  and ID³ runs. All copy lives in one registry (`lib/help/help-text.ts`) so
+  wording stays consistent wherever a metric appears.
 - **Flow ROI page (July 9).** New sidebar entry (Reporting → Flow ROI, managers
   and up) showing what Flow saves company-wide, in three receipted tiers:
   the replaced per-seat subscription (active accounts × seat cost — recurring

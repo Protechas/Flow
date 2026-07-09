@@ -1,4 +1,5 @@
 import type { JourneySnapshot, LibraryJourney } from "@/lib/validation-center/library-intelligence";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Flag, TrendingDown, TrendingUp } from "lucide-react";
 
@@ -78,6 +79,7 @@ export function LibraryJourneyPanel({ journey }: { journey: LibraryJourney }) {
       <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Flag className="h-3.5 w-3.5 text-primary" />
         The journey — where we started vs now
+        <InfoTooltip helpKey="libraryJourney" />
       </h2>
 
       <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center">

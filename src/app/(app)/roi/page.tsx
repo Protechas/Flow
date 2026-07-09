@@ -27,14 +27,26 @@ export default async function FlowRoiPage() {
               id: "labor",
               label: "Labor saved to date",
               value: `$${roi.totalDollars.toLocaleString()}`,
+              helpKey: "roiLaborSaved",
             },
-            { id: "hours", label: "Production hours saved", value: roi.totalHours },
+            {
+              id: "hours",
+              label: "Production hours saved",
+              value: roi.totalHours,
+              helpKey: "roiHoursSaved",
+            },
             {
               id: "subscription",
               label: "Subscription saved / yr",
               value: `$${roi.subscription.annual.toLocaleString()}`,
+              helpKey: "roiSubscription",
             },
-            { id: "rate", label: "Labor rate", value: `$${roi.settings.labor_rate}/hr` },
+            {
+              id: "rate",
+              label: "Labor rate",
+              value: `$${roi.settings.labor_rate}/hr`,
+              helpKey: "roiLaborRate",
+            },
           ]}
         />
       }

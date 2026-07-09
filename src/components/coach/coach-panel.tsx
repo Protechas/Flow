@@ -12,6 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { COACH_PERSONAS, type CoachNudge, type CoachPersona } from "@/lib/coach/coach-types";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Megaphone, X } from "lucide-react";
@@ -51,6 +52,7 @@ export function CoachPanel({
         <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Megaphone className="h-3.5 w-3.5 text-primary" />
           Coach
+          <InfoTooltip helpKey="coachPanel" />
         </h2>
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">

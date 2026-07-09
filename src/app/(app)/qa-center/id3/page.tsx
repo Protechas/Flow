@@ -5,6 +5,7 @@ import { Id3Tabs } from "@/components/qa-center/id3-tabs";
 import { Id3UploadForm } from "@/components/qa-center/id3-upload-form";
 import { listId3Rules } from "@/lib/validation-center/id3-rules";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { listValidationRuns } from "@/lib/validation-center/runs";
 import { getAuditWorkerStatus } from "@/lib/validation-center/worker-status";
@@ -47,8 +48,9 @@ export default async function Id3ValidationPage() {
       <Id3UploadForm savedRulesCount={rules.length} />
 
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           ID³ runs
+          <InfoTooltip helpKey="id3Compare" />
         </h2>
         {id3Runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EmployeeScorecard, User } from "@/types/flow";
 import type { BadgeState, BadgeTier } from "@/lib/badges/badge-types";
 import { frameClassName } from "@/lib/badges/cosmetic-types";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { userDisplayInitials } from "@/lib/users/format";
 import {
   Award,
@@ -64,7 +65,10 @@ export function GamificationPanel({
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Leaderboard</h2>
+        <h2 className="flex items-center gap-1.5 text-lg font-semibold">
+          Leaderboard
+          <InfoTooltip helpKey="leaderboardRanking" />
+        </h2>
         <div className="rounded-xl border border-border/60 overflow-hidden">
           <table className="w-full text-sm">
             <thead>

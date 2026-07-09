@@ -8,6 +8,7 @@ import { QaCenterSubnav } from "@/components/qa-center/qa-center-subnav";
 import { LibraryScoreboard } from "@/components/validation-center/library-scoreboard";
 import { LibraryJourneyPanel } from "@/components/validation-center/library-journey";
 import { RoiPanel } from "@/components/validation-center/roi-panel";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
 import { getLibraryIntelligence } from "@/lib/validation-center/library-intelligence";
@@ -39,15 +40,27 @@ export default async function LibraryIntelligencePage() {
               value: `${intel.overallCompliance}%`,
               warn: intel.overallCompliance < 85,
               critical: intel.overallCompliance < 70,
+              helpKey: "libraryScore",
             },
-            { id: "mfrs", label: "Manufacturers audited", value: intel.totalManufacturers },
-            { id: "expected", label: "Expected deliverables", value: intel.totalExpected },
-            { id: "passing", label: "Passing", value: intel.totalPassing },
+            {
+              id: "mfrs",
+              label: "Manufacturers audited",
+              value: intel.totalManufacturers,
+              helpKey: "manufacturersAudited",
+            },
+            {
+              id: "expected",
+              label: "Expected deliverables",
+              value: intel.totalExpected,
+              helpKey: "libraryExpectedDeliverables",
+            },
+            { id: "passing", label: "Passing", value: intel.totalPassing, helpKey: "libraryPassing" },
             {
               id: "review",
               label: "Needs review",
               value: intel.totalReview,
               warn: intel.totalReview > 0,
+              helpKey: "libraryNeedsReview",
             },
             {
               id: "missing",
@@ -55,8 +68,14 @@ export default async function LibraryIntelligencePage() {
               value: intel.trueMissing,
               warn: intel.trueMissing > 0,
               critical: intel.trueMissing > 200,
+              helpKey: "libraryTrueMissing",
             },
-            { id: "pcs", label: "PCS / naming review", value: intel.pcsReview },
+            {
+              id: "pcs",
+              label: "PCS / naming review",
+              value: intel.pcsReview,
+              helpKey: "libraryPcsReview",
+            },
           ]}
         />
       }
@@ -76,6 +95,7 @@ export default async function LibraryIntelligencePage() {
               <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Lightbulb className="h-3.5 w-3.5" />
                 Smart insights
+                <InfoTooltip helpKey="smartInsights" />
               </h2>
               <ul className="space-y-1.5 text-sm">
                 {intel.insights.map((line, i) => (

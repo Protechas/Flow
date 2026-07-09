@@ -31,6 +31,7 @@ import { primaryDueDate } from "@/lib/forecast/live";
 import { ProductionMetricsPanel } from "@/components/production/production-metrics-panel";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { ContextBreadcrumb } from "@/components/layout/context-breadcrumb";
 import { useFlowToast } from "@/components/ui/flow-toast";
@@ -500,11 +501,14 @@ function EmployeeTaskWorkspaceContent({
           <p className="text-4xl sm:text-5xl font-mono font-semibold tabular-nums tracking-tight text-foreground">
             {display}
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            {formatMinutes(totalMinutes)} since last submission
-            {allTimeMinutes != null && allTimeMinutes !== totalMinutes
-              ? ` · ${formatMinutes(allTimeMinutes)} total on this task`
-              : ""}
+          <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mt-2">
+            <span>
+              {formatMinutes(totalMinutes)} since last submission
+              {allTimeMinutes != null && allTimeMinutes !== totalMinutes
+                ? ` · ${formatMinutes(allTimeMinutes)} total on this task`
+                : ""}
+            </span>
+            <InfoTooltip helpKey="taskTimerTotal" />
           </p>
           {canWork && (
             <div className="flex flex-wrap justify-center gap-2 mt-5">

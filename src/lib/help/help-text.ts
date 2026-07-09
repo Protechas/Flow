@@ -134,6 +134,60 @@ export const HELP_TEXT = {
   // ——— Forecast intelligence ———
   projectEarlyWarning:
     "Compares remaining work, calibrated velocity, and assignee queue depth against the project target date.",
+
+  // ——— Library Intelligence & Audit Engine ———
+  libraryScore:
+    "Percent of expected deliverables passing compliance across each manufacturer's latest audit.",
+  manufacturersAudited: "Manufacturers with at least one completed library audit.",
+  libraryExpectedDeliverables:
+    "Total documents the manufacturer charts say the library should contain.",
+  libraryPassing: "Deliverables present in the library and passing compliance checks.",
+  libraryNeedsReview:
+    "Deliverables flagged for a human look — naming differences, split files, or unclear matches.",
+  libraryTrueMissing:
+    "Deliverables the audit could not find in the library at all. The highest-priority gap.",
+  libraryPcsReview:
+    "Files that likely exist but under a different name or classification — usually a rename, not a re-download.",
+  libraryJourney:
+    "Compares each manufacturer's first-ever audit against its latest. The gap shows how far the library has come since the baseline.",
+  smartInsights: "Auto-generated observations from the latest audit results.",
+
+  // ——— ROI ———
+  roiLaborSaved:
+    "Counted automated events × the manual hours each one replaces × the labor rate. Assumptions are editable.",
+  roiHoursSaved: "Production hours the team did not have to spend on manual work.",
+  roiSubscription:
+    "Active Flow accounts × what a seat on the replaced project tool would cost per month.",
+  roiLaborRate: "Average hourly wage used to price saved hours. Editable in assumptions.",
+  roiWorkflowLines:
+    "Everyday events Flow recorded — tracked days, reports, corrections, submissions — each priced at the minutes it saved.",
+  roiEngineLines:
+    "Completed audit and validation runs, each priced at the hours the same check takes by hand.",
+  estimatedSavings:
+    "Completed automated runs × the manual hours each replaces × the labor rate. Adjust assumptions to match real timings.",
+
+  // ——— Employee scoring & morale ———
+  todaysScore: "Your production numbers for today. They reset each workday.",
+  flowScore:
+    "0–100 score from four parts: productivity 40%, quality 30%, on-time 20%, activity 10%. Tap the ring for the full breakdown.",
+  effectiveDocuments:
+    "Documents counted fairly: a file split into parts counts as one document, and exact duplicate re-uploads count once.",
+  taskTimerTotal:
+    "Time on this task never resets. Stop and pause both save your session — the smaller number is time since your last submission, the larger is your all-time total on this task.",
+  badgesPanel:
+    "Earned automatically from real work — uploads, QA passes, streaks, clean clock days. Badges unlock avatar frames, titles, and accent colors under Customize.",
+  coachPanel:
+    "Short nudges based on your current work state. Use the Attitude dropdown to pick how your coach talks to you.",
+  leaderboardRanking:
+    "Ranked by Flow Score; badge count breaks ties. Scores come from effective documents, QA results, and on-time delivery — not raw hours.",
+  employeeEvaluation:
+    "System-captured signals (clock corrections, missed reports, QA returns) plus manager-logged incidents, in one place.",
+
+  // ——— QA Engine & ID³ ———
+  qaEngineFindings:
+    "Issues the QA Engine found in the uploaded workbooks. Filter, expand for expected vs found, then mark Reviewed, Dismissed, or Ready for task.",
+  id3Compare:
+    "Compares a manufacturer chart against the saved rules row by row — mismatches, missing entries, and rows no rule covers.",
 } as const;
 
 export type HelpTextKey = keyof typeof HELP_TEXT;

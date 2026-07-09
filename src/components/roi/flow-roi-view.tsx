@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { FlowRoiSummary, RoiLine, RoiSettings } from "@/lib/validation-center/roi";
 import { Bot, CircleDollarSign, CreditCard, Pencil } from "lucide-react";
 
@@ -151,6 +152,7 @@ export function FlowRoiView({
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <CreditCard className="h-3.5 w-3.5 text-primary" />
           Subscription replaced — hard dollars
+          <InfoTooltip helpKey="roiSubscription" />
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
@@ -191,6 +193,7 @@ export function FlowRoiView({
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <CircleDollarSign className="h-3.5 w-3.5 text-primary" />
           Workflow automation — counted events
+          <InfoTooltip helpKey="roiWorkflowLines" />
         </h2>
         <LinesTable lines={summary.workflowLines} />
       </section>
@@ -199,6 +202,7 @@ export function FlowRoiView({
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Bot className="h-3.5 w-3.5 text-primary" />
           Audit &amp; validation engines — counted runs
+          <InfoTooltip helpKey="roiEngineLines" />
         </h2>
         <LinesTable lines={summary.engineLines} />
       </section>

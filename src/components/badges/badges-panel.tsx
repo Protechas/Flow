@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { BadgeState, BadgeTier } from "@/lib/badges/badge-types";
 import { CustomizeDialog, type CosmeticsState } from "@/components/badges/customize-dialog";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { cn } from "@/lib/utils";
 import {
   Award,
@@ -95,6 +96,7 @@ export function BadgesPanel({
             <span className="font-normal normal-case">
               {earned.length} of {badges.length}
             </span>
+            <InfoTooltip helpKey="badgesPanel" />
           </h2>
           <div className="flex items-center gap-1">
             {cosmetics && <CustomizeDialog badges={badges} cosmetics={cosmetics} />}
