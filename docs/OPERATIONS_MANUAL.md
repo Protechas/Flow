@@ -38,6 +38,16 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Tools hub (July 9).** New sidebar section (Operations → Tools, leads and
+  up): a home for small utilities, growing as tools are built — request new
+  ones through the Innovation Hub. First two residents: **File Name
+  Checker** (paste a file list or drag files in — names and sizes only,
+  nothing uploads — and see the honest effective-document count before
+  uploading: split "-Part-N" files collapse to one document, exact
+  duplicates count once, with a "what gets collapsed" breakdown) and
+  **Labor Cost Calculator** (hours × people × rate — prefilled from the ROI
+  labor rate — with cost per document and the docs-per-hour pace needed
+  when you enter a document count).
 - **Info tips everywhere (July 9).** The little "?" tooltips that explain
   metrics on the executive dashboard now cover the newer surfaces too. Hover
   (or tap) the faint circle next to a label for a plain-English explanation:

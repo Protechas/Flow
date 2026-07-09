@@ -506,6 +506,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/roi": ["dashboard:view", "reports:view_all"],
 
+  "/tools": ["work:view_all", "work:view_team"],
+
   "/analytics": ["reports:view_all", "reports:view_team", "people:view_all", "people:view_team"],
 
   "/performance": ["people:view_all", "reports:view_all", "people:view_team", "reports:view_team"],
@@ -644,6 +646,8 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
 
   "/roi": ["admin", "super_admin", "senior_manager", "manager"],
 
+  "/tools": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
   "/analytics": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
   "/performance": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
@@ -752,6 +756,8 @@ export type NavItemId =
   | "planning"
 
   | "roi"
+
+  | "tools"
 
   | "production"
 
@@ -902,6 +908,8 @@ export const NAV_CONFIG: {
   { id: "planning", href: "/planning", label: "Planning & Forecasting", icon: "TrendingUp", group: "reporting", permissions: ["dashboard:view", "work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
   { id: "roi", href: "/roi", label: "Flow ROI", icon: "CircleDollarSign", group: "reporting", permissions: ["dashboard:view", "reports:view_all"], roles: ["admin", "super_admin", "senior_manager", "manager"] },
+
+  { id: "tools", href: "/tools", label: "Tools", icon: "Wrench", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "team-reports", href: "/reports", label: "Team Reports", icon: "BarChart3", group: "reporting", permissions: ["reports:view_team", "reports:view_qa"], roles: ["teamlead"] },
 
@@ -1092,6 +1100,8 @@ export function canAccessRoute(role: UserRole | string, pathname: string): boole
       "/production",
 
       "/time-clock",
+
+      "/tools",
 
       "/wrap-ups",
 

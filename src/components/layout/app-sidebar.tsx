@@ -30,6 +30,7 @@ import {
   Trophy,
   UserCog,
   Users,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -84,6 +85,7 @@ const ICONS = {
   Trophy,
   BookOpen,
   CircleDollarSign,
+  Wrench,
 } as const;
 
 const SIDEBAR_SECTIONS_STORAGE_KEY = "flow-sidebar-sections";
