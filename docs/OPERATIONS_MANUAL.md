@@ -38,6 +38,30 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Library Journey (July 9).** Library Intelligence opens with "The
+  journey — where we started vs now": two snapshot cards (compliance,
+  expected, passing, needs review, missing) compare each manufacturer's
+  first-ever audit against its latest, with the overall delta between them.
+  Right now every manufacturer has one audit, so both cards match — that's
+  the baseline; as re-audits land, the gap shows how far the library has
+  come, and a "biggest movers" list ranks manufacturers by compliance gained
+  since their first audit.
+- **Savings estimate (July 9).** Library Intelligence also shows what Flow
+  is saving in production hours and labor dollars: completed automated runs
+  (library audits, validations, ID³ runs, QA Engine scans, batch reviews)
+  × the manual hours each replaces × the labor rate. All assumptions are
+  editable in place (managers+, "Edit assumptions") so the estimate can be
+  tuned to real timings — defaults: $35/hr, 6h per manual audit, 3h per
+  validation, 2h per scan, 15min saved per batch review.
+- **Coach attitude always reachable (July 9).** The Coach panel on the
+  employee workspace no longer disappears when there are no nudges — it
+  always renders with the Attitude dropdown (Professional, Encouraging,
+  Drill sergeant, Smart-ass) in its top-right corner, so employees can
+  change their coach's personality any time.
+- **My Scorecard always opens (July 9).** /scorecard no longer silently
+  bounces to the workspace for accounts without production history (new
+  hires, managers in Employee view) — it now shows today's summary with an
+  explanation that metrics start counting with the first logged work.
 - **ID³ Rules editor (July 9).** The ID³ room has a Rules tab: a plain
   table where anyone can add, edit, and delete validation rules — no
   spreadsheets, no code. The Compare tab can run charts against the saved

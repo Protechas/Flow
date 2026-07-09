@@ -6,14 +6,19 @@ import {
 } from "@/components/platform";
 import { QaCenterSubnav } from "@/components/qa-center/qa-center-subnav";
 import { LibraryScoreboard } from "@/components/validation-center/library-scoreboard";
+import { LibraryJourneyPanel } from "@/components/validation-center/library-journey";
+import { RoiPanel } from "@/components/validation-center/roi-panel";
 import { requirePageAccess } from "@/lib/auth/guard";
+import { hasPermission } from "@/lib/auth/permissions";
 import { getLibraryIntelligence } from "@/lib/validation-center/library-intelligence";
+import { computeRoiSummary } from "@/lib/validation-center/roi";
 import { Lightbulb, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default async function LibraryIntelligencePage() {
-  await requirePageAccess("/qa-center/library");
+  const user = await requirePageAccess("/qa-center/library");
   const intel = await getLibraryIntelligence();
+  const roi = await computeRoiSummary();
 
   return (
     <FlowPageShell
@@ -58,6 +63,13 @@ export default async function LibraryIntelligencePage() {
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="space-y-6">
           <QaCenterSubnav />
+
+          <LibraryJourneyPanel journey={intel.journey} />
+
+          <RoiPanel
+            summary={roi}
+            canEdit={hasPermission(user.role, "validation:manage_settings")}
+          />
 
           {intel.insights.length > 0 && (
             <section className="enterprise-panel p-4">

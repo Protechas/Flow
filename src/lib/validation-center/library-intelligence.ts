@@ -29,6 +29,32 @@ export interface ManufacturerScore {
   history: { runId: string; date: string | null; compliance: number; review: number }[];
 }
 
+export interface JourneySnapshot {
+  expected: number;
+  passing: number;
+  review: number;
+  missing: number;
+  compliance: number;
+}
+
+/** Where the library started vs where it is now. */
+export interface LibraryJourney {
+  baselineDate: string | null;
+  currentDate: string | null;
+  auditsCompleted: number;
+  baseline: JourneySnapshot;
+  current: JourneySnapshot;
+  movers: {
+    manufacturer: string;
+    firstCompliance: number;
+    latestCompliance: number;
+    delta: number;
+    audits: number;
+  }[];
+  /** Every completed audit in order — the trend line. */
+  trend: { date: string; compliance: number; manufacturer: string }[];
+}
+
 export interface LibraryIntelligence {
   totalManufacturers: number;
   totalExpected: number;
@@ -41,6 +67,7 @@ export interface LibraryIntelligence {
   insights: string[];
   /** Manufacturers whose latest audit moved vs the previous one, biggest movers first. */
   changed: { manufacturer: string; delta: number; compliance: number }[];
+  journey: LibraryJourney;
 }
 
 function summaryNumber(run: ValidationRunView, key: string): number {
@@ -151,6 +178,72 @@ export async function getLibraryIntelligence(): Promise<LibraryIntelligence> {
     .map((r) => ({ manufacturer: r.manufacturer, delta: r.delta!, compliance: r.compliance }))
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
+  // ——— Journey: each manufacturer's FIRST audit forms the baseline, the
+  // latest forms "now". With one audit each, baseline == now — the journey
+  // starts here and the gap grows as re-audits land.
+  const emptySnapshot = (): JourneySnapshot => ({
+    expected: 0,
+    passing: 0,
+    review: 0,
+    missing: 0,
+    compliance: 0,
+  });
+  const baseline = emptySnapshot();
+  const current = emptySnapshot();
+  const movers: LibraryJourney["movers"] = [];
+  for (const [manufacturer, history] of byManufacturer) {
+    const latest = history[0];
+    const first = history[history.length - 1];
+    const firstCounts = findingCounts.get(first.id) ?? { missing: 0, pcs: 0 };
+    const latestCounts = findingCounts.get(latest.id) ?? { missing: 0, pcs: 0 };
+    baseline.expected += summaryNumber(first, "expected_deliverables");
+    baseline.passing += summaryNumber(first, "passing_compliance");
+    baseline.review += summaryNumber(first, "needs_review");
+    baseline.missing += firstCounts.missing;
+    current.expected += summaryNumber(latest, "expected_deliverables");
+    current.passing += summaryNumber(latest, "passing_compliance");
+    current.review += summaryNumber(latest, "needs_review");
+    current.missing += latestCounts.missing;
+    if (history.length > 1) {
+      const firstCompliance = first.compliance_rate ?? summaryNumber(first, "compliance_rate");
+      const latestCompliance =
+        latest.compliance_rate ?? summaryNumber(latest, "compliance_rate");
+      movers.push({
+        manufacturer,
+        firstCompliance,
+        latestCompliance,
+        delta: Math.round((latestCompliance - firstCompliance) * 10) / 10,
+        audits: history.length,
+      });
+    }
+  }
+  baseline.compliance = baseline.expected
+    ? Math.round((baseline.passing / baseline.expected) * 1000) / 10
+    : 0;
+  current.compliance = current.expected
+    ? Math.round((current.passing / current.expected) * 1000) / 10
+    : 0;
+  movers.sort((a, b) => b.delta - a.delta);
+
+  const chronological = [...audits].sort((a, b) =>
+    (a.completed_at ?? "").localeCompare(b.completed_at ?? "")
+  );
+  const journey: LibraryJourney = {
+    baselineDate: chronological[0]?.completed_at ?? null,
+    currentDate: chronological[chronological.length - 1]?.completed_at ?? null,
+    auditsCompleted: audits.length,
+    baseline,
+    current,
+    movers,
+    trend: chronological
+      .filter((r) => r.completed_at)
+      .map((r) => ({
+        date: r.completed_at!,
+        compliance: r.compliance_rate ?? summaryNumber(r, "compliance_rate"),
+        manufacturer: r.manufacturer ?? "",
+      })),
+  };
+
   return {
     totalManufacturers: scoreboard.length,
     totalExpected,
@@ -162,5 +255,6 @@ export async function getLibraryIntelligence(): Promise<LibraryIntelligence> {
     scoreboard,
     insights,
     changed,
+    journey,
   };
 }

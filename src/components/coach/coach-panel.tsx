@@ -30,7 +30,6 @@ export function CoachPanel({
   const [dismissed, setDismissed] = useState<string[]>([]);
 
   const visible = nudges.filter((n) => !dismissed.includes(n.type));
-  if (nudges.length === 0) return null;
 
   function changePersona(value: CoachPersona) {
     setPersona(value);
