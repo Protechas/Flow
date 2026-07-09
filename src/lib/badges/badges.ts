@@ -5,6 +5,7 @@ import {
   initProductionTracking,
 } from "@/lib/data/production-tracking";
 import { listFeedbackSubmissions } from "@/lib/innovation-hub/feedback";
+import { effectiveDocuments } from "@/lib/files/effective-docs";
 import { getAppTimeZone } from "@/lib/datetime/timezone";
 import { BADGE_DEFINITIONS, type BadgeState } from "@/lib/badges/badge-types";
 
@@ -86,7 +87,11 @@ function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
   const production = getProductionStore();
   const store = getFlowStore();
 
-  const myUploads = production.taskFileUploads.filter((f) => f.user_id === userId);
+  // Effective documents only — split parts and duplicate re-uploads never
+  // earn badges.
+  const myUploads = effectiveDocuments(
+    production.taskFileUploads.filter((f) => f.user_id === userId)
+  );
   const uploads = myUploads.length;
   const uploadsByDay = new Map<string, number>();
   for (const f of myUploads) {

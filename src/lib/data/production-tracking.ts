@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/production-bridge";
 import { resolveDepartmentForUser } from "@/lib/departments/resolve";
 import { getDepartmentName } from "@/lib/departments/resolve";
+import { effectiveDocumentCount } from "@/lib/files/effective-docs";
 import type {
   ProductionReportFilters,
   ProductionReportSummary,
@@ -594,7 +595,11 @@ export function uploadTaskFile(input: {
   state.taskFileUploads = [upload, ...state.taskFileUploads];
   persistFile(upload);
 
-  const count = state.taskFileUploads.filter((f) => f.task_id === input.task_id).length;
+  // Effective documents, not raw uploads — split parts and duplicate
+  // re-uploads must not inflate progress, forecasts, or scores.
+  const count = effectiveDocumentCount(
+    state.taskFileUploads.filter((f) => f.task_id === input.task_id)
+  );
   updateWorkPackageExternal(input.task_id, { file_count: count });
   refreshTaskLiveForecastExternal(input.task_id, getTotalTaskMinutes(input.task_id));
   logActivityBridge(input.user_id, "file_upload", `Uploaded ${input.file_name}`, input.task_id);
@@ -653,7 +658,7 @@ export function getTaskFileCount(taskId: string): number {
     if (since && f.created_at <= since) return false;
     return true;
   });
-  return sessionFiles.length + legacyOnly.length;
+  return effectiveDocumentCount(sessionFiles) + legacyOnly.length;
 }
 
 /** All files ever attached to a task (including prior submissions). */
@@ -665,7 +670,7 @@ export function getTotalTaskFileCount(taskId: string): number {
   const legacyOnly = store.files.filter(
     (f) => f.work_package_id === taskId && !prodNames.has(f.file_name.toLowerCase())
   );
-  return productionFiles.length + legacyOnly.length;
+  return effectiveDocumentCount(productionFiles) + legacyOnly.length;
 }
 
 export function getAllTaskFileUploads(): TaskFileUpload[] {
@@ -758,7 +763,10 @@ export function submitBatchForReview(input: {
   }
 
   const totalMinutes = getPendingSessionTaskMinutes(input.task_id, input.user_id);
-  const metrics = computeProductionMetrics(totalMinutes, batchFiles.length);
+  // Metrics count effective documents; the reviewable file list stays raw so
+  // QA still sees every uploaded part.
+  const effectiveBatchDocs = effectiveDocumentCount(batchFiles);
+  const metrics = computeProductionMetrics(totalMinutes, effectiveBatchDocs);
   const priorSubmissions = state.taskSubmissions.filter((s) => s.task_id === input.task_id);
   const originalMinutes = priorSubmissions[0]?.original_task_minutes ?? totalMinutes;
 
@@ -768,7 +776,7 @@ export function submitBatchForReview(input: {
     project_id: pkg.project_id,
     user_id: input.user_id,
     submitted_at: ts(),
-    uploaded_file_count: batchFiles.length,
+    uploaded_file_count: effectiveBatchDocs,
     total_task_minutes: metrics.totalTaskMinutes,
     average_minutes_per_document: metrics.averageMinutesPerDocument,
     documents_per_hour: metrics.documentsPerHour,

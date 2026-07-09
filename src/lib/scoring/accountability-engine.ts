@@ -223,14 +223,20 @@ export function computeQualityBreakdown(
   const reworkPct =
     submissions > 0 ? Math.round((correctionTotal / submissions) * 100) : 0;
 
+  // No QA history is not the same as a perfect record. Work that has never
+  // faced review scores neutral, so avoiding submission can't buy points.
+  const qaPassScore = reviews.length === 0 ? 60 : qaPassRate;
+
   const factors = [
     factor(
       "qa_pass_rate",
       "QA pass rate",
-      `${qaPassRate}%`,
-      qaPassRate,
+      reviews.length === 0 ? "no reviews yet" : `${qaPassRate}%`,
+      qaPassScore,
       0.35,
-      `${reviews.filter((r) => r.result === "pass").length} passed of ${reviews.length} qa_reviews`
+      reviews.length === 0
+        ? "No QA reviews on record — neutral score until work faces review"
+        : `${reviews.filter((r) => r.result === "pass").length} passed of ${reviews.length} qa_reviews`
     ),
     factor(
       "corrections_received",
@@ -281,7 +287,9 @@ export function computeOnTimeBreakdown(
     (p) => !isAfter(parseISO(p.completed_date!), parseISO(p.due_date!))
   );
   const late = done.length - onTime.length;
-  const onTimePct = done.length > 0 ? Math.round((onTime.length / done.length) * 100) : 100;
+  // Zero completions is not a perfect on-time record — never finishing
+  // anything scores neutral, not 100.
+  const onTimePct = done.length > 0 ? Math.round((onTime.length / done.length) * 100) : 60;
 
   const overdue = mine.filter(isOverdue).length;
 

@@ -38,6 +38,13 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Honest counting (July 8).** All document counts — task progress,
+  forecasts, docs-per-hour, badges, leaderboard — now measure *effective
+  documents*: a file split into "-Part-N" pieces counts as one document, and
+  exact duplicate re-uploads count once. Flow Score also stopped giving
+  perfect marks for missing history: no QA reviews and no completions now
+  score neutral (60) instead of 100. File-count inflation is auto-captured on
+  the Evaluation panel.
 - **Employee preview (July 8).** Leads and managers have an "Employee view"
   button in the header that flips them into the employee shell — their own
   identity, the exact UI the team sees (workspace, coach, badges,

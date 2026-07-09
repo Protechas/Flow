@@ -8,6 +8,7 @@ import {
   getProductionStore,
 } from "@/lib/data/production-tracking";
 import { listWorkPackages } from "@/lib/data/work-packages";
+import { analyzeInflation } from "@/lib/files/effective-docs";
 
 import type {
   AutoIncident,
@@ -172,6 +173,21 @@ export function computeAutoIncidents(employeeId: string): AutoIncident[] {
       summary: "Clocked in with no daily report",
       detail: null,
       occurred_on: day,
+    });
+  }
+
+  // File count inflation: duplicate re-uploads and split-part padding.
+  const uploads = getProductionStore().taskFileUploads.filter(
+    (f) => f.user_id === employeeId
+  );
+  const inflation = analyzeInflation(uploads);
+  if (inflation.duplicateCopies >= 5 || inflation.splitParts >= 10) {
+    incidents.push({
+      category: "process",
+      severity: inflation.effective < inflation.raw * 0.6 ? "serious" : "moderate",
+      summary: `File count inflation: ${inflation.raw} uploads are ${inflation.effective} real documents`,
+      detail: `${inflation.duplicateCopies} exact duplicate re-uploads · ${inflation.splitParts} split parts collapsed. Counts and badges now use the effective number.`,
+      occurred_on: new Date().toISOString().slice(0, 10),
     });
   }
 
