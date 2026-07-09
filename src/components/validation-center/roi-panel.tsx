@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateRoiSettingsAction } from "@/app/actions/roi";
 import { Button } from "@/components/ui/button";
@@ -145,7 +146,10 @@ export function RoiPanel({ summary, canEdit }: { summary: RoiSummary; canEdit: b
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">
         Estimate = completed automated runs × the manual hours each one replaces × labor
-        rate. Adjust the assumptions to match your real timings.
+        rate. Adjust the assumptions to match your real timings.{" "}
+        <Link href="/roi" prefetch={false} className="text-primary hover:underline">
+          Full company-wide ROI report →
+        </Link>
       </p>
 
       <Dialog open={open} onOpenChange={setOpen}>

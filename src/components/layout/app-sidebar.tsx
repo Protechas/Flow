@@ -10,6 +10,7 @@ import {
   Brain,
   Building2,
   ChevronDown,
+  CircleDollarSign,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -82,6 +83,7 @@ const ICONS = {
   TrendingUp,
   Trophy,
   BookOpen,
+  CircleDollarSign,
 } as const;
 
 const SIDEBAR_SECTIONS_STORAGE_KEY = "flow-sidebar-sections";

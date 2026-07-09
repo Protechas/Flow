@@ -38,6 +38,17 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Flow ROI page (July 9).** New sidebar entry (Reporting → Flow ROI, managers
+  and up) showing what Flow saves company-wide, in three receipted tiers:
+  the replaced per-seat subscription (active accounts × seat cost — recurring
+  hard dollars), workflow automation (tracked workdays, clock corrections,
+  daily reports, routed submissions — each a counted event × minutes saved),
+  and the audit/validation engine runs. Headline KPIs: labor saved to date,
+  production hours saved, subscription saved per year, and the labor rate
+  ($22/hr). Every line is a count the system recorded × an editable
+  assumption — admins tune them via "Edit assumptions" (partial saves merge;
+  they never reset other fields). The Library Intelligence savings panel
+  links to the full report.
 - **Library Journey (July 9).** Library Intelligence opens with "The
   journey — where we started vs now": two snapshot cards (compliance,
   expected, passing, needs review, missing) compare each manufacturer's
