@@ -13,6 +13,7 @@ import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
 import { startTaskTimer } from "@/lib/data/production-tracking";
 import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
 import { persistDailyWrapUpSync } from "@/lib/data/wrap-ups-db";
+import { demoteOtherInProgressTasks } from "@/lib/employee/single-focus";
 import { persistTaskTimeEntrySync } from "@/lib/data/production-tracking-db";
 import { persistWorkPackageDb } from "@/lib/data/work-items-db";
 import { ensureServerWriteContext } from "@/lib/server/write-context";
@@ -101,6 +102,7 @@ export async function startQueueTaskAction(taskId: string) {
   if (task.status !== "working_on_it") {
     await persistEmployeeTaskUpdate(taskId, { status: "working_on_it" });
   }
+  await demoteOtherInProgressTasks(user.id, taskId);
   revalidateWork();
   return { ok: true as const, taskId };
 }
@@ -134,6 +136,7 @@ export async function startNextTaskAction() {
   if (next.status !== "working_on_it") {
     await persistEmployeeTaskUpdate(next.id, { status: "working_on_it" });
   }
+  await demoteOtherInProgressTasks(user.id, next.id);
   revalidateWork();
 
   return { ok: true as const, taskId: next.id };
@@ -150,6 +153,7 @@ export async function employeeReopenTaskAction(taskId: string) {
   const user = await requireOwnTask(taskId);
   await assertWorkEligible(user, "resume_task", { taskId });
   await persistEmployeeTaskUpdate(taskId, { status: "working_on_it" });
+  await demoteOtherInProgressTasks(user.id, taskId);
   revalidateWork();
 }
 

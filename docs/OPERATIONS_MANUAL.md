@@ -38,6 +38,10 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Single focus (July 9).** One task in progress at a time: starting or
+  resuming a task automatically returns any other in-progress task to the
+  queue (top of Up Next, files and time intact). No more hidden second
+  "working on it" state.
 - **Honest counting (July 8).** All document counts — task progress,
   forecasts, docs-per-hour, badges, leaderboard — now measure *effective
   documents*: a file split into "-Part-N" pieces counts as one document, and

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { assertCanEditWorkPackage } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { assertWorkEligible, checkWorkEligible } from "@/lib/work-eligibility";
+import { demoteOtherInProgressTasks } from "@/lib/employee/single-focus";
 import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import {
   getTaskFileMaxBytes,
@@ -71,6 +72,9 @@ export async function startTaskTimerAction(taskId: string, managerOverride?: boo
     const entry = startTaskTimer(user.id, taskId);
     await persistTaskTimeEntrySync(entry);
     await persistPackageState(taskId);
+    // Single focus: starting a timer here means this is the task being
+    // worked — any other working_on_it task returns to the queue.
+    await demoteOtherInProgressTasks(user.id, taskId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to start task";
     if (msg.startsWith("ACTIVE_TASK:")) {
