@@ -161,10 +161,18 @@ export function buildEmployeeMyQueue(input: {
   const currentId = current?.id ?? null;
   const blocked: EmployeeQueueBlockedItem[] = [];
   const upNext: WorkPackage[] = [];
+  // A second in-progress task must stay visible — it's not "current", not
+  // startable, and not blocked, so without this bucket it vanished entirely.
+  const alsoInProgress: WorkPackage[] = [];
 
   for (const task of packages) {
     if (task.status === "done") continue;
     if (currentId && task.id === currentId) continue;
+
+    if (task.status === "working_on_it") {
+      alsoInProgress.push(task);
+      continue;
+    }
 
     const block = inferBlockReason(task);
     if (block) {
@@ -178,7 +186,10 @@ export function buildEmployeeMyQueue(input: {
   }
 
   blocked.sort((a, b) => compareQueueOrder(a.task, b.task));
+  alsoInProgress.sort(compareQueueOrder);
   upNext.sort(compareQueueOrder);
+  // In-progress work leads the queue — you resume before you start fresh.
+  upNext.unshift(...alsoInProgress);
 
   const completedToday = completedTodayTasks(packages);
 
