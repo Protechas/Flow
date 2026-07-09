@@ -10,7 +10,7 @@ import { listValidationRuns } from "@/lib/validation-center/runs";
 import { getAuditWorkerStatus } from "@/lib/validation-center/worker-status";
 import { formatAppDateTime } from "@/lib/datetime/timezone";
 import { cn } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileDown } from "lucide-react";
 
 const STATUS_STYLES: Record<string, string> = {
   completed: "border-emerald-500/40 text-emerald-500",
@@ -68,36 +68,51 @@ export default async function Id3ValidationPage() {
                 </tr>
               </thead>
               <tbody>
-                {id3Runs.map((run) => (
-                  <tr key={run.id} className="border-t border-border/40">
-                    <td className="px-4 py-2.5 font-medium">{run.title}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge
-                        variant="outline"
-                        className={cn("text-[10px]", STATUS_STYLES[run.status] ?? "")}
-                      >
-                        {run.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
-                      {run.compliance_rate != null ? `${run.compliance_rate}%` : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{run.findings_count}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {formatAppDateTime(run.created_at)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <Link
-                        href={`/qa-center/validation/runs/${run.id}`}
-                        prefetch={false}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                      >
-                        Open
-                        <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {id3Runs.map((run) => {
+                  const workbook = run.files.find((f) => f.role === "output_workbook");
+                  return (
+                    <tr key={run.id} className="border-t border-border/40">
+                      <td className="px-4 py-2.5 font-medium">{run.title}</td>
+                      <td className="px-4 py-2.5">
+                        <Badge
+                          variant="outline"
+                          className={cn("text-[10px]", STATUS_STYLES[run.status] ?? "")}
+                        >
+                          {run.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        {run.compliance_rate != null ? `${run.compliance_rate}%` : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{run.findings_count}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {formatAppDateTime(run.created_at)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          {workbook && (
+                            <a
+                              href={`/api/validation/files/${workbook.id}`}
+                              download={workbook.file_name}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Download Excel
+                            </a>
+                          )}
+                          <Link
+                            href={`/qa-center/validation/runs/${run.id}`}
+                            prefetch={false}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                          >
+                            Open
+                            <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

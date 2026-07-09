@@ -85,25 +85,26 @@ export default async function QaEnginePage() {
                         {formatAppDateTime(run.created_at)}
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        {workbook ? (
+                        <div className="flex items-center justify-end gap-3">
+                          {workbook && (
+                            <a
+                              href={`/api/validation/files/${workbook.id}`}
+                              download={workbook.file_name}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Download Excel
+                            </a>
+                          )}
                           <Link
                             href={`/qa-center/validation/runs/${run.id}`}
                             prefetch={false}
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <FileDown className="h-3 w-3" />
-                            Excel report
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/qa-center/validation/runs/${run.id}`}
-                            prefetch={false}
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
                           >
                             Open
                             <ArrowRight className="h-3 w-3" />
                           </Link>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
