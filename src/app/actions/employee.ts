@@ -10,7 +10,11 @@ import { isEmployeeRole } from "@/lib/auth/permissions";
 import { assertWorkEligible } from "@/lib/work-eligibility";
 import { recordBlockedWorkAttempt } from "@/lib/work-eligibility/audit";
 import { pickNextTask, getEmployeeTasks } from "@/lib/employee/tasks";
-import { startTaskTimer } from "@/lib/data/production-tracking";
+import {
+  getActiveTaskTimeEntry,
+  startTaskTimer,
+  stopTaskTimer,
+} from "@/lib/data/production-tracking";
 import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
 import { persistDailyWrapUpSync } from "@/lib/data/wrap-ups-db";
 import { demoteOtherInProgressTasks } from "@/lib/employee/single-focus";
@@ -140,6 +144,34 @@ export async function startNextTaskAction() {
   revalidateWork();
 
   return { ok: true as const, taskId: next.id };
+}
+
+/** Switch tasks without clocking out: the current timer session stops (its
+ * minutes are already saved), the new task starts, and the old task returns
+ * to the top of Up Next. */
+export async function switchToTaskAction(taskId: string) {
+  const user = await requireEmployee();
+  await assertWorkEligible(user, "start_task", { taskId });
+  await assertCanEditWorkPackage(user, taskId);
+  await ensureServerWriteContext();
+
+  const active = getActiveTaskTimeEntry(user.id);
+  if (active && active.task_id !== taskId) {
+    const stopped = stopTaskTimer(user.id);
+    await persistTaskTimeEntrySync(stopped);
+  }
+
+  try {
+    await startTimerForTask(user, taskId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not switch tasks";
+    return { ok: false as const, message: msg };
+  }
+
+  await persistEmployeeTaskUpdate(taskId, { status: "working_on_it" });
+  await demoteOtherInProgressTasks(user.id, taskId);
+  revalidateWork();
+  return { ok: true as const, taskId };
 }
 
 export async function employeeUpdateNotesAction(taskId: string, notes: string) {

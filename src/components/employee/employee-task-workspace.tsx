@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCommentAction } from "@/app/actions/crud";
-import { employeeUpdateNotesAction } from "@/app/actions/employee";
+import { employeeUpdateNotesAction, switchToTaskAction } from "@/app/actions/employee";
 import {
   pauseTaskTimerAction,
   resumeTaskTimerAction,
@@ -406,14 +406,37 @@ function EmployeeTaskWorkspaceContent({
       </div>
 
       {otherActive && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="min-w-40 flex-1">
             You have another task running.{" "}
             <Link href={`/work/${otherActive.task_id}`} className="underline font-medium">
               Go to active task
             </Link>
           </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 border-amber-500/40 text-xs"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                const res = await switchToTaskAction(task.id);
+                if (!res.ok) {
+                  toast({ variant: "error", title: "Could not switch", description: res.message });
+                  return;
+                }
+                toast({
+                  variant: "success",
+                  title: "Switched tasks",
+                  description: "Your previous session was saved — the task is back in Up Next.",
+                });
+                router.refresh();
+              });
+            }}
+          >
+            Switch to this task
+          </Button>
         </div>
       )}
 

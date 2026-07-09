@@ -62,6 +62,11 @@
 - **QA Center navigation (July 9).** The section bar no longer sprawls across
   the page: Dashboard and ID³ Validation stay as pills, and the Review and
   Audit Engine wings are dropdown menus showing the active page.
+- **Task switching (July 9).** Switch tasks without clocking out: on any task
+  page the "another task running" banner offers **Switch to this task**, and
+  starting a queued task while one is running offers **Switch & start**. The
+  current timer session is saved automatically and the previous task returns
+  to the top of Up Next.
 - **Single focus (July 9).** One task in progress at a time: starting or
   resuming a task automatically returns any other in-progress task to the
   queue (top of Up Next, files and time intact). No more hidden second

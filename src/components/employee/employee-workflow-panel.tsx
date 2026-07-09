@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { clockInAction, clockOutAction } from "@/app/actions/clock";
-import { startQueueTaskAction } from "@/app/actions/employee";
+import { startQueueTaskAction, switchToTaskAction } from "@/app/actions/employee";
 import { requestWorkAction } from "@/app/actions/employee-workflow";
 import { recordWrapUpBlockAttemptAction } from "@/app/actions/wrap-up";
 import { pauseTaskTimerAction, resumeTaskTimerAction } from "@/app/actions/production";
@@ -66,7 +66,9 @@ export function EmployeeWorkflowPanel({
   const [requestWorkOpen, setRequestWorkOpen] = useState(false);
   const [requestNote, setRequestNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [conflictTaskId, setConflictTaskId] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ attempted: string; active: string | null } | null>(
+    null
+  );
   const [wrapUpGateOpen, setWrapUpGateOpen] = useState(false);
   const [confirmClockOutOpen, setConfirmClockOutOpen] = useState(false);
   const [pendingClockOut, setPendingClockOut] = useState(false);
@@ -82,7 +84,8 @@ export function EmployeeWorkflowPanel({
       const res = await startQueueTaskAction(taskId);
       if (!res.ok) {
         if (res.code === "ACTIVE_TASK_CONFLICT") {
-          setConflictTaskId(res.activeTaskId ?? wf.activeTaskId);
+          setConflict({ attempted: taskId, active: res.activeTaskId ?? wf.activeTaskId });
+          return;
         }
         setError(res.message ?? "Could not start task");
         return;
@@ -463,21 +466,47 @@ export function EmployeeWorkflowPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!conflictTaskId} onOpenChange={(o) => !o && setConflictTaskId(null)}>
+      <Dialog open={!!conflict} onOpenChange={(o) => !o && setConflict(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Active task in progress</DialogTitle>
+            <DialogTitle>Switch tasks?</DialogTitle>
             <DialogDescription>
-              You already have an active task. Pause or complete the current task before starting
-              another.
+              You already have a task in progress. Switching saves your current session — every
+              minute and file is kept — and the task moves to the top of Up Next so you can come
+              back to it anytime. No need to clock out.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setConflictTaskId(null)}>
-              Close
+            <Button variant="outline" onClick={() => setConflict(null)}>
+              Cancel
             </Button>
-            {conflictTaskId && (
-              <Button render={<Link href={`/work/${conflictTaskId}`} />}>View Active Task</Button>
+            {conflict?.active && (
+              <Button
+                variant="outline"
+                render={<Link href={`/work/${conflict.active}`} />}
+              >
+                View current task
+              </Button>
+            )}
+            {conflict && (
+              <Button
+                disabled={pending}
+                onClick={() => {
+                  const target = conflict.attempted;
+                  startTransition(async () => {
+                    const res = await switchToTaskAction(target);
+                    if (!res.ok) {
+                      setError(res.message ?? "Could not switch tasks");
+                      setConflict(null);
+                      return;
+                    }
+                    setConflict(null);
+                    navigateToTaskWorkspace(router, target);
+                  });
+                }}
+              >
+                Switch &amp; start
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>
