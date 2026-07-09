@@ -38,6 +38,13 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Workspace coach (July 8).** The employee workspace shows nudges when
+  something needs attention: clocked in with no timer running, a pile of files
+  ready to batch to QA, a long shift with no daily report, or a QA return
+  waiting. Each employee picks their coach's **attitude** — Professional,
+  Encouraging, Drill sergeant, or Smart-ass.
+- **Ask Flow (July 8).** A help bubble on every page answers "how do I..."
+  questions straight from this manual, with links to the exact section.
 - **Employee evaluation (July 8).** Leads and managers see an Evaluation
   panel on employee profiles: automatic signals (clock punches corrected by a
   manager, days clocked without a daily report, QA corrections) plus a manual

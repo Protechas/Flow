@@ -10,6 +10,16 @@
 
 When you sign in, you land on **Workspace** (`/work`). This is your command center for the day.
 
+**Your coach:** when something needs attention — clocked in with no timer,
+files piling up for a batch, a missing daily report, a QA return — a Coach
+panel appears at the top with a nudge and a one-click action. Pick the
+coach's **attitude** (Professional, Encouraging, Drill sergeant, or
+Smart-ass) from the dropdown on the panel; it saves instantly.
+
+**Ask Flow:** the round **?** button (bottom-right, above the lightbulb)
+answers "how do I…?" questions straight from the operations manual with
+links to the exact section.
+
 ### Main Sections
 
 | Section | Purpose |

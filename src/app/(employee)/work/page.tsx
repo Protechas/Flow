@@ -21,6 +21,8 @@ import { getWorkPackages } from "@/lib/data/work-packages";
 import { initProductionTracking } from "@/lib/data/production-tracking";
 import { getTodayVisibilityForUser } from "@/lib/work-visibility/calculator";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
+import { CoachPanel } from "@/components/coach/coach-panel";
+import { computeCoachNudges, resolveCoachPersona } from "@/lib/coach/nudges";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -41,9 +43,16 @@ export default async function EmployeeWorkPage() {
     return <EmployeeNeedsSetupView user={user} setup={setup} />;
   }
 
+  const coachNudges = computeCoachNudges(user);
+
   return (
     <>
       <LiveRefresh intervalMs={activeClock ? 30_000 : 90_000} />
+      {coachNudges.length > 0 && (
+        <div className="mb-4">
+          <CoachPanel nudges={coachNudges} persona={resolveCoachPersona(user)} />
+        </div>
+      )}
       <EmployeeHome
         dashboard={dashboard}
         userName={user.full_name}

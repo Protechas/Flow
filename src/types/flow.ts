@@ -374,6 +374,8 @@ export interface User {
   organizational_position?: OrganizationalPosition | null;
   system_access_level?: SystemAccessLevel | null;
   pay_type?: PayType | null;
+  /** Workspace coach attitude: professional | encouraging | drill_sergeant | smartass */
+  coach_persona?: string | null;
   team_id?: string | null;
   manager_id?: string | null;
   assigned_position_id?: string | null;

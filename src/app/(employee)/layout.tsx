@@ -9,6 +9,7 @@ import { loadHiddenEmployeeNavHrefs } from "@/lib/auth/feature-access-loader";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
+import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
 import { redirect } from "next/navigation";
 
 export default async function EmployeeLayout({
@@ -48,6 +49,7 @@ export default async function EmployeeLayout({
         {children}
       </main>
       <InnovationHubBubble />
+      <AskFlowBubble />
     </div>
   );
 }

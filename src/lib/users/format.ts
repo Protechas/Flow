@@ -25,6 +25,7 @@ export function normalizeUser(row: Record<string, unknown>): User {
     organizational_position: (row.organizational_position as OrganizationalPosition | null) ?? null,
     system_access_level: (row.system_access_level as SystemAccessLevel | null) ?? null,
     pay_type: normalizePayType(row.pay_type, row.role as User["role"]),
+    coach_persona: (row.coach_persona as string | null) ?? null,
     team_id: (row.team_id as string | null) ?? null,
     manager_id: (row.manager_id as string | null) ?? null,
     assigned_position_id: (row.assigned_position_id as string | null) ?? null,

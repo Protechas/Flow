@@ -32,6 +32,7 @@
     "audit-worker": "node --env-file=.env.local scripts/audit-worker.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@base-ui/react": "^1.5.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.107.0",

@@ -12,6 +12,7 @@ import { loadHiddenNavItemIds } from "@/lib/auth/feature-access-loader";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { getDemoUserId } from "@/lib/auth/demo-session";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
+import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
 import { CriticalAlertPopup } from "@/components/alerts/critical-alert-popup";
 import { canAccessRoute } from "@/lib/auth/permissions";
 import { redirect } from "next/navigation";
@@ -82,6 +83,7 @@ export default async function AppLayout({
             {children}
           </div>
           <InnovationHubBubble />
+          <AskFlowBubble />
           <CriticalAlertPopup
             count={criticalHeadlines.length}
             headlines={criticalHeadlines}
