@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { EmployeeScorecard } from "@/types/flow";
+import type { EmployeeScorecard, User } from "@/types/flow";
 import type { BadgeState, BadgeTier } from "@/lib/badges/badge-types";
 import { frameClassName } from "@/lib/badges/cosmetic-types";
 import { userDisplayInitials } from "@/lib/users/format";
@@ -40,14 +40,18 @@ const TIER_STYLES: Record<BadgeTier, string> = {
   bronze: "border-amber-700/50 bg-amber-700/10 text-amber-600",
   silver: "border-slate-400/50 bg-slate-400/10 text-slate-300",
   gold: "border-yellow-500/60 bg-yellow-500/10 text-yellow-500",
+  platinum: "border-cyan-400/60 bg-cyan-400/10 text-cyan-300",
 };
 
 export function GamificationPanel({
   scorecards,
   badgesByUser = {},
+  leads = [],
 }: {
   scorecards: EmployeeScorecard[];
   badgesByUser?: Record<string, BadgeState[]>;
+  /** Team leads & reviewers — they earn badges too (Gatekeeper, The Wall, …). */
+  leads?: { user: User; badges: BadgeState[] }[];
 }) {
   const earnedCount = (userId: string) =>
     (badgesByUser[userId] ?? []).filter((b) => b.earned).length;
@@ -130,6 +134,72 @@ export function GamificationPanel({
           work — frames and titles are cosmetics employees unlock and choose themselves.
         </p>
       </section>
+
+      {leads.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Leads &amp; reviewers</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {leads
+              .sort(
+                (a, b) =>
+                  b.badges.filter((x) => x.earned).length -
+                  a.badges.filter((x) => x.earned).length
+              )
+              .map(({ user, badges }) => {
+                const earned = badges.filter((b) => b.earned);
+                return (
+                  <Card key={user.id} className="border-border/60">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2.5 text-sm">
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground",
+                            frameClassName(user.avatar_frame)
+                          )}
+                        >
+                          {userDisplayInitials(user)}
+                        </div>
+                        <span className="min-w-0">
+                          {user.full_name}
+                          {user.flair_title && (
+                            <span className="block text-[10px] font-normal text-primary">
+                              {user.flair_title}
+                            </span>
+                          )}
+                        </span>
+                        <span className="ml-auto text-xs font-normal text-muted-foreground">
+                          {earned.length} earned
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      {earned.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          Nothing yet — first review earns Gatekeeper.
+                        </p>
+                      ) : (
+                        earned.map((b) => {
+                          const Icon = ICONS[b.icon] ?? Award;
+                          return (
+                            <Badge
+                              key={b.id}
+                              variant="outline"
+                              className={cn("gap-1 py-1", TIER_STYLES[b.tier])}
+                              title={b.description}
+                            >
+                              <Icon className="h-3 w-3" />
+                              {b.name}
+                            </Badge>
+                          );
+                        })
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Badge showcase</h2>

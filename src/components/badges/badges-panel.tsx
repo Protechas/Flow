@@ -54,6 +54,7 @@ const TIER_STYLES: Record<BadgeTier, string> = {
   bronze: "border-amber-700/50 bg-amber-700/10 text-amber-600",
   silver: "border-slate-400/50 bg-slate-400/10 text-slate-300",
   gold: "border-yellow-500/60 bg-yellow-500/10 text-yellow-500",
+  platinum: "border-cyan-400/60 bg-cyan-400/10 text-cyan-300",
 };
 
 function BadgeChip({ badge, size = "md" }: { badge: BadgeState; size?: "sm" | "md" }) {

@@ -22,34 +22,34 @@ export const COSMETIC_FRAMES: CosmeticFrame[] = [
   {
     id: "bronze_ring",
     label: "Bronze ring",
-    unlockCount: 2,
+    unlockCount: 3,
     className: "ring-2 ring-amber-600/80",
   },
   {
     id: "silver_ring",
     label: "Silver ring",
-    unlockCount: 5,
+    unlockCount: 8,
     className: "ring-2 ring-slate-300/90",
   },
   {
     id: "gold_ring",
     label: "Gold ring",
-    unlockCount: 8,
+    unlockCount: 14,
     className: "ring-2 ring-yellow-400",
   },
   {
     id: "nebula_glow",
     label: "Nebula glow",
-    unlockCount: 11,
+    unlockCount: 20,
     className: "ring-2 ring-primary shadow-[0_0_12px] shadow-primary/70",
   },
 ];
 
 export const COSMETIC_ACCENTS: CosmeticAccent[] = [
-  { id: "teal", label: "Teal", unlockCount: 3, value: "#14b8a6" },
-  { id: "amber", label: "Amber", unlockCount: 5, value: "#f59e0b" },
-  { id: "rose", label: "Rose", unlockCount: 7, value: "#f43f5e" },
-  { id: "emerald", label: "Emerald", unlockCount: 9, value: "#10b981" },
+  { id: "teal", label: "Teal", unlockCount: 4, value: "#14b8a6" },
+  { id: "amber", label: "Amber", unlockCount: 8, value: "#f59e0b" },
+  { id: "rose", label: "Rose", unlockCount: 12, value: "#f43f5e" },
+  { id: "emerald", label: "Emerald", unlockCount: 16, value: "#10b981" },
 ];
 
 export function frameClassName(frameId: string | null | undefined): string | null {

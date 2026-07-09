@@ -38,10 +38,20 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
-- **Leaderboard (July 8).** The Performance page leaderboard shows real badge
-  counts with tier-colored badge icons, avatar frames, and flair titles;
-  Flow Score still rules the ranking, with badge count breaking ties. The
-  badge showcase lists each employee''s earned badges.
+- **Leaderboard (July 8).** The Performance page (sidebar: Workforce →
+  Performance) leaderboard shows real badge counts with tier-colored badge
+  icons, avatar frames, and flair titles; Flow Score still rules the ranking,
+  with badge count breaking ties. Employees see the same board read-only at
+  Workspace → Leaderboard. A Leads & reviewers section shows badges earned by
+  team leads and managers.
+- **Badge catalog expanded (July 8).** 26 badges across tiered families —
+  bronze, silver, gold, and platinum: uploads (First Steps → Library Legend at
+  2,500), single-day volume (Big Day, Century Day), batches (First Batch →
+  Batch Overlord), QA passes (First Pass → Flawless), QA reviews performed
+  (Gatekeeper → The Wall — how leads earn), clock discipline (Early Bird, Dawn
+  Patrol, Timekeeper, Swiss Watch), report streaks (Paper Trail, Iron Streak),
+  task time (Marathon, Ultra), and ideas. Cosmetic unlock thresholds
+  rebalanced for the larger catalog (frames 3/8/14/20, accents 4/8/12/16).
 - **Cosmetic unlocks (July 8).** Badges unlock account cosmetics: avatar
   frames (Bronze ring at 2 badges up to Nebula glow at 11), a wearable title
   from any earned badge, and workspace accent colors (Teal at 3, Amber at 5,

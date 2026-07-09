@@ -10,7 +10,7 @@ import { PerformanceTrendChart } from "@/components/performance/performance-tren
 import { RankingsTable } from "@/components/performance/rankings-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import type { EmployeeScorecard, TeamPerformanceDashboard } from "@/types/flow";
+import type { EmployeeScorecard, TeamPerformanceDashboard, User } from "@/types/flow";
 import type { BadgeState } from "@/lib/badges/badge-types";
 import { Target, Users, Zap, Activity, Shield } from "lucide-react";
 
@@ -18,10 +18,12 @@ export function TeamPerformanceHub({
   dashboard,
   scorecards,
   badgesByUser = {},
+  leads = [],
 }: {
   dashboard: TeamPerformanceDashboard;
   scorecards: EmployeeScorecard[];
   badgesByUser?: Record<string, BadgeState[]>;
+  leads?: { user: User; badges: BadgeState[] }[];
 }) {
   return (
     <Tabs defaultValue="accountability">
@@ -41,7 +43,7 @@ export function TeamPerformanceHub({
       </TabsContent>
 
       <TabsContent value="leaderboard">
-        <GamificationPanel scorecards={scorecards} badgesByUser={badgesByUser} />
+        <GamificationPanel scorecards={scorecards} badgesByUser={badgesByUser} leads={leads} />
       </TabsContent>
 
       <TabsContent value="overview">

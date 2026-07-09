@@ -454,6 +454,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/work/files": "company_documents:view",
 
+  "/work/leaderboard": "work:view_own",
+
   "/executive": "dashboard:view",
 
   "/operations": ["work:view_all", "work:view_team", "work:assign"],
@@ -913,6 +915,8 @@ export const EMPLOYEE_NAV = [
 
   { href: "/work/files", label: "Files & SOPs", icon: "FileStack" },
 
+  { href: "/work/leaderboard", label: "Leaderboard", icon: "Trophy" },
+
   { href: "/scorecard", label: "My Scorecard", icon: "Award" },
 
   { href: "/docs", label: "Help & Docs", icon: "BookOpen" },
@@ -926,7 +930,8 @@ export function isEmployeeNavActive(href: string, pathname: string): boolean {
     return (
       pathname === "/work" ||
       (pathname.startsWith("/work/") &&
-        !pathname.startsWith("/work/files"))
+        !pathname.startsWith("/work/files") &&
+        !pathname.startsWith("/work/leaderboard"))
     );
   }
   if (href === "/work/files") {

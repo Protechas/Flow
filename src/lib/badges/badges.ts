@@ -86,7 +86,15 @@ function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
   const production = getProductionStore();
   const store = getFlowStore();
 
-  const uploads = production.taskFileUploads.filter((f) => f.user_id === userId).length;
+  const myUploads = production.taskFileUploads.filter((f) => f.user_id === userId);
+  const uploads = myUploads.length;
+  const uploadsByDay = new Map<string, number>();
+  for (const f of myUploads) {
+    const day = f.uploaded_at.slice(0, 10);
+    uploadsByDay.set(day, (uploadsByDay.get(day) ?? 0) + 1);
+  }
+  const bestUploadDay = Math.max(0, ...uploadsByDay.values());
+
   const submissions = production.taskSubmissions.filter((s) => s.user_id === userId);
   const batches = submissions.filter((s) => s.submission_type === "batch").length;
 
@@ -94,6 +102,7 @@ function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
   const qaPasses = production.qaReviewRecords.filter(
     (r) => myTaskIds.has(r.task_id) && r.status === "pass"
   ).length;
+  const reviewsDone = production.qaReviewRecords.filter((r) => r.reviewer_id === userId).length;
 
   const clockEntries = getClockEntriesForUser(userId, 90);
   const earlyDays = new Set(
@@ -107,6 +116,9 @@ function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
   const recentClock = clockEntries.filter((e) => e.clock_in_at.slice(0, 10) >= cutoff30);
   const cleanDays = new Set(recentClock.map((e) => e.clock_in_at.slice(0, 10))).size;
   const hasCorrections = recentClock.some((e) => e.edited_by && e.edited_by !== userId);
+  // Platinum window: the full 90-day fetch.
+  const cleanDays90 = new Set(clockEntries.map((e) => e.clock_in_at.slice(0, 10))).size;
+  const hasCorrections90 = clockEntries.some((e) => e.edited_by && e.edited_by !== userId);
 
   const wrapDates = new Set(
     store.dailyWrapUps.filter((w) => w.user_id === userId).map((w) => w.wrap_date)
@@ -120,20 +132,40 @@ function computeBadgesWithIdeas(userId: string, ideas: number): BadgeState[] {
     minutesByDay.set(day, (minutesByDay.get(day) ?? 0) + entry.total_active_minutes);
   }
   const bestDayMinutes = Math.max(0, ...minutesByDay.values());
+  const marathonDays = [...minutesByDay.values()].filter((m) => m >= 480).length;
+
+  const capped = (value: number, target: number) => ({
+    progress: Math.min(value, target),
+    target,
+  });
 
   const stats: Record<string, { progress: number; target: number }> = {
-    first_upload: { progress: Math.min(uploads, 1), target: 1 },
-    files_100: { progress: Math.min(uploads, 100), target: 100 },
-    files_500: { progress: Math.min(uploads, 500), target: 500 },
-    files_1000: { progress: Math.min(uploads, 1000), target: 1000 },
-    batch_10: { progress: Math.min(batches, 10), target: 10 },
-    qa_pass_1: { progress: Math.min(qaPasses, 1), target: 1 },
-    qa_pass_5: { progress: Math.min(qaPasses, 5), target: 5 },
-    early_bird: { progress: Math.min(earlyDays, 5), target: 5 },
-    report_streak_5: { progress: Math.min(streak, 5), target: 5 },
-    clean_month: { progress: hasCorrections ? 0 : Math.min(cleanDays, 20), target: 20 },
-    marathon: { progress: Math.min(bestDayMinutes, 480), target: 480 },
-    idea_1: { progress: Math.min(ideas, 1), target: 1 },
+    first_upload: capped(uploads, 1),
+    files_100: capped(uploads, 100),
+    files_500: capped(uploads, 500),
+    files_1000: capped(uploads, 1000),
+    files_2500: capped(uploads, 2500),
+    big_day: capped(bestUploadDay, 60),
+    century_day: capped(bestUploadDay, 100),
+    batch_1: capped(batches, 1),
+    batch_10: capped(batches, 10),
+    batch_50: capped(batches, 50),
+    qa_pass_1: capped(qaPasses, 1),
+    qa_pass_5: capped(qaPasses, 5),
+    qa_pass_25: capped(qaPasses, 25),
+    review_1: capped(reviewsDone, 1),
+    review_25: capped(reviewsDone, 25),
+    review_100: capped(reviewsDone, 100),
+    early_bird: capped(earlyDays, 5),
+    dawn_patrol: capped(earlyDays, 20),
+    clean_month: capped(hasCorrections ? 0 : cleanDays, 20),
+    swiss_watch: capped(hasCorrections90 ? 0 : cleanDays90, 45),
+    report_streak_5: capped(streak, 5),
+    report_streak_20: capped(streak, 20),
+    marathon: capped(bestDayMinutes, 480),
+    marathon_5: capped(marathonDays, 5),
+    idea_1: capped(ideas, 1),
+    idea_5: capped(ideas, 5),
   };
 
   return BADGE_DEFINITIONS.map((def) => {
