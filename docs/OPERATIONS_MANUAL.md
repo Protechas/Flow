@@ -38,6 +38,15 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Badges (July 8).** Employees earn achievement badges automatically from
+  their real work — Century Club (100 uploads), QA Darling (5 passes), Early
+  Bird, Paper Trail (report streak), Timekeeper (30 clean days), and more.
+  The workspace shows earned badges plus the next one within reach.
+- **Auto-captured incidents (July 8).** The Evaluation panel now itemizes
+  every event the system can see — clock punches a manager corrected (with
+  the reason), clocked days without a daily report, QA returns — as
+  auto-captured entries merged with the manual log and tagged AUTO. Manual
+  logging remains for what systems can't see (conduct, attendance).
 - **Workspace coach (July 8).** The employee workspace shows nudges when
   something needs attention: clocked in with no timer running, a pile of files
   ready to batch to QA, a long shift with no daily report, or a QA return

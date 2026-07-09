@@ -23,6 +23,8 @@ import { getTodayVisibilityForUser } from "@/lib/work-visibility/calculator";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import { computeCoachNudges, resolveCoachPersona } from "@/lib/coach/nudges";
+import { BadgesPanel } from "@/components/badges/badges-panel";
+import { computeBadges } from "@/lib/badges/badges";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -44,6 +46,7 @@ export default async function EmployeeWorkPage() {
   }
 
   const coachNudges = computeCoachNudges(user);
+  const badges = await computeBadges(user.id);
 
   return (
     <>
@@ -66,6 +69,9 @@ export default async function EmployeeWorkPage() {
       visibilityToday={getTodayVisibilityForUser(user.id)}
       pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
     />
+      <div className="mt-4">
+        <BadgesPanel badges={badges} />
+      </div>
     </>
   );
 }

@@ -29,13 +29,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import {
   INCIDENT_CATEGORY_LABELS,
+  type AutoIncident,
   type EmployeeIncident,
   type EvaluationSignals,
   type IncidentCategory,
   type IncidentSeverity,
 } from "@/lib/people/employee-evaluation-types";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, ClipboardList, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Zap } from "lucide-react";
 
 const SEVERITY_STYLES: Record<IncidentSeverity, string> = {
   minor: "border-border/60 text-muted-foreground",
@@ -74,14 +75,20 @@ function SignalTile({
   );
 }
 
+type TimelineItem =
+  | { kind: "auto"; incident: AutoIncident }
+  | { kind: "manual"; incident: EmployeeIncident };
+
 export function EmployeeEvaluationPanel({
   employeeId,
   signals,
   incidents,
+  autoIncidents = [],
 }: {
   employeeId: string;
   signals: EvaluationSignals;
   incidents: EmployeeIncident[];
+  autoIncidents?: AutoIncident[];
 }) {
   const router = useRouter();
   const { toast } = useFlowToast();
@@ -143,65 +150,74 @@ export function EmployeeEvaluationPanel({
         <SignalTile label="Clock corrections (90d)" value={signals.clockCorrections} />
         <SignalTile label="Missed daily reports (30d)" value={signals.missedWrapUps} />
         <SignalTile label="QA corrections" value={signals.qaCorrections} />
-        <SignalTile label="Incidents logged" value={incidents.length} />
+        <SignalTile label="Auto-captured" value={autoIncidents.length} />
       </div>
 
-      {signals.clockCorrectionDetails.length > 0 && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
-          <p className="mb-1 flex items-center gap-1.5 font-semibold text-amber-500">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Recent clock corrections
-          </p>
-          <ul className="space-y-0.5 text-muted-foreground">
-            {signals.clockCorrectionDetails.map((c, i) => (
-              <li key={i}>
-                {c.date} — {c.editor}: “{c.reason}”
+      {(() => {
+        const timeline: TimelineItem[] = [
+          ...autoIncidents.map((incident) => ({ kind: "auto" as const, incident })),
+          ...incidents.map((incident) => ({ kind: "manual" as const, incident })),
+        ].sort((a, b) => b.incident.occurred_on.localeCompare(a.incident.occurred_on));
+
+        if (timeline.length === 0) {
+          return (
+            <p className="text-sm text-muted-foreground">
+              Nothing on record — no auto-captured events, no logged incidents. Clean slate.
+            </p>
+          );
+        }
+        return (
+          <ul className="max-h-80 divide-y divide-border/40 overflow-y-auto">
+            {timeline.map((item, i) => (
+              <li key={i} className="flex flex-wrap items-start gap-2 py-2.5">
+                <Badge
+                  variant="outline"
+                  className={cn("text-[10px]", SEVERITY_STYLES[item.incident.severity])}
+                >
+                  {item.incident.severity}
+                </Badge>
+                <Badge variant="outline" className="text-[10px]">
+                  {INCIDENT_CATEGORY_LABELS[item.incident.category]}
+                </Badge>
+                {item.kind === "auto" && (
+                  <Badge
+                    variant="outline"
+                    className="gap-0.5 border-primary/40 text-[10px] text-primary"
+                  >
+                    <Zap className="h-2.5 w-2.5" />
+                    auto
+                  </Badge>
+                )}
+                <div className="min-w-48 flex-1">
+                  <p className="text-sm font-medium">{item.incident.summary}</p>
+                  {item.kind === "auto" && item.incident.detail && (
+                    <p className="text-xs text-muted-foreground">{item.incident.detail}</p>
+                  )}
+                  {item.kind === "manual" && item.incident.notes && (
+                    <p className="text-xs text-muted-foreground">{item.incident.notes}</p>
+                  )}
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {item.incident.occurred_on}
+                    {item.kind === "manual" &&
+                      ` · logged by ${item.incident.created_by_name ?? "Unknown"}`}
+                  </p>
+                </div>
+                {item.kind === "manual" && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Remove incident"
+                    disabled={pending}
+                    onClick={() => remove(item.incident.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {incidents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No incidents logged. Automatic signals above still count clock corrections, missed
-          reports, and QA returns.
-        </p>
-      ) : (
-        <ul className="divide-y divide-border/40">
-          {incidents.map((incident) => (
-            <li key={incident.id} className="flex flex-wrap items-start gap-2 py-2.5">
-              <Badge
-                variant="outline"
-                className={cn("text-[10px]", SEVERITY_STYLES[incident.severity])}
-              >
-                {incident.severity}
-              </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                {INCIDENT_CATEGORY_LABELS[incident.category]}
-              </Badge>
-              <div className="min-w-48 flex-1">
-                <p className="text-sm font-medium">{incident.summary}</p>
-                {incident.notes && (
-                  <p className="text-xs text-muted-foreground">{incident.notes}</p>
-                )}
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {incident.occurred_on} · logged by {incident.created_by_name ?? "Unknown"}
-                </p>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Remove incident"
-                disabled={pending}
-                onClick={() => remove(incident.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+        );
+      })()}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

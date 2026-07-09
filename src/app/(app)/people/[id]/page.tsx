@@ -28,6 +28,7 @@ import {
 } from "@/lib/time-clock/record-filters";
 import { EmployeeEvaluationPanel } from "@/components/people/employee-evaluation-panel";
 import {
+  computeAutoIncidents,
   computeEvaluationSignals,
   listEmployeeIncidents,
 } from "@/lib/people/employee-evaluation";
@@ -115,11 +116,13 @@ export default async function PersonPage({
         canViewerSeeUser(viewer, id, storeUsers, getFlowStore().teams)));
   let evaluationSignals = null;
   let incidents: Awaited<ReturnType<typeof listEmployeeIncidents>> = [];
+  let autoIncidents: ReturnType<typeof computeAutoIncidents> = [];
   if (canEvaluate) {
     await ensureAppDataLoaded();
     initProductionTracking();
     evaluationSignals = computeEvaluationSignals(id);
     incidents = await listEmployeeIncidents(id);
+    autoIncidents = computeAutoIncidents(id);
   }
 
   return (
@@ -141,6 +144,7 @@ export default async function PersonPage({
             employeeId={id}
             signals={evaluationSignals}
             incidents={incidents}
+            autoIncidents={autoIncidents}
           />
         </div>
       )}

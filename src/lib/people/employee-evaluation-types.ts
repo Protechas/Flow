@@ -37,6 +37,16 @@ export interface EmployeeIncident {
   created_at: string;
 }
 
+/** An incident detected automatically from operational data — never typed in
+ * by anyone, always reflecting the current records. */
+export interface AutoIncident {
+  category: IncidentCategory;
+  severity: IncidentSeverity;
+  summary: string;
+  detail: string | null;
+  occurred_on: string;
+}
+
 /** Automatic evaluation signals computed from existing operational data. */
 export interface EvaluationSignals {
   /** Clock punches corrected or added by someone else (last 90 days). */

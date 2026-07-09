@@ -10,6 +10,7 @@ import {
 import { listWorkPackages } from "@/lib/data/work-packages";
 
 import type {
+  AutoIncident,
   EmployeeIncident,
   EvaluationSignals,
   IncidentCategory,
@@ -17,6 +18,7 @@ import type {
 } from "@/lib/people/employee-evaluation-types";
 
 export type {
+  AutoIncident,
   EmployeeIncident,
   EvaluationSignals,
   IncidentCategory,
@@ -123,6 +125,72 @@ export async function deleteEmployeeIncident(id: string): Promise<void> {
   if (!supabase) throw new Error("Service role client unavailable");
   const { error } = await supabase.from("employee_incidents").delete().eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+/** Auto-captured incidents: every "something wasn't right" event the system
+ * can see, itemized from operational data. Nothing is written to a table —
+ * this always reflects the live records, so it needs no upkeep and covers
+ * history retroactively. Store must be hydrated. */
+export function computeAutoIncidents(employeeId: string): AutoIncident[] {
+  initFlowStore();
+  initProductionTracking();
+  const store = getFlowStore();
+  const incidents: AutoIncident[] = [];
+
+  // Clock punches a manager had to fix or add (last 90 days).
+  const entries = getClockEntriesForUser(employeeId, 90);
+  for (const entry of entries) {
+    if (!entry.edited_by || entry.edited_by === employeeId) continue;
+    const editor = store.users.find((u) => u.id === entry.edited_by)?.full_name ?? "a manager";
+    incidents.push({
+      category: "time_clock",
+      severity: "minor",
+      summary: `Clock punch corrected by ${editor}`,
+      detail: entry.edit_reason ? `“${entry.edit_reason}”` : null,
+      occurred_on: entry.clock_in_at.slice(0, 10),
+    });
+  }
+
+  // Clocked days without a daily report (last 30 days, today excluded).
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const wrapDays = new Set(
+    store.dailyWrapUps
+      .filter((w) => w.user_id === employeeId && w.wrap_date >= cutoff)
+      .map((w) => w.wrap_date)
+  );
+  const clockDays = new Set(
+    entries
+      .filter((e) => e.clock_in_at.slice(0, 10) >= cutoff)
+      .map((e) => e.clock_in_at.slice(0, 10))
+  );
+  for (const day of clockDays) {
+    if (day === today || wrapDays.has(day)) continue;
+    incidents.push({
+      category: "daily_report",
+      severity: "minor",
+      summary: "Clocked in with no daily report",
+      detail: null,
+      occurred_on: day,
+    });
+  }
+
+  // QA returns on their tasks.
+  const tasks = listWorkPackages({ assignedTo: employeeId });
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  for (const review of getProductionStore().qaReviewRecords) {
+    const task = taskById.get(review.task_id);
+    if (!task || review.status === "pass") continue;
+    incidents.push({
+      category: "qa_quality",
+      severity: review.status === "rejected" ? "serious" : "moderate",
+      summary: `QA returned "${task.title}" (${review.status.replace(/_/g, " ")})`,
+      detail: review.correction_reason ?? review.notes,
+      occurred_on: review.reviewed_at.slice(0, 10),
+    });
+  }
+
+  return incidents.sort((a, b) => b.occurred_on.localeCompare(a.occurred_on));
 }
 
 /** Compute automatic signals from clock entries, wrap-ups, and QA data (store must be hydrated). */
