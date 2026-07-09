@@ -23,9 +23,13 @@ export const VALIDATION_ENGINES: ValidationEngineDefinition[] = [
   {
     id: "id3_validation",
     label: "ID³ Validation",
-    description: "Validate ID³ deliverables against program requirements.",
-    status: "future",
-    inputRoles: [],
+    description:
+      "Compare a manufacturer chart against the rules workbook — coverage gaps, rule mismatches, and unruled entries.",
+    status: "active",
+    inputRoles: [
+      { role: "manufacturer_chart", label: "Manufacturer Chart", required: true },
+      { role: "onedrive_export", label: "Rules Workbook", required: true },
+    ],
   },
   {
     id: "oem_validation",

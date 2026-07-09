@@ -470,6 +470,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/qa-center/upload": ["validation:create", "validation:view"],
 
+  "/qa-center/id3": ["validation:create", "validation:view"],
+
+  "/qa-center/library": "validation:view",
+
   "/qa-center/validation": "validation:view",
 
   "/qa-center/validation/new": "validation:create",
@@ -603,6 +607,10 @@ export const ROUTE_ROLE_ALLOWLIST: Partial<Record<string, UserRole[]>> = {
   "/qa-center": ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"],
 
   "/qa-center/upload": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/id3": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
+
+  "/qa-center/library": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 
   "/qa-center/validation": ["admin", "super_admin", "senior_manager", "manager", "teamlead"],
 

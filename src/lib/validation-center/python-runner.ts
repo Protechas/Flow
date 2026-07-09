@@ -78,8 +78,16 @@ export interface LibraryValidationJobInput {
   audits: { manufacturer: string; workbook_b64: string }[];
 }
 
+export interface Id3ValidationJobInput {
+  job_type: "id3_validation";
+  mc_bytes_b64: string;
+  rules_bytes_b64: string;
+  mc_filename: string;
+  rules_filename: string;
+}
+
 export async function runSiLibraryAuditJob(
-  input: PythonJobInput | LibraryValidationJobInput
+  input: PythonJobInput | LibraryValidationJobInput | Id3ValidationJobInput
 ): Promise<PythonJobResult> {
   const engineRoot = resolveEngineRoot();
   const candidates = resolvePythonCandidates();

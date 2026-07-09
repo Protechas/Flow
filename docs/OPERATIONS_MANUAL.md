@@ -38,6 +38,14 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **ID³ Validation (July 9).** New QA Center section: upload a manufacturer
+  chart and the rules workbook (Excel), and the engine compares them row by
+  row — rule mismatches, entries missing from the chart, and chart entries no
+  rule covers — with a compliance rate, findings, and a downloadable results
+  workbook. Runs queue through the audit worker like all engine runs.
+- **QA Center navigation (July 9).** The section bar no longer sprawls across
+  the page: Dashboard and ID³ Validation stay as pills, and the Review and
+  Audit Engine wings are dropdown menus showing the active page.
 - **Single focus (July 9).** One task in progress at a time: starting or
   resuming a task automatically returns any other in-progress task to the
   queue (top of Up Next, files and time intact). No more hidden second

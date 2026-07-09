@@ -2,6 +2,7 @@
 
 export type QaCenterNavId =
   | "dashboard"
+  | "id3"
   | "upload"
   | "validation"
   | "library"

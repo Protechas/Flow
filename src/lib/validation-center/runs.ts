@@ -157,11 +157,15 @@ export async function createValidationRun(input: {
   mc_file?: { name: string; buffer: Buffer; mime_type: string } | null;
   export_file: { name: string; buffer: Buffer; mime_type: string };
 }): Promise<ValidationRunView> {
-  if (input.engine_id !== "si_library_audit" && input.engine_id !== "si_library_external") {
+  if (
+    input.engine_id !== "si_library_audit" &&
+    input.engine_id !== "si_library_external" &&
+    input.engine_id !== "id3_validation"
+  ) {
     throw new Error("This validation engine is not available yet");
   }
-  if (input.engine_id === "si_library_audit" && !input.mc_file) {
-    throw new Error("Manufacturer chart file is required for an SI Library Audit");
+  if (input.engine_id !== "si_library_external" && !input.mc_file) {
+    throw new Error("Manufacturer chart file is required for this engine");
   }
   if (
     (input.mc_file && input.mc_file.buffer.length > MAX_UPLOAD_BYTES) ||
@@ -183,7 +187,9 @@ export async function createValidationRun(input: {
     title:
       input.engine_id === "si_library_external"
         ? `Library Validation — ${input.export_file.name}`
-        : `SI Library Audit — ${input.mc_file!.name}`,
+        : input.engine_id === "id3_validation"
+          ? `ID³ Validation — ${input.mc_file!.name}`
+          : `SI Library Audit — ${input.mc_file!.name}`,
     compliance_rate: null,
     run_summary: {
       engine_id: input.engine_id,
@@ -366,6 +372,17 @@ export async function processValidationJob(runId: string): Promise<void> {
         export_bytes_b64: exportBuffer.toString("base64"),
         export_filename: exportFile.file_name,
         audits,
+      });
+    } else if (run.engine_id === "id3_validation") {
+      // ID3: compare the manufacturer chart against the rules workbook
+      // (stored in the export slot).
+      const mcBuffer = await getValidationFileBuffer(mcFile!);
+      result = await runSiLibraryAuditJob({
+        job_type: "id3_validation",
+        mc_bytes_b64: mcBuffer.toString("base64"),
+        rules_bytes_b64: exportBuffer.toString("base64"),
+        mc_filename: mcFile!.file_name,
+        rules_filename: exportFile.file_name,
       });
     } else {
       const mcBuffer = await getValidationFileBuffer(mcFile!);

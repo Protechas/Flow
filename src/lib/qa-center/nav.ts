@@ -16,6 +16,14 @@ export const QA_CENTER_NAV: QaCenterNavItem[] = [
     wing: null,
     permissions: ["validation:view", "qa:view"],
   },
+  {
+    id: "id3",
+    href: "/qa-center/id3",
+    label: "ID³ Validation",
+    description: "Compare manufacturer charts against the rules workbook",
+    wing: null,
+    permissions: ["validation:view"],
+  },
   // ——— Review wing: human QA of submitted work ———
   {
     id: "review",

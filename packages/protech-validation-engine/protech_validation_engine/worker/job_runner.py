@@ -148,10 +148,58 @@ def _run_library_validation(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _run_id3_validation(payload: dict[str, Any]) -> dict[str, Any]:
+    from protech_validation_engine.si_library.id3_validation import (
+        compare_chart_to_rules,
+        write_id3_workbook,
+    )
+
+    chart_bytes = base64.b64decode(payload["mc_bytes_b64"])
+    rules_bytes = base64.b64decode(payload["rules_bytes_b64"])
+
+    result = compare_chart_to_rules(
+        chart_bytes,
+        rules_bytes,
+        chart_filename=str(payload.get("mc_filename") or ""),
+        rules_filename=str(payload.get("rules_filename") or ""),
+    )
+
+    checked = result.matched + result.mismatched + result.not_covered_by_rules
+    compliance_rate = round((result.matched / checked) * 100, 1) if checked else None
+    workbook = write_id3_workbook(result)
+
+    return {
+        "status": "completed",
+        "run_summary": {
+            "engine_id": "id3_validation",
+            "manufacturer": None,
+            "compliance_rate": compliance_rate,
+            "expected_deliverables": result.rule_rows,
+            "passing_compliance": result.matched,
+            "needs_review": result.mismatched
+            + result.missing_from_chart
+            + result.not_covered_by_rules,
+            "executive_summary": (
+                f"Compared {result.chart_rows} chart rows against {result.rule_rows} rules: "
+                f"{result.matched} compliant, {result.mismatched} rule mismatches, "
+                f"{result.missing_from_chart} missing from the chart, "
+                f"{result.not_covered_by_rules} not covered by any rule."
+            ),
+            "key_columns": result.key_columns,
+            "compared_columns": result.value_columns,
+        },
+        "findings": result.findings,
+        "workbook_b64": base64.b64encode(workbook.getvalue()).decode("ascii"),
+        "workbook_filename": "ID3_Validation_Results.xlsx",
+    }
+
+
 def run_job(payload: dict[str, Any]) -> dict[str, Any]:
     job_type = str(payload.get("job_type") or "si_library_audit")
     if job_type == "library_validation":
         return _run_library_validation(payload)
+    if job_type == "id3_validation":
+        return _run_id3_validation(payload)
     return _run_si_library_audit(payload)
 
 
