@@ -38,6 +38,11 @@
   and uploads (1 uploaded file = 1 completed document); submit→QA statuses
   persist reliably; task time totals sum every session (starting a new timer
   no longer "resets" the total); theme is the Nebula indigo-blue dark look.
+- **Employee preview (July 8).** Leads and managers have an "Employee view"
+  button in the header that flips them into the employee shell — their own
+  identity, the exact UI the team sees (workspace, coach, badges,
+  leaderboard). An amber banner marks the mode with one-click exit. Note:
+  it is your real account — clocking in or submitting in preview is real.
 - **Leaderboard (July 8).** The Performance page (sidebar: Workforce →
   Performance) leaderboard shows real badge counts with tier-colored badge
   icons, avatar frames, and flair titles; Flow Score still rules the ranking,

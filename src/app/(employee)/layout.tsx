@@ -11,6 +11,11 @@ import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
 import { accentValue } from "@/lib/badges/cosmetic-types";
+import {
+  canUseEmployeePreview,
+  isEmployeePreviewActive,
+} from "@/lib/auth/employee-preview";
+import { EmployeePreviewBanner } from "@/components/employee/employee-preview-banner";
 import { redirect } from "next/navigation";
 
 export default async function EmployeeLayout({
@@ -23,7 +28,14 @@ export default async function EmployeeLayout({
   // Must mirror the (app) layout's isEmployeeUser check — deriving from the
   // legacy role column here while (app) uses the effective permission role
   // sent mismatched accounts into a /work ↔ /operations redirect loop.
-  if (!isEmployeeUser(user)) redirect(getDefaultRoute(getEffectivePermissionRole(user)));
+  // Exception: leads/managers in employee-preview mode see this shell.
+  const previewMode =
+    !isEmployeeUser(user) &&
+    canUseEmployeePreview(user) &&
+    (await isEmployeePreviewActive());
+  if (!isEmployeeUser(user) && !previewMode) {
+    redirect(getDefaultRoute(getEffectivePermissionRole(user)));
+  }
 
   if (isSupabaseConfigured()) {
     await ensureAppDataLoaded();
@@ -45,6 +57,7 @@ export default async function EmployeeLayout({
       className="min-h-screen flex flex-col"
       style={accent ? ({ "--primary": accent } as React.CSSProperties) : undefined}
     >
+      {previewMode && <EmployeePreviewBanner />}
       <EmployeeHeader
         user={user}
         demoMode={demoMode && hasDemoCookie}

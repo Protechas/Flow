@@ -2,6 +2,10 @@ import { canAccessPathWithFeatureAccess, hasFeaturePermission } from "@/lib/auth
 import { loadUserFeatureAccess } from "@/lib/auth/feature-access-loader";
 import { getEffectivePermissionRole, hasAdminAccess } from "@/lib/auth/access-level";
 import { canAccessRoute, getDefaultRoute, hasPermission, type Permission } from "@/lib/auth/permissions";
+import {
+  isEmployeePreviewActive,
+  isEmployeePreviewRoute,
+} from "@/lib/auth/employee-preview";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getUserPermissionOverrides } from "@/lib/data/permission-profiles-db";
 import { canViewerSeeUser } from "@/lib/auth/team-scope";
@@ -15,10 +19,20 @@ export async function requirePageAccess(pathname: string): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!user.is_active) redirect("/login");
-  if (!canAccessRoute(getEffectivePermissionRole(user), pathname)) redirect("/unauthorized");
 
-  const snapshot = await loadUserFeatureAccess(user);
-  if (!canAccessPathWithFeatureAccess(snapshot, pathname)) redirect("/unauthorized");
+  // Leads/managers in employee-preview mode may open the employee shell —
+  // their own identity, the employee surface only.
+  const previewBypass =
+    isEmployeePreviewRoute(pathname) &&
+    getEffectivePermissionRole(user) !== "employee" &&
+    (await isEmployeePreviewActive());
+
+  if (!previewBypass) {
+    if (!canAccessRoute(getEffectivePermissionRole(user), pathname)) redirect("/unauthorized");
+
+    const snapshot = await loadUserFeatureAccess(user);
+    if (!canAccessPathWithFeatureAccess(snapshot, pathname)) redirect("/unauthorized");
+  }
 
   await ensureAppDataLoaded();
   return user;

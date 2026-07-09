@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
+import { enterEmployeePreviewAction } from "@/app/actions/employee-preview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { roleLabel } from "@/lib/constants";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { getPageTitle } from "@/lib/navigation/page-titles";
-import { LogOut, Search } from "lucide-react";
+import { Eye, LogOut, Search } from "lucide-react";
 import type { User } from "@/types/flow";
 
 interface AppHeaderProps {
@@ -52,6 +53,17 @@ export function AppHeader({ user, demoMode }: AppHeaderProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => startTransition(() => enterEmployeePreviewAction())}
+          className="hidden h-8 gap-1.5 text-xs sm:inline-flex"
+          title="See Flow the way your team sees it"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Employee view
+        </Button>
         <ThemeSwitcher compact />
         <NotificationBell />
         {demoMode && (
