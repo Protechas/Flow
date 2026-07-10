@@ -2106,17 +2106,34 @@
   pointer-events: none;
   z-index: 0;
 }
+/* Ripple field: concentric rings radiating from the card across the whole
+   scene — brightest near the center, fading toward the corners. */
 .flow-login-scene::after {
   content: "";
   position: absolute;
-  left: 50%;
-  top: 42%;
-  width: min(52rem, 104vw);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  border-radius: 9999px;
-  border: 1px solid rgba(102, 165, 255, 0.1);
-  animation: flow-login-ring-breathe 7s ease-in-out infinite reverse;
+  inset: 0;
+  background: repeating-radial-gradient(
+    circle at 50% 42%,
+    rgba(102, 165, 255, 0.16) 0px,
+    rgba(102, 165, 255, 0.16) 1px,
+    transparent 1px,
+    transparent 110px
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 42%,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.55) 40%,
+    rgba(0, 0, 0, 0.22) 75%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  mask-image: radial-gradient(
+    circle at 50% 42%,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.55) 40%,
+    rgba(0, 0, 0, 0.22) 75%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  animation: flow-login-ripple-breathe 9s ease-in-out infinite;
   pointer-events: none;
   z-index: 0;
 }
@@ -2127,6 +2144,10 @@
 @keyframes flow-login-ring-breathe {
   0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
   50% { opacity: 1; transform: translate(-50%, -50%) scale(1.015); }
+}
+@keyframes flow-login-ripple-breathe {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
 }
 .flow-login-card {
   border: 1px solid rgba(147, 180, 255, 0.14);
