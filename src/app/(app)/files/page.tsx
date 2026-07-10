@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CompanyDocumentsPanel } from "@/components/files/company-documents-panel";
 import { TaskFilesBrowser, type TaskFileGroup } from "@/components/files/task-files-browser";
 import {
@@ -7,25 +8,33 @@ import {
   PLATFORM_EYEBROWS,
   WorkspaceContainer,
 } from "@/components/platform";
+import { Button } from "@/components/ui/button";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
 import { listCompanyDocuments } from "@/lib/files/company-documents";
+import { listDocumentFolders } from "@/lib/files/document-folders";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getAllTaskFileUploads, initProductionTracking } from "@/lib/data/production-tracking";
 import { taskFileHasContent } from "@/lib/files/download";
-import { FileStack } from "lucide-react";
+import { BookOpen, FileStack } from "lucide-react";
 
 export default async function FilesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ taskId?: string }>;
+  searchParams: Promise<{ taskId?: string; tab?: string }>;
 }) {
   const user = await requirePageAccess("/files");
-  const { taskId } = await searchParams;
+  const { taskId, tab } = await searchParams;
   const highlightTaskId = taskId?.trim();
   const canManage = hasPermission(user.role, "company_documents:manage");
+  const showTaskUploads = hasPermission(user.role, "dashboard:view");
+
+  // Task-upload deep links (e.g. from a task workspace) land on that tab.
+  const activeTab =
+    showTaskUploads && (tab === "tasks" || highlightTaskId) ? "tasks" : "library";
 
   const documents = await listCompanyDocuments().catch(() => []);
+  const folders = await listDocumentFolders().catch(() => []);
 
   initFlowStore();
   initProductionTracking();
@@ -33,7 +42,6 @@ export default async function FilesPage({
   const uploads = getAllTaskFileUploads().sort(
     (a, b) => b.uploaded_at.localeCompare(a.uploaded_at)
   );
-  const showTaskUploads = hasPermission(user.role, "dashboard:view");
 
   // Group per task; the browser component handles search, project filters,
   // and expand/collapse so a thousand uploads never render as one flat list.
@@ -90,20 +98,39 @@ export default async function FilesPage({
         />
       }
       workspace={
-        <WorkspaceContainer elevated={false} bodyClassName="space-y-10 p-0">
-          <section>
-            <CompanyDocumentsPanel documents={documents} canManage={canManage} />
-          </section>
-
+        <WorkspaceContainer elevated={false} bodyClassName="space-y-4 p-0">
           {showTaskUploads && (
+            <div className="flex items-center gap-2 px-1">
+              <Button
+                variant={activeTab === "library" ? "secondary" : "ghost"}
+                size="sm"
+                render={<Link href="/files" prefetch={false} />}
+              >
+                <BookOpen className="mr-1.5 h-4 w-4" />
+                Document Library
+              </Button>
+              <Button
+                variant={activeTab === "tasks" ? "secondary" : "ghost"}
+                size="sm"
+                render={<Link href="/files?tab=tasks" prefetch={false} />}
+              >
+                <FileStack className="mr-1.5 h-4 w-4" />
+                Task Uploads
+                <span className="ml-1.5 text-xs text-muted-foreground">{uploads.length}</span>
+              </Button>
+            </div>
+          )}
+
+          {activeTab === "library" ? (
+            <section>
+              <CompanyDocumentsPanel
+                documents={documents}
+                folders={folders}
+                canManage={canManage}
+              />
+            </section>
+          ) : (
             <section className="space-y-4">
-              <div className="flex items-center gap-2 px-1">
-                <FileStack className="h-4 w-4 text-muted-foreground" />
-                <h2 className="enterprise-section-title mb-0">Task file uploads</h2>
-                <span className="text-xs text-muted-foreground">
-                  {uploads.length} files across {taskGroups.length} tasks
-                </span>
-              </div>
               {uploads.length === 0 ? (
                 <EmptyState
                   icon={FileStack}

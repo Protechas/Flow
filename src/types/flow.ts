@@ -733,19 +733,36 @@ export interface FlowFile {
 
 export type CompanyDocumentCategory = "sop" | "policy" | "reference" | "other";
 
+export interface DocumentFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CompanyDocument {
   id: string;
   title: string;
   description?: string | null;
   category: CompanyDocumentCategory;
+  folder_id: string | null;
+  tags: string[];
   file_name: string;
   storage_path: string;
   file_size: number;
   mime_type: string;
   uploaded_by: string;
   created_at: string;
+  /** When set, the doc has an in-Flow edited copy (content itself is fetched separately). */
+  content_updated_at?: string | null;
+  content_updated_by?: string | null;
   /** Demo / local fallback only */
   file_data_base64?: string;
+  /** Demo / local fallback only — in-Flow edited copy */
+  content_html_memory?: string | null;
 }
 
 export interface CompanyDocumentView extends CompanyDocument {

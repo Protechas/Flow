@@ -12,6 +12,10 @@ import { getCompanyDocumentMaxBytes, formatUploadLimitLabel } from "@/lib/files/
 
 const BUCKET = "company-documents";
 
+/** List queries never fetch content_html — it can be large; the editor fetches it per-doc. */
+const LIST_COLUMNS =
+  "id, title, description, category, folder_id, tags, file_name, storage_path, file_size, mime_type, uploaded_by, created_at, content_updated_at, content_updated_by";
+
 let memoryDocuments: CompanyDocument[] = [];
 
 function ts() {
@@ -22,18 +26,31 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-() ]+/g, "_").slice(0, 180);
 }
 
+export function normalizeTags(tags: string[]): string[] {
+  const seen = new Set<string>();
+  for (const raw of tags) {
+    const tag = raw.trim().toLowerCase().slice(0, 40);
+    if (tag) seen.add(tag);
+  }
+  return [...seen].slice(0, 12);
+}
+
 function mapRow(row: Record<string, unknown>): CompanyDocument {
   return {
     id: String(row.id),
     title: String(row.title),
     description: row.description ? String(row.description) : null,
     category: String(row.category) as CompanyDocumentCategory,
+    folder_id: row.folder_id != null ? String(row.folder_id) : null,
+    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     file_name: String(row.file_name),
     storage_path: String(row.storage_path),
     file_size: Number(row.file_size ?? 0),
     mime_type: String(row.mime_type ?? "application/octet-stream"),
     uploaded_by: String(row.uploaded_by),
     created_at: String(row.created_at),
+    content_updated_at: row.content_updated_at != null ? String(row.content_updated_at) : null,
+    content_updated_by: row.content_updated_by != null ? String(row.content_updated_by) : null,
   };
 }
 
@@ -57,7 +74,7 @@ export async function listCompanyDocuments(): Promise<CompanyDocumentView[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_documents")
-    .select("*")
+    .select(LIST_COLUMNS)
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -74,7 +91,7 @@ export async function getCompanyDocumentById(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_documents")
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("id", id)
     .maybeSingle();
 
@@ -86,6 +103,8 @@ export async function uploadCompanyDocument(input: {
   title: string;
   description?: string;
   category: CompanyDocumentCategory;
+  folder_id?: string | null;
+  tags?: string[];
   file_name: string;
   mime_type: string;
   file_size: number;
@@ -101,6 +120,8 @@ export async function uploadCompanyDocument(input: {
   const id = randomUUID();
   const safeName = sanitizeFileName(input.file_name);
   const storagePath = `${input.uploaded_by}/${id}-${safeName}`;
+  const tags = normalizeTags(input.tags ?? []);
+  const folderId = input.folder_id ?? null;
 
   if (!isSupabaseConfigured()) {
     const doc: CompanyDocument = {
@@ -108,12 +129,16 @@ export async function uploadCompanyDocument(input: {
       title: input.title.trim(),
       description: input.description?.trim() || null,
       category: input.category,
+      folder_id: folderId,
+      tags,
       file_name: input.file_name,
       storage_path: storagePath,
       file_size: input.file_size,
       mime_type: input.mime_type,
       uploaded_by: input.uploaded_by,
       created_at: ts(),
+      content_updated_at: null,
+      content_updated_by: null,
       file_data_base64: input.buffer.toString("base64"),
     };
     memoryDocuments = [doc, ...memoryDocuments];
@@ -137,13 +162,15 @@ export async function uploadCompanyDocument(input: {
       title: input.title.trim(),
       description: input.description?.trim() || null,
       category: input.category,
+      folder_id: folderId,
+      tags,
       file_name: input.file_name,
       storage_path: storagePath,
       file_size: input.file_size,
       mime_type: input.mime_type,
       uploaded_by: input.uploaded_by,
     })
-    .select("*")
+    .select(LIST_COLUMNS)
     .single();
 
   if (error) {
@@ -152,6 +179,81 @@ export async function uploadCompanyDocument(input: {
   }
 
   return mapRow(data);
+}
+
+export async function updateCompanyDocumentMeta(
+  id: string,
+  patch: {
+    title?: string;
+    description?: string | null;
+    category?: CompanyDocumentCategory;
+    folder_id?: string | null;
+    tags?: string[];
+  }
+): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.title !== undefined) update.title = patch.title.trim();
+  if (patch.description !== undefined) update.description = patch.description?.trim() || null;
+  if (patch.category !== undefined) update.category = patch.category;
+  if (patch.folder_id !== undefined) update.folder_id = patch.folder_id;
+  if (patch.tags !== undefined) update.tags = normalizeTags(patch.tags);
+  if (Object.keys(update).length === 0) return;
+
+  if (!isSupabaseConfigured()) {
+    memoryDocuments = memoryDocuments.map((d) =>
+      d.id === id ? ({ ...d, ...update } as CompanyDocument) : d
+    );
+    return;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("company_documents").update(update).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** The in-Flow edited copy; null when the doc has never been edited in Flow. */
+export async function getCompanyDocumentContent(id: string): Promise<string | null> {
+  if (!isSupabaseConfigured()) {
+    return memoryDocuments.find((d) => d.id === id)?.content_html_memory ?? null;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("company_documents")
+    .select("content_html")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.content_html != null ? String(data.content_html) : null;
+}
+
+export async function saveCompanyDocumentContent(
+  id: string,
+  html: string,
+  userId: string
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    memoryDocuments = memoryDocuments.map((d) =>
+      d.id === id
+        ? {
+            ...d,
+            content_html_memory: html,
+            content_updated_at: ts(),
+            content_updated_by: userId,
+          }
+        : d
+    );
+    return;
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("company_documents")
+    .update({
+      content_html: html,
+      content_updated_at: ts(),
+      content_updated_by: userId,
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteCompanyDocument(id: string): Promise<void> {
