@@ -10,6 +10,7 @@ import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { getActiveClockEntry, getTodayClockEntries } from "@/lib/data/production-tracking";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
+import { SopAcknowledgmentGate } from "@/components/files/sop-acknowledgment-gate";
 import { accentValue } from "@/lib/badges/cosmetic-types";
 import {
   canUseEmployeePreview,
@@ -70,6 +71,8 @@ export default async function EmployeeLayout({
       </main>
       <InnovationHubBubble />
       <AskFlowBubble />
+      {/* Blocks the workspace until published SOP revisions are accepted. */}
+      {!previewMode && <SopAcknowledgmentGate />}
     </div>
   );
 }

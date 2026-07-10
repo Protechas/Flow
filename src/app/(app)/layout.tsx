@@ -14,6 +14,7 @@ import { getDemoUserId } from "@/lib/auth/demo-session";
 import { InnovationHubBubble } from "@/components/innovation-hub/innovation-hub-bubble";
 import { AskFlowBubble } from "@/components/ask-flow/ask-flow-bubble";
 import { CriticalAlertPopup } from "@/components/alerts/critical-alert-popup";
+import { SopAcknowledgmentGate } from "@/components/files/sop-acknowledgment-gate";
 import { canAccessRoute } from "@/lib/auth/permissions";
 import { redirect } from "next/navigation";
 
@@ -88,6 +89,8 @@ export default async function AppLayout({
             count={criticalHeadlines.length}
             headlines={criticalHeadlines}
           />
+          {/* Leads are gated on SOP acknowledgments like employees are. */}
+          {user.role === "teamlead" && <SopAcknowledgmentGate />}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

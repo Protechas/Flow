@@ -9,16 +9,29 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
-import { saveDocumentContentAction } from "@/app/actions/company-documents";
+import {
+  publishDocumentRevisionAction,
+  saveDocumentContentAction,
+} from "@/app/actions/company-documents";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Bold,
   Download,
+  Megaphone,
   Heading1,
   Heading2,
   Heading3,
@@ -226,6 +239,10 @@ export function DocumentEditor({
   const { toast } = useFlowToast();
   const [saving, startSave] = useTransition();
   const [dirty, setDirty] = useState(false);
+  const [hasSaved, setHasSaved] = useState(lastSavedAt != null);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [changeSummary, setChangeSummary] = useState("");
+  const [publishing, startPublish] = useTransition();
 
   const editor = useEditor({
     extensions: [
@@ -255,7 +272,27 @@ export function DocumentEditor({
         return;
       }
       setDirty(false);
+      setHasSaved(true);
       toast({ variant: "success", title: "Document saved", description: title });
+      router.refresh();
+    });
+  };
+
+  const publish = () => {
+    const summary = changeSummary.trim();
+    setPublishOpen(false);
+    startPublish(async () => {
+      const res = await publishDocumentRevisionAction(documentId, summary);
+      if (!res.ok) {
+        toast({ variant: "error", title: "Publish failed", description: res.message });
+        return;
+      }
+      setChangeSummary("");
+      toast({
+        variant: "success",
+        title: `Revision ${res.revisionNumber} published`,
+        description: `${res.notified} team member${res.notified === 1 ? "" : "s"} must read and accept it.`,
+      });
       router.refresh();
     });
   };
@@ -303,8 +340,62 @@ export function DocumentEditor({
             )}
             {saving ? "Saving…" : "Save"}
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setPublishOpen(true)}
+            disabled={publishing || dirty || !hasSaved}
+            title={
+              dirty || !hasSaved
+                ? "Save your changes first — publishing snapshots the saved copy"
+                : "Publish this version and require the team to read and accept it"
+            }
+          >
+            {publishing ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Megaphone className="mr-1.5 h-4 w-4" />
+            )}
+            {publishing ? "Publishing…" : "Publish & notify"}
+          </Button>
         </div>
       </div>
+
+      <Dialog open={publishOpen} onOpenChange={setPublishOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Publish revision</DialogTitle>
+            <DialogDescription>
+              Every employee and lead will be stopped, shown what changed, and must
+              accept before continuing. Their acceptance is recorded.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">What changed?</p>
+            <Textarea
+              value={changeSummary}
+              onChange={(e) => setChangeSummary(e.target.value)}
+              placeholder="e.g. Split-file naming now uses the -Part-# convention for all 2023+ docs"
+              rows={3}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Shown in the alert and the acknowledgment screen. Changed sections are
+              highlighted automatically.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPublishOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={publish} disabled={changeSummary.trim().length < 5}>
+              <Megaphone className="mr-1.5 h-4 w-4" />
+              Publish & notify team
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="enterprise-panel overflow-hidden">
         {editor ? (

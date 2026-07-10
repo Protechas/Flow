@@ -5,11 +5,19 @@ import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import {
   deleteCompanyDocument,
+  getCompanyDocumentById,
+  getCompanyDocumentContent,
   listCompanyDocuments,
   saveCompanyDocumentContent,
   updateCompanyDocumentMeta,
   uploadCompanyDocument,
 } from "@/lib/files/company-documents";
+import {
+  acknowledgeRevision,
+  listPendingRevisionsForUser,
+  publishDocumentRevision,
+  requiresSopAcknowledgment,
+} from "@/lib/files/document-revisions";
 import {
   createDocumentFolder,
   deleteDocumentFolder,
@@ -200,6 +208,72 @@ export async function deleteDocumentFolderAction(folderId: string) {
 }
 
 // --- In-Flow editing ---------------------------------------------------------
+
+// --- Revisions & acknowledgments ---------------------------------------------
+
+/**
+ * Publish the current in-Flow content as an official revision: snapshots it,
+ * diffs against the prior revision, and notifies everyone who must accept it.
+ */
+export async function publishDocumentRevisionAction(
+  documentId: string,
+  changeSummary: string
+) {
+  const user = await requireUser();
+  if (!hasPermission(user.role, "company_documents:manage")) {
+    return { ok: false as const, message: "You do not have permission to publish documents" };
+  }
+  const summary = changeSummary.trim();
+  if (summary.length < 5) {
+    return { ok: false as const, message: "Describe what changed — the team sees this summary" };
+  }
+
+  const doc = await getCompanyDocumentById(documentId);
+  if (!doc) return { ok: false as const, message: "Document not found" };
+  const content = await getCompanyDocumentContent(documentId);
+  if (content == null) {
+    return {
+      ok: false as const,
+      message: "Save the document in Flow first — publishing snapshots the Flow working copy",
+    };
+  }
+
+  try {
+    const { revision, notified } = await publishDocumentRevision({
+      document: doc,
+      contentHtml: content,
+      changeSummary: summary,
+      publishedBy: user.id,
+    });
+    revalidateFiles();
+    return { ok: true as const, revisionNumber: revision.revision_number, notified };
+  } catch (e) {
+    return {
+      ok: false as const,
+      message: e instanceof Error ? e.message : "Publish failed",
+    };
+  }
+}
+
+/** The gate calls this on mount/focus — cheap, usually empty. */
+export async function getPendingAcknowledgmentsAction() {
+  const user = await requireUser();
+  if (!requiresSopAcknowledgment(user.role)) return [];
+  return listPendingRevisionsForUser(user.id);
+}
+
+export async function acknowledgeRevisionAction(revisionId: string) {
+  const user = await requireUser();
+  try {
+    await acknowledgeRevision(revisionId, user.id);
+    return { ok: true as const };
+  } catch (e) {
+    return {
+      ok: false as const,
+      message: e instanceof Error ? e.message : "Could not record acknowledgment",
+    };
+  }
+}
 
 export async function saveDocumentContentAction(documentId: string, html: string) {
   const user = await requireUser();

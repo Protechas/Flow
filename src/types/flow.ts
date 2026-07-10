@@ -759,6 +759,8 @@ export interface CompanyDocument {
   /** When set, the doc has an in-Flow edited copy (content itself is fetched separately). */
   content_updated_at?: string | null;
   content_updated_by?: string | null;
+  /** Latest published (acknowledgment-required) revision, if any. */
+  current_revision_id?: string | null;
   /** Demo / local fallback only */
   file_data_base64?: string;
   /** Demo / local fallback only — in-Flow edited copy */
@@ -767,6 +769,35 @@ export interface CompanyDocument {
 
 export interface CompanyDocumentView extends CompanyDocument {
   uploaded_by_name?: string;
+}
+
+export type RevisionBlockChange = {
+  type: "added" | "changed" | "removed";
+  /** New block HTML; empty for removed blocks. */
+  html: string;
+  /** Previous block HTML; empty for added blocks. */
+  prev_html: string;
+};
+
+/** A published, acknowledgment-required version of a company document. */
+export interface DocumentRevision {
+  id: string;
+  document_id: string;
+  revision_number: number;
+  title: string;
+  content_html: string;
+  change_summary: string;
+  changed_blocks: RevisionBlockChange[];
+  requires_acknowledgment: boolean;
+  published_by: string | null;
+  published_at: string;
+}
+
+export interface DocumentAcknowledgment {
+  id: string;
+  revision_id: string;
+  user_id: string;
+  acknowledged_at: string;
 }
 
 export type ActivityEventType =
@@ -819,7 +850,8 @@ export type NotificationType =
   | "assignment_changed"
   | "department_alert"
   | "activity_gap"
-  | "validation_run_complete";
+  | "validation_run_complete"
+  | "sop_updated";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =
