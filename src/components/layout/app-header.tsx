@@ -7,9 +7,11 @@ import { enterEmployeePreviewAction } from "@/app/actions/employee-preview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { roleLabel } from "@/lib/constants";
+import { hasPermission } from "@/lib/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LeadAvailability } from "@/components/layout/lead-availability";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { getPageTitle } from "@/lib/navigation/page-titles";
@@ -64,6 +66,8 @@ export function AppHeader({ user, demoMode }: AppHeaderProps) {
           <Eye className="h-3.5 w-3.5" />
           Employee view
         </Button>
+        {(hasPermission(user.role, "people:view_team") ||
+          hasPermission(user.role, "people:view_all")) && <LeadAvailability />}
         <ThemeSwitcher compact />
         <NotificationBell />
         {demoMode && (

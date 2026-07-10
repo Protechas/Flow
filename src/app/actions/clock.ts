@@ -36,6 +36,10 @@ import {
 } from "@/lib/production/persist-helpers";
 import { logActionError, logActionInfo } from "@/lib/logging/action-log";
 import { getWorkEligibility } from "@/lib/work-eligibility";
+import {
+  getTeamAvailability,
+  type TeamMemberAvailability,
+} from "@/lib/time-clock/get-team-availability";
 
 function revalidateClockPaths() {
   revalidatePath("/work");
@@ -268,4 +272,17 @@ export async function getTeamClockEntriesAction(filters?: { userId?: string; day
   if (!hasPermission(user.role, "work:view_all")) throw new Error("FORBIDDEN");
   await ensureServerWriteContext();
   return getAllClockEntries(filters);
+}
+
+/** Header "Leads" widget: clock status per team lead. Fetched on click only. */
+export async function getLeadAvailabilityAction(): Promise<TeamMemberAvailability[]> {
+  const user = await requireUser();
+  if (
+    !hasPermission(user.role, "people:view_team") &&
+    !hasPermission(user.role, "people:view_all")
+  ) {
+    return [];
+  }
+  const leads = getFlowStore().users.filter((u) => u.role === "teamlead" && u.is_active);
+  return getTeamAvailability(leads);
 }
