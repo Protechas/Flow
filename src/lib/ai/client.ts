@@ -17,11 +17,18 @@ export function isAiEnabled(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
 }
 
+/**
+ * Model tiers — every feature uses the CHEAPEST tier that does its job well
+ * (house rule). Escalate a feature's tier only with evidence its output is
+ * weak, never "just in case."
+ */
 export const AI_MODELS = {
-  /** Deep reasoning — rule authoring, complex one-off analysis. */
-  reasoning: "claude-opus-4-8",
-  /** Workhorse — triage, drafting, summarization over many records. */
+  /** Simple tasks — grounded Q&A, short summaries, formatting. (~$1/$5 per MTok) */
+  fast: "claude-haiku-4-5-20251001",
+  /** Workhorse — triage, clustering, drafting over many records. (~$2-3/$15 per MTok) */
   standard: process.env.FLOW_AI_MODEL?.trim() || "claude-sonnet-5",
+  /** Deep reasoning — rule compilation, complex one-off analysis. (~$5/$25 per MTok) */
+  reasoning: "claude-opus-4-8",
 } as const;
 
 export const AI_DISABLED_MESSAGE =

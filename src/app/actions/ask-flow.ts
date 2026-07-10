@@ -1,6 +1,8 @@
 "use server";
 
 import { requireUser } from "@/lib/auth/session";
+import { AI_MODELS, getAiClient } from "@/lib/ai/client";
+import { logAiUsage } from "@/lib/ai/usage";
 import { searchDocs, type DocSection } from "@/lib/ask-flow/search";
 
 export interface AskFlowSource {
@@ -29,17 +31,18 @@ function toSources(sections: DocSection[]): AskFlowSource[] {
 
 async function synthesizeAnswer(
   question: string,
-  sections: DocSection[]
+  sections: DocSection[],
+  userId: string
 ): Promise<string | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  const client = await getAiClient();
+  if (!client) return null;
   try {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const client = new Anthropic();
     const context = sections
       .map((s) => `## ${s.docTitle} — ${s.heading}\n${s.content}`)
       .join("\n\n---\n\n");
+    // Grounded Q&A over manual excerpts is a simple task — fast tier is plenty.
     const response = await client.messages.create({
-      model: "claude-opus-4-8",
+      model: AI_MODELS.fast,
       max_tokens: 1024,
       system:
         "You are Ask Flow, the in-app help assistant for Flow, Protech's operations platform. " +
@@ -54,6 +57,13 @@ async function synthesizeAnswer(
         },
       ],
     });
+    await logAiUsage({
+      feature: "ask_flow",
+      model: AI_MODELS.fast,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      userId,
+    });
     const text = response.content.find((b) => b.type === "text");
     return text && "text" in text ? text.text : null;
   } catch (e) {
@@ -63,7 +73,7 @@ async function synthesizeAnswer(
 }
 
 export async function askFlowAction(question: string): Promise<AskFlowResult> {
-  await requireUser();
+  const user = await requireUser();
   const q = question.trim();
   if (q.length < 3) {
     return { ok: false, answer: null, sources: [], message: "Ask a full question." };
@@ -78,6 +88,6 @@ export async function askFlowAction(question: string): Promise<AskFlowResult> {
         "Nothing in the manual matches that. Try different words, or ask your lead — and if it should be documented, drop it in the Innovation Hub.",
     };
   }
-  const answer = await synthesizeAnswer(q, sections);
+  const answer = await synthesizeAnswer(q, sections, user.id);
   return { ok: true, answer, sources: toSources(sections) };
 }

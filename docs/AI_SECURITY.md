@@ -42,13 +42,18 @@ Tools-hub performance rule: a feature that can't satisfy all six rules doesn't s
 
 ## Feature register
 
-| Feature | Entry point | Model | Sends to API | Gate |
+| Feature | Entry point | Model tier | Sends to API | Gate |
 | --- | --- | --- | --- | --- |
-| Ask Flow (help Q&A) | `src/app/actions/ask-flow.ts` | claude-opus-4-8 | User question + manual excerpts (public docs content) | `requireUser` |
-| Findings Triage | `src/app/actions/ai-triage.ts` | `AI_MODELS.standard` | Allowlisted finding fields (`TRIAGE_FINDING_FIELDS` in `src/lib/ai/triage.ts`) + capped evidence | `validation:run` to spend, `validation:view` to read |
+| Ask Flow (help Q&A) | `src/app/actions/ask-flow.ts` | `fast` (Haiku) | User question + manual excerpts (public docs content) | `requireUser` |
+| Findings Triage | `src/app/actions/ai-triage.ts` | `standard` (Sonnet) | Allowlisted finding fields (`TRIAGE_FINDING_FIELDS` in `src/lib/ai/triage.ts`) + capped evidence | `validation:run` to spend, `validation:view` to read |
 
-Add a row here for every new AI feature. Ask Flow predates the foundation layer and
-should migrate to `getAiClient` + `logAiUsage` when next touched.
+Add a row here for every new AI feature.
+
+**Model tier rule:** every feature uses the cheapest `AI_MODELS` tier that does its
+job well — `fast` (Haiku) for grounded Q&A/summaries/formatting, `standard` (Sonnet)
+for clustering/drafting over many records, `reasoning` (Opus) only for genuinely hard
+one-off work like rule compilation. Escalate a tier only with evidence the output is
+weak, never "just in case."
 
 ## Checklist for a new AI feature
 

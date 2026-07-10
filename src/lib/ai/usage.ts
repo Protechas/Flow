@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
+import { asDbUserId } from "@/lib/ai/triage-db";
 
 /**
  * Per-call AI metering (security rule #5). Best-effort: a logging failure must
@@ -37,7 +38,7 @@ export async function logAiUsage(entry: AiUsageEntry): Promise<void> {
       model: entry.model,
       input_tokens: entry.inputTokens,
       output_tokens: entry.outputTokens,
-      user_id: entry.userId ?? null,
+      user_id: asDbUserId(entry.userId),
       run_ref: entry.runRef ?? null,
     });
   } catch (e) {

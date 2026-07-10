@@ -8,6 +8,12 @@ async function dbClient() {
   return isAdminConfigured() ? createAdminClient() : await createClient();
 }
 
+/** Demo-mode user ids ("user-admin") aren't UUIDs — store NULL rather than fail. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function asDbUserId(id: string | null | undefined): string | null {
+  return id && UUID_RE.test(id) ? id : null;
+}
+
 /** Demo-mode / no-DB fallback; also serves as a same-instance cache. */
 const memoryTriage = new Map<string, AiTriageResult>();
 
@@ -67,7 +73,7 @@ export async function saveTriage(result: AiTriageResult): Promise<AiTriageResult
       input_tokens: result.input_tokens,
       output_tokens: result.output_tokens,
       error_message: result.error_message,
-      created_by: result.created_by || null,
+      created_by: asDbUserId(result.created_by),
     })
     .select("*")
     .single();
