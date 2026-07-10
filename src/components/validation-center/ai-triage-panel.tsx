@@ -65,8 +65,7 @@ export function AiTriagePanel({
               AI Triage
             </CardTitle>
             <CardDescription>
-              {AI_NAME} groups this run&apos;s findings and suggests where to start. Suggestions
-              are advisory — review before acting.
+              {`${AI_NAME} groups this run's findings and suggests where to start. Suggestions are advisory — review before acting.`}
             </CardDescription>
           </div>
           <Button size="sm" variant="outline" disabled={analyzing} onClick={analyze}>

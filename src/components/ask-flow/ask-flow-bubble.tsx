@@ -74,7 +74,7 @@ export function AskFlowBubble() {
               Ask Flow
             </DialogTitle>
             <DialogDescription>
-              {AI_NAME} answers straight from the operations manual.
+              {`${AI_NAME} answers straight from the operations manual.`}
             </DialogDescription>
           </DialogHeader>
 
