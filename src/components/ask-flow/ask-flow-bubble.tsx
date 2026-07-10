@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { askFlowAction, type AskFlowResult } from "@/app/actions/ask-flow";
+import { AI_NAME } from "@/lib/ai/brand";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -73,7 +74,7 @@ export function AskFlowBubble() {
               Ask Flow
             </DialogTitle>
             <DialogDescription>
-              Answers come straight from the operations manual.
+              {AI_NAME} answers straight from the operations manual.
             </DialogDescription>
           </DialogHeader>
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { runAiTriageAction } from "@/app/actions/ai-triage";
+import { AI_NAME } from "@/lib/ai/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +65,7 @@ export function AiTriagePanel({
               AI Triage
             </CardTitle>
             <CardDescription>
-              Claude groups this run&apos;s findings and suggests where to start. Suggestions
+              {AI_NAME} groups this run&apos;s findings and suggests where to start. Suggestions
               are advisory — review before acting.
             </CardDescription>
           </div>
