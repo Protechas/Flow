@@ -554,8 +554,8 @@ export async function deleteWorkPackageAction(id: string) {
   deleteWorkPackage(id);
   await deleteWorkPackageDb(id);
   revalidateAll(existing?.project_id);
-  revalidatePath("/validation/corrections");
-  revalidatePath("/validation/findings");
+  revalidatePath("/qa-center/validation/corrections");
+  revalidatePath("/qa-center/validation/findings");
 }
 
 export async function submitWorkPackageToQaAction(id: string) {
@@ -581,8 +581,8 @@ export async function submitWorkPackageToQaAction(id: string) {
   );
   await syncValidationFindingFromWorkPackage(id, "ready_for_qa");
   revalidateAll();
-  revalidatePath("/validation/corrections");
-  revalidatePath("/validation/findings");
+  revalidatePath("/qa-center/validation/corrections");
+  revalidatePath("/qa-center/validation/findings");
 }
 
 export async function completeWorkPackageAction(id: string) {

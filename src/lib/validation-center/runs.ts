@@ -596,7 +596,7 @@ function notifyRunComplete(
     message: `${manufacturer ?? "Audit"} finished — ${rateLabel} compliance`,
     related_entity_type: "validation_run",
     related_entity_id: runId,
-    link: `/validation/runs/${runId}`,
+    link: `/qa-center/validation/runs/${runId}`,
   });
 }
 

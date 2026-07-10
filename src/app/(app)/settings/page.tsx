@@ -132,7 +132,7 @@ export default async function SettingsPage() {
                   Operating models
                 </Button>
                 {hasPermission(role, "validation:manage_settings") && (
-                  <Button variant="outline" size="sm" render={<Link href="/validation/settings" />}>
+                  <Button variant="outline" size="sm" render={<Link href="/qa-center/settings" />}>
                     Validation settings
                   </Button>
                 )}

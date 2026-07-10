@@ -26,8 +26,8 @@ const PATHS = [
   "/reports",
   "/production",
   "/work",
-  "/validation/findings",
-  "/validation/corrections",
+  "/qa-center/validation/findings",
+  "/qa-center/validation/corrections",
 ];
 
 export async function submitQaReviewAction(params: {

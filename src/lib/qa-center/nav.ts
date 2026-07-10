@@ -105,15 +105,5 @@ export function isQaCenterNavActive(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Legacy Validation Center paths mapped to QA Center sections */
-export const VALIDATION_TO_QA_CENTER_REDIRECTS: Record<string, string> = {
-  "/validation": "/qa-center/validation",
-  "/validation/new": "/qa-center/validation/new",
-  "/validation/runs": "/qa-center/validation/runs",
-  "/validation/findings": "/qa-center/validation/findings",
-  "/validation/corrections": "/qa-center/validation/corrections",
-  "/validation/history": "/qa-center/validation/history",
-  "/validation/reports": "/qa-center/reports",
-  "/validation/analytics": "/qa-center/analytics",
-  "/validation/settings": "/qa-center/settings",
-};
+// Legacy /validation/* URLs redirect to their /qa-center equivalents — the
+// redirect pages under src/app/(app)/validation are the mapping.

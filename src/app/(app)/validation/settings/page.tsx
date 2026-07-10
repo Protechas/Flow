@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default function ValidationSettingsLegacyRedirect() {
+/** Legacy Validation Center path — the canonical tree lives under /qa-center. */
+export default function ValidationLegacyRedirect() {
   redirect("/qa-center/settings");
 }
