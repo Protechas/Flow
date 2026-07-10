@@ -7,7 +7,9 @@ import { refreshValidationRunAction, listFindingsForRunAction } from "@/app/acti
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiTriagePanel } from "@/components/validation-center/ai-triage-panel";
 import { ValidationFindingsHub } from "@/components/validation-center/validation-findings-hub";
+import type { AiTriageResult } from "@/lib/ai/types";
 import type { ValidationFinding, ValidationRunView } from "@/lib/validation-center/types";
 
 function artifactLabel(role: string) {
@@ -28,9 +30,13 @@ function artifactLabel(role: string) {
 export function ValidationRunDetail({
   initialRun,
   initialFindings,
+  aiEnabled = false,
+  initialTriage = null,
 }: {
   initialRun: ValidationRunView;
   initialFindings: ValidationFinding[];
+  aiEnabled?: boolean;
+  initialTriage?: AiTriageResult | null;
 }) {
   const [run, setRun] = useState(initialRun);
   const [findings, setFindings] = useState(initialFindings);
@@ -151,6 +157,10 @@ export function ValidationRunDetail({
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {aiEnabled && run.status === "completed" && findings.length > 0 && (
+        <AiTriagePanel runId={run.id} findings={findings} initialTriage={initialTriage} />
       )}
 
       <Card>
