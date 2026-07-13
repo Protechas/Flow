@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MyRequestsList } from "@/components/requests/my-requests-list";
 import { RequestForm } from "@/components/requests/request-form";
+import { RequestMetrics } from "@/components/requests/request-metrics";
 import { RequestQueue } from "@/components/requests/request-queue";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -118,6 +119,17 @@ export default async function RequestsPage() {
       ? Math.round(pickupTimes.reduce((s, n) => s + n, 0) / pickupTimes.length)
       : null;
 
+  // Daily volume for the trend chart — last 14 calendar days.
+  const trend = Array.from({ length: 14 }, (_, i) => {
+    const day = new Date(Date.now() - (13 - i) * 86_400_000);
+    const key = day.toISOString().slice(0, 10);
+    return {
+      label: day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      submitted: recent.filter((t) => t.created_at.startsWith(key)).length,
+      done: recent.filter((t) => (t.completed_at ?? "").startsWith(key)).length,
+    };
+  });
+
   return (
     <FlowPageShell
       title="Requests"
@@ -155,76 +167,22 @@ export default async function RequestsPage() {
           </div>
           <div>
             <p className="flow-section-title mb-2">Detailed metrics</p>
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-[var(--flow-radius-card)] border border-border/50 bg-muted/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  Handled by
-                </p>
-                {handlers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No tickets handled yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {handlers.map((h) => (
-                      <div key={h.name} className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="truncate font-medium">{h.name}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                          {h.done} done
-                          {h.timed > 0 ? ` · avg ${Math.round(h.totalMins / h.timed)}m` : ""}
-                          {h.holding > 0 ? ` · ${h.holding} in hand` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="rounded-[var(--flow-radius-card)] border border-border/50 bg-muted/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  Requested by
-                </p>
-                {requesters.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No requests yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {requesters.map((r) => (
-                      <div key={r.name} className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="truncate font-medium">{r.name}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                          {r.total} submitted · {r.done} done
-                          {r.waiting > 0 ? ` · ${r.waiting} waiting` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="rounded-[var(--flow-radius-card)] border border-border/50 bg-muted/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  Response profile
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span>Submitted this week</span>
-                    <span className="font-semibold tabular-nums">{submitted7d.length}</span>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span>Urgent this week</span>
-                    <span className="font-semibold tabular-nums">{urgent7d}</span>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span>Avg time to pickup</span>
-                    <span className="font-semibold tabular-nums">
-                      {avgPickup != null ? `${avgPickup}m` : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span>Avg claim → done</span>
-                    <span className="font-semibold tabular-nums">
-                      {avgTurnaround != null ? `${avgTurnaround}m` : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <RequestMetrics
+              trend={trend}
+              handlers={handlers.map((h) => ({
+                name: h.name,
+                done: h.done,
+                avgMins: h.timed > 0 ? Math.round(h.totalMins / h.timed) : null,
+                holding: h.holding,
+              }))}
+              requesters={requesters}
+              profile={{
+                submitted7d: submitted7d.length,
+                urgent7d,
+                avgPickup,
+                avgTurnaround,
+              }}
+            />
           </div>
           <div>
             <p className="flow-section-title mb-2">Recent history</p>
