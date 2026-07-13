@@ -183,6 +183,40 @@ export async function uploadCompanyDocument(input: {
   return mapRow(data);
 }
 
+/**
+ * A document authored inside Flow — no uploaded original. The stored "file" is
+ * an HTML snapshot taken at creation, so download-original always works; the
+ * live content lives in content_html like any Flow-edited doc.
+ */
+export async function createFlowNativeDocument(input: {
+  title: string;
+  description?: string;
+  category: CompanyDocumentCategory;
+  folder_id?: string | null;
+  tags?: string[];
+  created_by: string;
+}): Promise<CompanyDocument> {
+  const title = input.title.trim();
+  const escaped = title.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const initialHtml = `<h1>${escaped}</h1><p></p>`;
+  const buffer = Buffer.from(initialHtml, "utf8");
+
+  const doc = await uploadCompanyDocument({
+    title,
+    description: input.description,
+    category: input.category,
+    folder_id: input.folder_id,
+    tags: input.tags,
+    file_name: `${sanitizeFileName(title) || "document"}.html`,
+    mime_type: "text/html",
+    file_size: buffer.length,
+    buffer,
+    uploaded_by: input.created_by,
+  });
+  await saveCompanyDocumentContent(doc.id, initialHtml, input.created_by);
+  return doc;
+}
+
 export async function updateCompanyDocumentMeta(
   id: string,
   patch: {

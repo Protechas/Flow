@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocumentEditor } from "@/components/files/document-editor";
+import { EddyReviewPanel } from "@/components/files/eddy-review-panel";
+import { isAiEnabled } from "@/lib/ai/client";
 import {
   FlowPageShell,
   PLATFORM_EYEBROWS,
@@ -101,14 +103,18 @@ export default async function DocumentEditPage({
             </div>
           )}
           {content ? (
-            <DocumentEditor
-              documentId={doc.id}
-              title={doc.title}
-              fileName={doc.file_name}
-              initialHtml={content.html}
-              fromOriginal={content.fromOriginal}
-              lastSavedAt={doc.content_updated_at ?? null}
-            />
+            <>
+              <DocumentEditor
+                documentId={doc.id}
+                title={doc.title}
+                fileName={doc.file_name}
+                initialHtml={content.html}
+                fromOriginal={content.fromOriginal}
+                lastSavedAt={doc.content_updated_at ?? null}
+              />
+              {/* Hidden until ANTHROPIC_API_KEY exists (AI security rule: no dead AI UI). */}
+              {isAiEnabled() && <EddyReviewPanel documentId={doc.id} />}
+            </>
           ) : (
             <div className="enterprise-panel border-dashed p-10 text-center text-muted-foreground space-y-3">
               <p className="text-sm">

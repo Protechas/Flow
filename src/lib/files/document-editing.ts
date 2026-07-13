@@ -13,7 +13,10 @@ export function isDocumentEditable(doc: CompanyDocument): boolean {
     doc.mime_type === DOCX_MIME ||
     name.endsWith(".docx") ||
     doc.mime_type === "text/plain" ||
-    name.endsWith(".txt")
+    name.endsWith(".txt") ||
+    // Flow-native documents (authored in Flow) store an HTML snapshot as their file
+    doc.mime_type === "text/html" ||
+    name.endsWith(".html")
   );
 }
 
@@ -47,6 +50,10 @@ export async function getEditableDocumentHtml(
       .map((line) => `<p>${escapeHtml(line)}</p>`)
       .join("");
     return { html, fromOriginal: true };
+  }
+  if (doc.mime_type === "text/html" || name.endsWith(".html")) {
+    const buffer = await downloadCompanyDocumentBuffer(doc);
+    return { html: buffer.toString("utf8"), fromOriginal: true };
   }
   return null;
 }

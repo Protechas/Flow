@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import {
+  createFlowNativeDocument,
   deleteCompanyDocument,
   getCompanyDocumentById,
   getCompanyDocumentContent,
@@ -90,6 +91,44 @@ export async function uploadCompanyDocumentAction(formData: FormData) {
     return {
       ok: false as const,
       message: e instanceof Error ? e.message : "Upload failed",
+    };
+  }
+}
+
+/** Create a document authored in Flow (no file upload) and hand back its id for the editor. */
+export async function createBlankDocumentAction(input: {
+  title: string;
+  description?: string;
+  category: CompanyDocumentCategory;
+  folder_id?: string | null;
+  tags?: string[];
+}) {
+  const user = await requireUser();
+  if (!hasPermission(user.role, "company_documents:manage")) {
+    return { ok: false as const, message: "You do not have permission to create documents" };
+  }
+
+  const title = input.title.trim();
+  if (!title) return { ok: false as const, message: "Title is required" };
+  if (!VALID_CATEGORIES.has(input.category)) {
+    return { ok: false as const, message: "Invalid document category" };
+  }
+
+  try {
+    const doc = await createFlowNativeDocument({
+      title,
+      description: input.description,
+      category: input.category,
+      folder_id: input.folder_id ?? null,
+      tags: input.tags,
+      created_by: user.id,
+    });
+    revalidateFiles();
+    return { ok: true as const, id: doc.id };
+  } catch (e) {
+    return {
+      ok: false as const,
+      message: e instanceof Error ? e.message : "Could not create document",
     };
   }
 }

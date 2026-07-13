@@ -46,6 +46,7 @@ Tools-hub performance rule: a feature that can't satisfy all six rules doesn't s
 | --- | --- | --- | --- | --- |
 | Ask Flow (help Q&A) | `src/app/actions/ask-flow.ts` | `fast` (Haiku) | User question + manual excerpts (public docs content) | `requireUser` |
 | Findings Triage | `src/app/actions/ai-triage.ts` | `standard` (Sonnet) | Allowlisted finding fields (`TRIAGE_FINDING_FIELDS` in `src/lib/ai/triage.ts`) + capped evidence | `validation:run` to spend, `validation:view` to read |
+| Document Review (Eddy on SOPs) | `src/app/actions/ai-sop-review.ts` | `standard` (Sonnet) | Allowlisted doc fields (`REVIEW_DOC_FIELDS` in `src/lib/ai/sop-review.ts`) + document text, capped | `company_documents:manage` |
 
 Add a row here for every new AI feature.
 

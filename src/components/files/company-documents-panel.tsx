@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  createBlankDocumentAction,
   createDocumentFolderAction,
   deleteCompanyDocumentAction,
   deleteDocumentFolderAction,
@@ -69,7 +70,7 @@ import {
 /** Custom drag payload so doc-row drags are distinguishable from OS file drags. */
 const DOC_DRAG_TYPE = "application/x-flow-doc";
 
-type FileKind = "word" | "pdf" | "excel" | "image" | "text" | "other";
+type FileKind = "word" | "pdf" | "excel" | "image" | "text" | "flow" | "other";
 
 const KIND_LABELS: Record<FileKind, string> = {
   word: "Word",
@@ -77,6 +78,7 @@ const KIND_LABELS: Record<FileKind, string> = {
   excel: "Excel",
   image: "Image",
   text: "Text",
+  flow: "Flow doc",
   other: "Other",
 };
 
@@ -88,6 +90,7 @@ function fileKind(doc: CompanyDocumentView): FileKind {
   if (name.endsWith(".xlsx") || name.endsWith(".xls") || mime.includes("spreadsheetml") || mime === "application/vnd.ms-excel") return "excel";
   if (mime.startsWith("image/")) return "image";
   if (name.endsWith(".txt") || mime === "text/plain") return "text";
+  if (name.endsWith(".html") || mime === "text/html") return "flow";
   return "other";
 }
 
@@ -97,6 +100,8 @@ function kindIcon(kind: FileKind) {
       return FileSpreadsheet;
     case "image":
       return ImageIcon;
+    case "flow":
+      return PencilLine;
     default:
       return FileText;
   }
@@ -104,7 +109,8 @@ function kindIcon(kind: FileKind) {
 
 function isEditableInFlow(doc: CompanyDocumentView): boolean {
   const kind = fileKind(doc);
-  return kind === "word" ? doc.file_name.toLowerCase().endsWith(".docx") : kind === "text";
+  if (kind === "word") return doc.file_name.toLowerCase().endsWith(".docx");
+  return kind === "text" || kind === "flow";
 }
 
 function formatFileSize(bytes: number) {
@@ -185,6 +191,12 @@ export function CompanyDocumentsPanel({
 
   // --- Explorer drag state (doc rows / OS files over a folder) ---
   const [dropFolderId, setDropFolderId] = useState<string | "root" | null>(null);
+
+  // --- New Flow-native document state ---
+  const [newDocOpen, setNewDocOpen] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState("");
+  const [newDocCategory, setNewDocCategory] = useState("sop");
+  const [newDocTags, setNewDocTags] = useState("");
 
   // --- Folder management state ---
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -368,6 +380,28 @@ export function CompanyDocumentsPanel({
     });
   };
 
+  const createNewDocument = () => {
+    const title = newDocTitle.trim();
+    if (!title) return;
+    setNewDocOpen(false);
+    startTransition(async () => {
+      const res = await createBlankDocumentAction({
+        title,
+        category: newDocCategory as (typeof COMPANY_DOCUMENT_CATEGORIES)[number]["value"],
+        folder_id: currentFolderForUpload,
+        tags: newDocTags.split(",").map((t) => t.trim()).filter(Boolean),
+      });
+      if (!res.ok) {
+        toast({ variant: "error", title: "Could not create document", description: res.message });
+        return;
+      }
+      toast({ variant: "success", title: `"${title}" created`, description: "Opening the editor…" });
+      setNewDocTitle("");
+      setNewDocTags("");
+      router.push(`/files/${res.id}/edit`);
+    });
+  };
+
   const renameFolder = () => {
     if (!renameTarget) return;
     const folder = renameTarget;
@@ -512,6 +546,17 @@ export function CompanyDocumentsPanel({
 
       {/* ---- Main column ---- */}
       <div className="space-y-4 min-w-0">
+        {canManage && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setNewDocOpen(true)}>
+              <PencilLine className="mr-1.5 h-4 w-4" />
+              New document
+            </Button>
+            <p className="flow-helper">
+              Write an SOP directly in Flow — no Word file needed.
+            </p>
+          </div>
+        )}
         {canManage && (
           <div
             onDragOver={(e) => {
@@ -914,6 +959,74 @@ export function CompanyDocumentsPanel({
       </div>
 
       {/* ---- Dialogs ---- */}
+      <Dialog open={newDocOpen} onOpenChange={setNewDocOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New document</DialogTitle>
+            <DialogDescription>
+              Authored in Flow — it opens straight in the editor and lands in{" "}
+              {folderName(currentFolderForUpload) === "All documents"
+                ? "Unfiled"
+                : folderName(currentFolderForUpload)}
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-doc-title">Title</Label>
+              <Input
+                id="new-doc-title"
+                value={newDocTitle}
+                onChange={(e) => setNewDocTitle(e.target.value)}
+                placeholder="e.g. SOP — Handling import corrections"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") createNewDocument();
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-doc-category">Category</Label>
+                <Select value={newDocCategory} onValueChange={(v) => v && setNewDocCategory(v)}>
+                  <SelectTrigger id="new-doc-category" className="w-full bg-card text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPANY_DOCUMENT_CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-doc-tags">Tags (comma-separated)</Label>
+                <Input
+                  id="new-doc-tags"
+                  value={newDocTags}
+                  onChange={(e) => setNewDocTags(e.target.value)}
+                  placeholder="e.g. imports, qa"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNewDocOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={createNewDocument}
+              disabled={!newDocTitle.trim() || pending}
+            >
+              Create & edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
