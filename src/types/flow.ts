@@ -326,6 +326,8 @@ export interface Team {
   id: string;
   name: string;
   description?: string | null;
+  /** False for support teams (e.g. Email Team) that are excluded from production metrics. */
+  is_production?: boolean;
   department_id?: string | null;
   manager_id?: string | null;
   team_lead_user_id?: string | null;

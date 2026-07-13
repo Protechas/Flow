@@ -3,7 +3,7 @@ import {
   computeAvgCompletionHours,
   computeQaPassRate,
 } from "@/lib/scoring/flow-score";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import type {
   Correction,
   QaReview,
@@ -344,5 +344,6 @@ export function buildTeamScorecardSummary(
 }
 
 export function employeeUsers(users: User[]) {
-  return users.filter(isProductionEmployee);
+  // Team-aware: support teams (e.g. Email Team) never rank in production metrics.
+  return users.filter(isProductionRosterMember);
 }

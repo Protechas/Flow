@@ -8,7 +8,7 @@ import {
   rankScorecards,
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import type {
   AccountabilityReport,
   CoachingReport,
@@ -36,7 +36,7 @@ export async function getTeamPerformanceDashboard(): Promise<TeamPerformanceDash
 
 export async function getEmployeeScorecards(): Promise<EmployeeScorecard[]> {
   const store = await getPerformanceStore();
-  const employees = store.users.filter(isProductionEmployee);
+  const employees = store.users.filter(isProductionRosterMember);
   return rankScorecards(employees.map((u) => buildEmployeeScorecard(u, store)));
 }
 
@@ -47,7 +47,7 @@ export async function getEmployeeScorecard(
   const user = store.users.find((u) => u.id === userId);
   if (!user) return null;
   const cards = rankScorecards(
-    store.users.filter(isProductionEmployee).map((u) => buildEmployeeScorecard(u, store))
+    store.users.filter(isProductionRosterMember).map((u) => buildEmployeeScorecard(u, store))
   );
   return cards.find((c) => c.user.id === userId) ?? buildEmployeeScorecard(user, store);
 }

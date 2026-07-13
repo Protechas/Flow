@@ -1,7 +1,7 @@
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import { getReceivingTeamIds } from "@/lib/requests/settings";
 import type { User } from "@/types/flow";
 
@@ -31,7 +31,7 @@ export function receivingDepartmentIds(): Set<string> {
 
 function eligibleRole(user: User): boolean {
   if (!user.is_active) return false;
-  return isProductionEmployee(user) || getOrganizationalPosition(user) === "team_lead";
+  return isProductionRosterMember(user) || getOrganizationalPosition(user) === "team_lead";
 }
 
 export async function isTicketReceiver(user: User): Promise<boolean> {

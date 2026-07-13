@@ -198,6 +198,7 @@ function TeamManageRow({
 }) {
   const [managerId, setManagerId] = useState(team.manager_id ?? "");
   const [leadId, setLeadId] = useState(team.team_lead_user_id ?? "");
+  const [isProduction, setIsProduction] = useState(team.is_production !== false);
 
   return (
     <div className="rounded-lg border border-border/40 p-3 space-y-2">
@@ -236,6 +237,16 @@ function TeamManageRow({
           </Select>
         </div>
       </div>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={isProduction}
+          onChange={(e) => setIsProduction(e.target.checked)}
+          className="h-3.5 w-3.5 accent-[var(--primary)]"
+        />
+        Production team — counts in performance metrics, leaderboards, and time-clock rosters.
+        Uncheck for support teams like the Email Team.
+      </label>
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
@@ -251,7 +262,7 @@ function TeamManageRow({
               if (leadId !== (team.team_lead_user_id ?? "")) {
                 await assignTeamLeadAction(team.id, leadId || null);
               }
-              await updateTeamAction(team.id, { name: team.name });
+              await updateTeamAction(team.id, { name: team.name, is_production: isProduction });
             })
           }
         >

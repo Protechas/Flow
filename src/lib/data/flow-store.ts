@@ -1656,12 +1656,14 @@ export function createTeam(input: {
   department_id?: string | null;
   manager_id?: string | null;
   team_lead_user_id?: string | null;
+  is_production?: boolean;
 }): Team {
   initFlowStore();
   const team: Team = {
     id: uid("team"),
     name: input.name,
     description: input.description ?? null,
+    is_production: input.is_production ?? true,
     department_id: input.department_id ?? null,
     manager_id: input.manager_id ?? null,
     team_lead_user_id: input.team_lead_user_id ?? null,
@@ -1674,7 +1676,9 @@ export function createTeam(input: {
 
 export function updateTeam(
   id: string,
-  updates: Partial<Pick<Team, "name" | "description" | "department_id" | "manager_id" | "team_lead_user_id">>
+  updates: Partial<
+    Pick<Team, "name" | "description" | "department_id" | "manager_id" | "team_lead_user_id" | "is_production">
+  >
 ): Team | null {
   initFlowStore();
   const idx = teams.findIndex((t) => t.id === id);

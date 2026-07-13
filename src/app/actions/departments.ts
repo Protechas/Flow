@@ -195,6 +195,8 @@ export async function updateTeamAction(
     department_id?: string | null;
     manager_id?: string | null;
     team_lead_user_id?: string | null;
+    /** False = support team (e.g. Email Team), excluded from production metrics. */
+    is_production?: boolean;
   }
 ) {
   const actor = await requireUser();

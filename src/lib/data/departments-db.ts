@@ -38,6 +38,8 @@ function mapTeam(row: Record<string, unknown>): Team {
     id: String(row.id),
     name: String(row.name),
     description: row.description ? String(row.description) : null,
+    // Missing column (migration not applied) reads as production — safe default.
+    is_production: row.is_production == null ? true : Boolean(row.is_production),
     department_id: row.department_id ? String(row.department_id) : null,
     manager_id: row.manager_id ? String(row.manager_id) : null,
     team_lead_user_id: row.team_lead_user_id ? String(row.team_lead_user_id) : null,
@@ -218,7 +220,9 @@ export async function insertTeamDb(input: {
 
 export async function updateTeamDb(
   id: string,
-  updates: Partial<Pick<Team, "name" | "description" | "department_id" | "manager_id" | "team_lead_user_id">>
+  updates: Partial<
+    Pick<Team, "name" | "description" | "department_id" | "manager_id" | "team_lead_user_id" | "is_production">
+  >
 ): Promise<Team | null> {
   if (!isSupabaseConfigured()) return updateTeam(id, updates);
 
