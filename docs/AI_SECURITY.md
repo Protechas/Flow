@@ -44,7 +44,7 @@ Tools-hub performance rule: a feature that can't satisfy all six rules doesn't s
 
 | Feature | Entry point | Model tier | Sends to API | Gate |
 | --- | --- | --- | --- | --- |
-| Ask Flow (help Q&A) | `src/app/actions/ask-flow.ts` | `fast` (Haiku) | User question + manual excerpts (public docs content) | `requireUser` |
+| Ask Eddy (assistant chat) | `src/app/actions/eddy.ts` | `fast` (Haiku) | User's own messages + manual excerpts + allowlisted page-context summaries (`src/lib/eddy/page-context.ts`, built only after the same route-permission check the page enforces) | `requireUser`; conversations stored per-user with ownership checks + RLS |
 | Findings Triage | `src/app/actions/ai-triage.ts` | `standard` (Sonnet) | Allowlisted finding fields (`TRIAGE_FINDING_FIELDS` in `src/lib/ai/triage.ts`) + capped evidence | `validation:run` to spend, `validation:view` to read |
 | Document Review (Eddy on SOPs) | `src/app/actions/ai-sop-review.ts` | `standard` (Sonnet) | Allowlisted doc fields (`REVIEW_DOC_FIELDS` in `src/lib/ai/sop-review.ts`) + document text, capped | `company_documents:manage` |
 
