@@ -14,6 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ERROR_CATEGORIES, QA_RESULTS } from "@/lib/constants";
 import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { operationsHref } from "@/lib/navigation/deep-links";
@@ -51,6 +58,7 @@ export function QaReviewPanel({
     }
   }, [initialPackageId, queue]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [reuploadRequested, setReuploadRequested] = useState<Set<string>>(new Set());
   const selected = queue.find((q) => q.id === selectedId);
   const selectedFiles = selected ? (fileMap[selected.id] ?? []) : [];
@@ -138,9 +146,20 @@ export function QaReviewPanel({
                 {selected.assignee?.full_name}
               </p>
             </div>
-            <Button size="sm" variant="outline" render={<Link href={operationsHref({ package: selected.id })} />}>
-              Open task
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" variant="outline" onClick={() => setDetailsOpen(true)}>
+                Task details
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                render={<Link href={operationsHref({ package: selected.id })} prefetch={false} />}
+                title="Open on the Operations board (heavier page)"
+              >
+                Open in Operations
+              </Button>
+            </div>
           </div>
           <div className="p-4">
             {submissionMap[selected.id] && (
@@ -276,6 +295,61 @@ export function QaReviewPanel({
           </div>
         </div>
       )}
+
+      {/* Everything a reviewer needs to judge the task, without the trip to Operations. */}
+      {selected && (
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{selected.title}</DialogTitle>
+              <DialogDescription>
+                {selected.project?.name} · {selected.manufacturer?.name} · {selected.year}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <DetailField label="Assigned to" value={selected.assignee?.full_name ?? "Unassigned"} />
+              <DetailField label="Status" value={selected.status.replace(/_/g, " ")} />
+              <DetailField label="Priority" value={selected.priority} />
+              <DetailField label="Due date" value={selected.due_date ?? "—"} />
+              <DetailField
+                label="Hours"
+                value={`${selected.actual_hours}h logged · ${selected.estimated_hours}h est.`}
+              />
+              <DetailField
+                label="Corrections so far"
+                value={String(selected.correction_count)}
+              />
+            </div>
+            {(selected.description || selected.notes) && (
+              <div className="space-y-2">
+                {selected.description && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
+                    <p className="text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
+                      {selected.description}
+                    </p>
+                  </div>
+                )}
+                {selected.notes && selected.notes !== selected.description && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">{selected.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="capitalize">{value}</p>
     </div>
   );
 }

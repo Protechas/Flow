@@ -9,11 +9,13 @@ import {
   PLATFORM_EYEBROWS,
   WorkspaceContainer,
 } from "@/components/platform";
+import { CompletedReviewsPanel } from "@/components/qa/completed-reviews-panel";
 import { requirePageAccess, requireWorkPackageAccess } from "@/lib/auth/guard";
 import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canReviewQa } from "@/lib/auth/permissions";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
-import { getBatchReviewQueue, getQaQueue } from "@/lib/data/qa";
+import { getBatchReviewQueue, getQaQueue, getQaReviews } from "@/lib/data/qa";
+import { getWorkPackages } from "@/lib/data/work-packages";
 import { getLatestSubmission, getTaskFiles } from "@/lib/data/production-tracking";
 import { BatchReviewPanel } from "@/components/qa/batch-review-panel";
 import { operationsHref, qaCenterHref } from "@/lib/navigation/deep-links";
@@ -67,6 +69,15 @@ export default async function QaCenterReviewPage({
   const submissionMap = Object.fromEntries(
     queue.map((item) => [item.id, getLatestSubmission(item.id)])
   );
+
+  // The archive: finished checks leave the queue automatically; this keeps
+  // their record reachable without cluttering the working area.
+  let completedReviews = await getQaReviews();
+  if (branchIds?.length) {
+    const branchSet = new Set(branchIds);
+    completedReviews = completedReviews.filter((r) => branchSet.has(r.analyst_id));
+  }
+  const allPackages = await getWorkPackages();
 
   const inQa = queue.filter((q) => q.status === "in_qa").length;
   const ready = queue.filter((q) => q.status === "ready_for_qa").length;
@@ -136,6 +147,13 @@ export default async function QaCenterReviewPage({
             submissionMap={submissionMap}
             initialPackageId={packageParam?.trim() || undefined}
           />
+          <div className="px-6 pb-6">
+            <CompletedReviewsPanel
+              reviews={completedReviews}
+              packages={allPackages}
+              users={getFlowStore().users}
+            />
+          </div>
         </WorkspaceContainer>
       }
     />

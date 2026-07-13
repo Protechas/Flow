@@ -147,6 +147,7 @@ export default async function OperationsPage({
 
   let activePackages = 0;
   let inProgress = 0;
+  const treeTaskIds = new Set<string>();
   for (const projectNode of tree.projects) {
     for (const mfrNode of projectNode.manufacturers) {
       for (const yearNode of mfrNode.years) {
@@ -154,9 +155,27 @@ export default async function OperationsPage({
         inProgress += yearNode.packages.filter(
           (p) => p.status === "working_on_it" || p.status === "assigned"
         ).length;
+        for (const pkg of yearNode.packages) treeTaskIds.add(pkg.id);
       }
     }
   }
+
+  // Client payload discipline: this page once serialized EVERY historical file
+  // upload (2,400+ rows, multi-MB HTML) and froze slower machines. The board
+  // only shows per-task file lists, so ship tree tasks only, newest 20 per
+  // task — the Files hub has the complete history.
+  const uploadsByTask = new Map<string, number>();
+  const scopedUploads = getAllTaskFileUploads()
+    .filter((f) => treeTaskIds.has(f.task_id))
+    .sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))
+    .filter((f) => {
+      const n = uploadsByTask.get(f.task_id) ?? 0;
+      if (n >= 20) return false;
+      uploadsByTask.set(f.task_id, n + 1);
+      return true;
+    });
+  const scopedComments = store.comments.filter((c) => treeTaskIds.has(c.work_package_id));
+  const scopedTimeLogs = store.timeLogs.filter((t) => treeTaskIds.has(t.work_package_id));
   const recentActivity = [...store.activity]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 10);
@@ -284,7 +303,7 @@ export default async function OperationsPage({
             initialPackageId={resolvedPackageId || undefined}
             initialViewId={initialViewId}
             initialGroupingId={initialGroupingId}
-            taskFileUploads={getAllTaskFileUploads()}
+            taskFileUploads={scopedUploads}
             analysts={scopedAnalysts}
             currentUserId={user.id}
             teamUserIds={teamUserIds}
@@ -296,8 +315,8 @@ export default async function OperationsPage({
             canSubmitQa={canSubmitToQa(user.role)}
             canEditQa={canReviewQa(user.role)}
             readOnly={isReadOnly(user.role)}
-            comments={store.comments}
-            timeLogs={store.timeLogs}
+            comments={scopedComments}
+            timeLogs={scopedTimeLogs}
             forecastSettings={store.forecastSettings}
             canCreateTask={canCreateTask}
             creationUser={user}
