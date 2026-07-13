@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatActionError } from "@/lib/errors/action-messages";
-import { INFORMATION_SOLUTIONS_TEAMS } from "@/lib/positions/bootstrap";
 import { cn } from "@/lib/utils";
 import type { Department, User } from "@/types/flow";
 import { Building2, ChevronDown, Network, Plus, Trash2 } from "lucide-react";
@@ -49,13 +48,13 @@ export function OrgStructureBuilder({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [departmentName, setDepartmentName] = useState("Information Solutions");
+  // Blank canvas: this section builds NEW structure (e.g. "Email Team").
+  // The Information Solutions preset has its own button above.
+  const [departmentName, setDepartmentName] = useState("");
   const [existingDeptId, setExistingDeptId] = useState("");
   const [markUserId, setMarkUserId] = useState("");
   const [employeeSeats, setEmployeeSeats] = useState("1");
-  const [teams, setTeams] = useState<TeamDraft[]>(
-    INFORMATION_SOLUTIONS_TEAMS.map((t) => newTeamDraft(t.name))
-  );
+  const [teams, setTeams] = useState<TeamDraft[]>([newTeamDraft()]);
 
   if (!canManage) return null;
 
@@ -137,7 +136,11 @@ export function OrgStructureBuilder({
         <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
           <div className="space-y-2">
             <Label>Department name</Label>
-            <Input value={departmentName} onChange={(e) => setDepartmentName(e.target.value)} />
+            <Input
+              value={departmentName}
+              onChange={(e) => setDepartmentName(e.target.value)}
+              placeholder="e.g. Email Team"
+            />
           </div>
           <div className="space-y-2">
             <Label>Use existing department (optional)</Label>
@@ -192,7 +195,7 @@ export function OrgStructureBuilder({
                     prev.map((t) => (t.id === team.id ? { ...t, name: e.target.value } : t))
                   )
                 }
-                placeholder={`Team ${index + 1}`}
+                placeholder={index === 0 ? "e.g. Email Team" : `Team ${index + 1}`}
               />
               {teams.length > 1 && (
                 <Button
