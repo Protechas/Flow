@@ -997,14 +997,16 @@ export function createWorkPackage(input: WorkPackageInput): WorkPackage {
     created_at: ts(),
     updated_at: ts(),
   };
-  workPackages = [pkg, ...workPackages];
+  // Append, don't prepend: store order is build order (matches the DB fetch,
+  // which sorts created_at ascending so edits never reshuffle default views).
+  workPackages = [...workPackages, pkg];
   let forecasted = pkg;
   if (pkg.assigned_to) {
     recalculateAssigneeForecast(pkg.assigned_to);
     forecasted = workPackages.find((p) => p.id === pkg.id) ?? pkg;
   } else {
     forecasted = applyForecastToPackage(pkg);
-    workPackages[0] = forecasted;
+    workPackages = workPackages.map((p) => (p.id === pkg.id ? forecasted : p));
   }
   syncYearFromPackages(forecasted.year_work_item_id);
   recalculateProjectForecast(forecasted.project_id);

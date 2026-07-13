@@ -254,7 +254,9 @@ export async function hydrateWorkStructure(): Promise<{
   const client = await dbClient();
   const [yearRes, pkgRes] = await Promise.all([
     client.from("year_work_items").select("*").order("year", { ascending: false }),
-    client.from("work_items").select("*").order("updated_at", { ascending: false }),
+    // Build order, not edit order — editing a task must never move it in the
+    // default view. Views that want recency sort explicitly.
+    client.from("work_items").select("*").order("created_at", { ascending: true }),
   ]);
 
   if (yearRes.error && !isUnavailable(yearRes.error)) throw yearRes.error;

@@ -59,14 +59,17 @@ function statusLabel(status: string) {
 type TaskSort = "default" | "title-asc" | "title-desc";
 
 function sortTasks(tasks: WorkPackage[], sort: TaskSort): WorkPackage[] {
-  if (sort === "default") return tasks;
   const sorted = [...tasks];
+  // Default = build order. Guaranteed here, not just by fetch order, so an
+  // edit can never float a task to the top of the board.
   const cmp =
-    sort === "title-asc"
-      ? (a: WorkPackage, b: WorkPackage) =>
-          a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true })
-      : (a: WorkPackage, b: WorkPackage) =>
-          b.title.localeCompare(a.title, undefined, { sensitivity: "base", numeric: true });
+    sort === "default"
+      ? (a: WorkPackage, b: WorkPackage) => a.created_at.localeCompare(b.created_at)
+      : sort === "title-asc"
+        ? (a: WorkPackage, b: WorkPackage) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true })
+        : (a: WorkPackage, b: WorkPackage) =>
+            b.title.localeCompare(a.title, undefined, { sensitivity: "base", numeric: true });
   return sorted.sort(cmp);
 }
 
