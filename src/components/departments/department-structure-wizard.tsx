@@ -12,7 +12,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatActionError } from "@/lib/errors/action-messages";
@@ -173,7 +172,12 @@ export function DepartmentStructureWizard({
               value={leadUserId || "__none__"}
               onValueChange={(v) => setLeadUserId(!v || v === "__none__" ? "" : v)}
             >
-              <SelectTrigger><SelectValue placeholder="Vacant — assign later" /></SelectTrigger>
+              {/* Base UI's SelectValue shows the raw id — render the name ourselves. */}
+              <SelectTrigger>
+                <span className="flex flex-1 text-left">
+                  {managerPool.find((u) => u.id === leadUserId)?.full_name ?? "Vacant — assign later"}
+                </span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Vacant — assign later</SelectItem>
                 {managerPool.map((u) => (
@@ -186,42 +190,56 @@ export function DepartmentStructureWizard({
             <div key={team.id} className="rounded-lg border border-border/50 p-3 space-y-2">
               <p className="text-sm font-medium">{team.name}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Select
-                  value={team.manager_id || "__none__"}
-                  onValueChange={(v) =>
-                    setTeams((prev) =>
-                      prev.map((t) =>
-                        t.id === team.id ? { ...t, manager_id: !v || v === "__none__" ? "" : v } : t
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Manager (optional)</Label>
+                  <Select
+                    value={team.manager_id || "__none__"}
+                    onValueChange={(v) =>
+                      setTeams((prev) =>
+                        prev.map((t) =>
+                          t.id === team.id ? { ...t, manager_id: !v || v === "__none__" ? "" : v } : t
+                        )
                       )
-                    )
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Manager (optional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Vacant</SelectItem>
-                    {managerPool.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={team.team_lead_id || "__none__"}
-                  onValueChange={(v) =>
-                    setTeams((prev) =>
-                      prev.map((t) =>
-                        t.id === team.id ? { ...t, team_lead_id: !v || v === "__none__" ? "" : v } : t
+                    }
+                  >
+                    <SelectTrigger>
+                      <span className="flex flex-1 text-left">
+                        {managerPool.find((u) => u.id === team.manager_id)?.full_name ?? "Vacant"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Vacant</SelectItem>
+                      {managerPool.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Team lead (optional)</Label>
+                  <Select
+                    value={team.team_lead_id || "__none__"}
+                    onValueChange={(v) =>
+                      setTeams((prev) =>
+                        prev.map((t) =>
+                          t.id === team.id ? { ...t, team_lead_id: !v || v === "__none__" ? "" : v } : t
+                        )
                       )
-                    )
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Team lead (optional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Vacant</SelectItem>
-                    {users.filter((u) => u.is_active).map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    }
+                  >
+                    <SelectTrigger>
+                      <span className="flex flex-1 text-left">
+                        {users.find((u) => u.id === team.team_lead_id)?.full_name ?? "Vacant"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Vacant</SelectItem>
+                      {users.filter((u) => u.is_active).map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           ))}

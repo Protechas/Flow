@@ -20,7 +20,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { formatActionError } from "@/lib/errors/action-messages";
 import type { Department, Team, User } from "@/types/flow";
@@ -81,7 +80,12 @@ export function DepartmentManageDialog({
         <div className="space-y-2">
           <Label>Department lead</Label>
           <Select value={leadId || "__none__"} onValueChange={(v) => setLeadId(!v || v === "__none__" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Vacant" /></SelectTrigger>
+            {/* Base UI's SelectValue shows the raw id — render the name ourselves. */}
+            <SelectTrigger>
+              <span className="flex flex-1 text-left">
+                {managerPool.find((u) => u.id === leadId)?.full_name ?? "Vacant"}
+              </span>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Vacant</SelectItem>
               {managerPool.map((u) => (
@@ -199,24 +203,38 @@ function TeamManageRow({
     <div className="rounded-lg border border-border/40 p-3 space-y-2">
       <p className="text-sm font-medium">{team.name}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Select value={managerId || "__none__"} onValueChange={(v) => setManagerId(!v || v === "__none__" ? "" : v)}>
-          <SelectTrigger className="h-8"><SelectValue placeholder="Manager" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Vacant</SelectItem>
-            {users.map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={leadId || "__none__"} onValueChange={(v) => setLeadId(!v || v === "__none__" ? "" : v)}>
-          <SelectTrigger className="h-8"><SelectValue placeholder="Team lead" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Vacant</SelectItem>
-            {users.map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Manager</Label>
+          <Select value={managerId || "__none__"} onValueChange={(v) => setManagerId(!v || v === "__none__" ? "" : v)}>
+            <SelectTrigger className="h-8">
+              <span className="flex flex-1 text-left">
+                {users.find((u) => u.id === managerId)?.full_name ?? "Vacant"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Vacant</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Team lead</Label>
+          <Select value={leadId || "__none__"} onValueChange={(v) => setLeadId(!v || v === "__none__" ? "" : v)}>
+            <SelectTrigger className="h-8">
+              <span className="flex flex-1 text-left">
+                {users.find((u) => u.id === leadId)?.full_name ?? "Vacant"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Vacant</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -304,7 +322,11 @@ export function TeamAssignMemberDialog({
     <div className="space-y-4 p-1">
       <p className="text-sm font-medium">Assign member to {team.name}</p>
       <Select value={userId || "__pick__"} onValueChange={(v) => setUserId(!v || v === "__pick__" ? "" : v)}>
-        <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
+        <SelectTrigger>
+          <span className="flex flex-1 text-left">
+            {candidates.find((u) => u.id === userId)?.full_name ?? "Select user…"}
+          </span>
+        </SelectTrigger>
         <SelectContent>
           <SelectItem value="__pick__">Select user…</SelectItem>
           {candidates.map((u) => (
