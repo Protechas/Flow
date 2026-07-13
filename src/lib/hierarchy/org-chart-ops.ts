@@ -1,5 +1,6 @@
 import { appTodayDate } from "@/lib/datetime/timezone";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getDirectReportIds, getPrimarySupervisorId, getReportingChain } from "@/lib/hierarchy/resolver";
 import { HELP_FLAG_REASON_LABELS } from "@/lib/help-flags/constants";
@@ -109,7 +110,10 @@ export function buildOrgChartOpsMap(
     let workloadStatus: string | null = null;
     let clockStatus: OrgChartUserOps["clockStatus"] = "na";
 
-    if (getOrganizationalPosition(user) === "employee") {
+    // Production signals (workload, wrap-ups, flow score) apply to the
+    // production roster only — a support-team member (Email Team) shows as a
+    // person, not as an analyst who mysteriously "needs work".
+    if (getOrganizationalPosition(user) === "employee" && isProductionRosterMember(user)) {
       const avail = availabilityMap.get(userId);
       if (avail) {
         clockLabel = avail.statusLabel;
