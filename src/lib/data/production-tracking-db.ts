@@ -9,6 +9,7 @@ import {
 import { ensureWorkStructureHydrated } from "@/lib/data/work-items-db";
 import type {
   QaReviewRecord,
+  SideSession,
   TaskFileUpload,
   TaskSubmissionRecord,
   TaskTimeEntry,
@@ -119,6 +120,22 @@ function mapSubmission(row: Record<string, unknown>): TaskSubmissionRecord {
   };
 }
 
+function mapSideSession(row: Record<string, unknown>): SideSession {
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    category: String(row.category ?? "meeting") as SideSession["category"],
+    note: str(row.note),
+    started_at: String(row.started_at),
+    ended_at: str(row.ended_at),
+    minutes: num(row.minutes),
+    paused_task_id: row.paused_task_id ? String(row.paused_task_id) : null,
+    status: String(row.status ?? "active") as SideSession["status"],
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  };
+}
+
 function mapQaReview(row: Record<string, unknown>): QaReviewRecord {
   return {
     id: String(row.id),
@@ -160,7 +177,7 @@ const hydrateProduction = cache(async (): Promise<void> => {
 
   const since = format(subDays(new Date(), 90), "yyyy-MM-dd");
 
-  const [clocks, tasks, files, subs, qa] = await Promise.all([
+  const [clocks, tasks, files, subs, qa, sides] = await Promise.all([
     supabase
       .from("time_clock_entries")
       .select("*")
@@ -182,6 +199,11 @@ const hydrateProduction = cache(async (): Promise<void> => {
       .select("*")
       .gte("reviewed_at", `${since}T00:00:00Z`)
       .order("reviewed_at", { ascending: false }),
+    supabase
+      .from("side_sessions")
+      .select("*")
+      .gte("started_at", `${since}T00:00:00Z`)
+      .order("started_at", { ascending: false }),
   ]);
 
   if (clocks.error && !isUnavailable(clocks.error)) throw new Error(clocks.error.message);
@@ -189,6 +211,8 @@ const hydrateProduction = cache(async (): Promise<void> => {
   if (files.error && !isUnavailable(files.error)) throw new Error(files.error.message);
   if (subs.error && !isUnavailable(subs.error)) throw new Error(subs.error.message);
   if (qa.error && !isUnavailable(qa.error)) throw new Error(qa.error.message);
+  // side_sessions tolerates a missing table (migration 062 not applied yet)
+  if (sides.error && !isUnavailable(sides.error)) throw new Error(sides.error.message);
 
   // enrichTaskTime resolves manufacturer/year ids from store.workPackages, so
   // the work structure must land in the store before these rows are mapped.
@@ -200,6 +224,7 @@ const hydrateProduction = cache(async (): Promise<void> => {
     taskFileUploads: files.rows.map((r) => mapFile(r)),
     taskSubmissions: (subs.data ?? []).map((r) => mapSubmission(r as Record<string, unknown>)),
     qaReviewRecords: (qa.data ?? []).map((r) => mapQaReview(r as Record<string, unknown>)),
+    sideSessions: (sides.data ?? []).map((r) => mapSideSession(r as Record<string, unknown>)),
   });
 });
 
@@ -373,6 +398,34 @@ export async function persistQaReviewRecordSync(record: QaReviewRecord): Promise
   );
   const { error } = await supabase.from("qa_review_records").upsert(row, { onConflict: "id" });
   if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export async function persistSideSessionSync(session: SideSession): Promise<void> {
+  const supabase = await requirePersistClient();
+  if (!supabase) return;
+  const row = normalizePersistRowUuids(
+    {
+      id: session.id,
+      user_id: session.user_id,
+      category: session.category,
+      note: session.note,
+      started_at: session.started_at,
+      ended_at: session.ended_at,
+      minutes: session.minutes,
+      paused_task_id: session.paused_task_id,
+      status: session.status,
+      created_at: session.created_at,
+      updated_at: session.updated_at,
+    },
+    ["paused_task_id"]
+  );
+  assertPersistRow("side_sessions", row, ["id", "user_id"], ["paused_task_id"]);
+  const { error } = await supabase.from("side_sessions").upsert(row, { onConflict: "id" });
+  if (error && !isUnavailable(error)) throw new Error(error.message);
+}
+
+export function persistSideSession(session: SideSession): void {
+  persistLater(() => persistSideSessionSync(session));
 }
 
 export function persistTimeClockEntry(entry: TimeClockEntry): void {

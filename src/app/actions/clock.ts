@@ -3,6 +3,7 @@
 import { appTodayDate } from "@/lib/datetime/timezone";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { hasPermission, isEmployeeRole } from "@/lib/auth/permissions";
 import { canViewerSeeUser } from "@/lib/auth/team-scope";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
@@ -18,11 +19,15 @@ import {
   createClockEntry,
   deleteClockEntry,
   editClockEntry,
+  endSideSession,
   getActiveClockEntry,
+  getActiveSideSession,
   getActiveTaskTimeEntry,
   getAllClockEntries,
   getClockEntriesForUser,
+  getSideSessionMinutesToday,
   forceStopTaskTimer,
+  startSideSession,
 } from "@/lib/data/production-tracking";
 import {
   deleteTimeClockEntrySync,
@@ -274,6 +279,91 @@ export async function getTeamClockEntriesAction(filters?: { userId?: string; day
   return getAllClockEntries(filters);
 }
 
+// ——— Side sessions (meetings / training) ———————————————————————————————————
+
+const SIDE_SESSION_CATEGORIES = new Set(["meeting", "training"]);
+
+/**
+ * Abuse guard: once a day crosses this many side-session minutes, the
+ * employee's leads get a notification. The time is legitimate either way —
+ * this just makes heavy days visible without anyone having to go look.
+ */
+const SIDE_SESSION_DAILY_ALERT_MINUTES = 90;
+
+async function notifyLeadersOfHeavySideSessionDay(user: Awaited<ReturnType<typeof requireUser>>, totalMinutes: number) {
+  const { resolveLeadersForEmployee } = await import("@/lib/hierarchy/resolver");
+  const { deliverNotification } = await import("@/lib/notifications/notifications");
+  const store = getFlowStore();
+  const leaders = resolveLeadersForEmployee(user, store.users);
+  for (const leader of leaders) {
+    if (leader.id === user.id) continue;
+    deliverNotification({
+      user_id: leader.id,
+      type: "side_session_heavy",
+      title: "Heavy meeting/training time",
+      message: `${user.full_name} has logged ${totalMinutes}m of meetings/training today.`,
+      related_entity_type: "user",
+      related_entity_id: user.id,
+      link: `/people/${user.id}`,
+    });
+  }
+}
+
+/** Start a tracked meeting/training. Pauses the running task timer. */
+export async function startSideSessionAction(category: string, note?: string) {
+  const user = await requireUser();
+  await ensureServerWriteContext();
+
+  if (!SIDE_SESSION_CATEGORIES.has(category)) {
+    return { ok: false as const, message: "Pick meeting or training" };
+  }
+  // Shift-clock employees must be on the clock — the session is paid time.
+  if (isEmployeeRole(user.role) && requiresShiftClock(user) && !getActiveClockEntry(user.id)) {
+    return { ok: false as const, message: "Clock in first — sessions are tracked work time" };
+  }
+
+  try {
+    const session = startSideSession(user.id, category as "meeting" | "training", note);
+    const { persistSideSessionSync } = await import("@/lib/data/production-tracking-db");
+    await persistSideSessionSync(session);
+    revalidateClockPaths();
+    return { ok: true as const, session };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Could not start session" };
+  }
+}
+
+/** End the running meeting/training and go back to normal work. */
+export async function endSideSessionAction() {
+  const user = await requireUser();
+  await ensureServerWriteContext();
+
+  try {
+    const session = endSideSession(user.id);
+    const { persistSideSessionSync } = await import("@/lib/data/production-tracking-db");
+    await persistSideSessionSync(session);
+
+    const totalToday = getSideSessionMinutesToday(user.id);
+    if (totalToday >= SIDE_SESSION_DAILY_ALERT_MINUTES) {
+      await notifyLeadersOfHeavySideSessionDay(user, totalToday).catch(() => {});
+    }
+
+    revalidateClockPaths();
+    return { ok: true as const, session, totalToday };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Could not end session" };
+  }
+}
+
+/** The /work page reads this to show the session card state. */
+export async function getSideSessionStateAction() {
+  const user = await requireUser();
+  return {
+    active: getActiveSideSession(user.id),
+    todayMinutes: getSideSessionMinutesToday(user.id),
+  };
+}
+
 /** Header "Leads" widget: clock status per team lead. Fetched on click only. */
 export async function getLeadAvailabilityAction(): Promise<TeamMemberAvailability[]> {
   const user = await requireUser();
@@ -283,6 +373,12 @@ export async function getLeadAvailabilityAction(): Promise<TeamMemberAvailabilit
   ) {
     return [];
   }
-  const leads = getFlowStore().users.filter((u) => u.role === "teamlead" && u.is_active);
-  return getTeamAvailability(leads);
+  // Server actions are their own request — hydrate or the store is empty in prod.
+  await ensureAppDataLoaded();
+  // Leads are matched by organizational position: production rows use
+  // role=admin/manager + position=team_lead, not the legacy teamlead role.
+  const leads = getFlowStore().users.filter(
+    (u) => u.is_active && getOrganizationalPosition(u) === "team_lead"
+  );
+  return getTeamAvailability(leads, { rosterOnly: false });
 }

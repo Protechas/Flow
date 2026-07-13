@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LeadAvailability } from "@/components/layout/lead-availability";
+import { LeadClockToggle } from "@/components/layout/lead-clock-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import { getPageTitle } from "@/lib/navigation/page-titles";
@@ -21,9 +22,11 @@ import type { User } from "@/types/flow";
 interface AppHeaderProps {
   user: User;
   demoMode?: boolean;
+  /** Team leads only: current clock state for the in/out toggle. Null hides it. */
+  leadClockedIn?: boolean | null;
 }
 
-export function AppHeader({ user, demoMode }: AppHeaderProps) {
+export function AppHeader({ user, demoMode, leadClockedIn = null }: AppHeaderProps) {
   const [pending, startTransition] = useTransition();
   const pathname = usePathname();
   const router = useRouter();
@@ -66,6 +69,7 @@ export function AppHeader({ user, demoMode }: AppHeaderProps) {
           <Eye className="h-3.5 w-3.5" />
           Employee view
         </Button>
+        {leadClockedIn != null && <LeadClockToggle initialClockedIn={leadClockedIn} />}
         {(hasPermission(user.role, "people:view_team") ||
           hasPermission(user.role, "people:view_all")) && <LeadAvailability />}
         <ThemeSwitcher compact />

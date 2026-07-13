@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import { ClockStatusBadge } from "@/components/enterprise/clock-status-badge";
 import { PayTypeBadge } from "@/components/enterprise/pay-type-badge";
+import { LeadClockToggle } from "@/components/layout/lead-clock-toggle";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { EMPLOYEE_NAV, isEmployeeNavActive } from "@/lib/auth/permissions";
 import { getEmployeeClockStatus } from "@/lib/time-clock/labels";
 import { requiresShiftClock } from "@/lib/users/pay-type";
@@ -71,7 +73,9 @@ export function EmployeeHeader({
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
-            {useShiftClock ? (
+            {getOrganizationalPosition(user) === "team_lead" ? (
+              <LeadClockToggle initialClockedIn={clockStatus === "on_shift"} />
+            ) : useShiftClock ? (
               <ClockStatusBadge status={clockStatus} className="hidden sm:inline-flex" />
             ) : (
               <PayTypeBadge payType="salary" className="hidden sm:inline-flex" />

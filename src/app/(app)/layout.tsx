@@ -4,6 +4,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isEmployeeUser } from "@/lib/auth/session";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { getActiveClockEntry } from "@/lib/data/production-tracking";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
@@ -74,12 +76,20 @@ export default async function AppLayout({
   const demoMode = !isSupabaseConfigured();
   const hasDemoCookie = demoMode ? !!(await getDemoUserId()) : false;
 
+  // Team leads get the header in/out toggle so the team can see whether they're in.
+  const leadClockedIn =
+    getOrganizationalPosition(user) === "team_lead" ? !!getActiveClockEntry(user.id) : null;
+
   return (
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar user={user} teamDashboardNav={teamDashboardNav} hiddenNavIds={hiddenNavIds} />
         <SidebarInset className="flow-layer-content min-h-svh min-w-0 overflow-x-hidden">
-          <AppHeader user={user} demoMode={demoMode && hasDemoCookie} />
+          <AppHeader
+            user={user}
+            demoMode={demoMode && hasDemoCookie}
+            leadClockedIn={leadClockedIn}
+          />
           <div className="flow-app-content flex-1 p-4 lg:p-6 max-w-[1600px] mx-auto w-full min-w-0 overflow-x-hidden">
             {children}
           </div>

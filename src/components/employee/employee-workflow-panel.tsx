@@ -322,7 +322,7 @@ export function EmployeeWorkflowPanel({
               }
             >
               <LogIn className="h-5 w-5 mr-2" />
-              {wf.state === "ON_LUNCH" ? "Back from Lunch" : "Clock In"}
+              {wf.state === "ON_LUNCH" ? "Back from Break" : "Clock In"}
             </Button>
           )}
 
@@ -369,6 +369,7 @@ export function EmployeeWorkflowPanel({
                 size="lg"
                 className="h-12"
                 disabled={pending}
+                title="Clock out for a break — take as many as your day needs"
                 onClick={() =>
                   startTransition(async () => {
                     try {
@@ -381,7 +382,7 @@ export function EmployeeWorkflowPanel({
                 }
               >
                 <Coffee className="h-4 w-4 mr-1.5" />
-                Lunch
+                Break / Lunch
               </Button>
               <Button
                 variant="outline"

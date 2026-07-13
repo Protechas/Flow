@@ -42,6 +42,7 @@ export const NOTIFICATION_TYPE_ICONS: Partial<
   missing_wrap_up: Moon,
   forecast_risk: TrendingDown,
   department_alert: Building2,
+  side_session_heavy: TrendingDown,
 };
 
 export function notificationIcon(type: NotificationType) {

@@ -355,10 +355,10 @@ export function computeEmployeeWorkflowState(
 
   switch (state) {
     case "ON_LUNCH":
-      statusTitle = "On Lunch";
-      statusDescription = "Clock back in when your break is over.";
+      statusTitle = "On Break";
+      statusDescription = "Clock back in when your break is over — take as many breaks as your day needs.";
       nextStepTitle = "Clock back in";
-      nextStepDescription = "Resume your shift when you return from lunch.";
+      nextStepDescription = "Resume your shift when you return from your break.";
       statusAccent = "warning";
       break;
     case "CLOCKED_OUT":

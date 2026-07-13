@@ -8,6 +8,8 @@ import { isEmployeeRole } from "@/lib/auth/permissions";
 import { getEmployeeDashboard } from "@/lib/employee/dashboard";
 import {
   getActiveClockEntry,
+  getActiveSideSession,
+  getSideSessionMinutesToday,
   getTaskMinutesToday,
   getTodayClockEntries,
 } from "@/lib/data/production-tracking";
@@ -66,6 +68,8 @@ export default async function EmployeeWorkPage() {
       workEligibility={getWorkEligibility(user)}
       visibilityToday={getTodayVisibilityForUser(user.id)}
       pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
+      sideSession={getActiveSideSession(user.id)}
+      sideSessionMinutes={getSideSessionMinutesToday(user.id)}
     />
       <div className="mt-4">
         <BadgesPanel

@@ -9,12 +9,14 @@ import { EmployeeTodaysMission } from "@/components/employee/employee-todays-mis
 import { EmployeeUpNextList } from "@/components/employee/employee-up-next-list";
 import { EmployeeWorkflowProvider } from "@/components/employee/employee-workflow-context";
 import { EmployeeWorkflowPanel } from "@/components/employee/employee-workflow-panel";
+import { SideSessionCard } from "@/components/employee/side-session-card";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import type { WorkEligibility } from "@/lib/work-eligibility";
 import type { EmployeeDashboard } from "@/lib/employee/dashboard";
 import type {
   HelpFlagView,
   PayType,
+  SideSession,
   TimeClockEntry,
   WrapUpComplianceStatus,
 } from "@/types/flow";
@@ -31,6 +33,8 @@ export function EmployeeWorkspaceView({
   visibilityToday,
   pendingWorkRequest = false,
   taskReadyForSubmission = false,
+  sideSession = null,
+  sideSessionMinutes = 0,
 }: {
   dashboard: EmployeeDashboard;
   userName: string;
@@ -49,6 +53,8 @@ export function EmployeeWorkspaceView({
   };
   pendingWorkRequest?: boolean;
   taskReadyForSubmission?: boolean;
+  sideSession?: SideSession | null;
+  sideSessionMinutes?: number;
 }) {
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
 
@@ -156,6 +162,12 @@ export function EmployeeWorkspaceView({
           visibility={visibilityToday}
           wrapUpOpen={wrapUpOpen}
           onWrapUpOpenChange={setWrapUpOpen}
+        />
+
+        <SideSessionCard
+          initialSession={sideSession}
+          todayMinutes={sideSessionMinutes}
+          canStart={!useShiftClock || Boolean(activeClock)}
         />
 
         <EmployeeTodaysMission activeTaskTimer={activeTaskTimer} />

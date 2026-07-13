@@ -19,6 +19,8 @@ import type {
   ProductionReportSummary,
   QaResult,
   QaReviewRecord,
+  SideSession,
+  SideSessionCategory,
   TaskFileUpload,
   TaskSubmissionRecord,
   TaskSubmissionStatus,
@@ -37,6 +39,7 @@ interface ProductionTrackingState {
   taskFileUploads: TaskFileUpload[];
   taskSubmissions: TaskSubmissionRecord[];
   qaReviewRecords: QaReviewRecord[];
+  sideSessions: SideSession[];
   productionInitialized: boolean;
 }
 
@@ -52,6 +55,7 @@ const state: ProductionTrackingState = ((
   taskFileUploads: [],
   taskSubmissions: [],
   qaReviewRecords: [],
+  sideSessions: [],
   productionInitialized: false,
 });
 
@@ -61,12 +65,14 @@ export function replaceProductionTrackingStore(data: {
   taskFileUploads: TaskFileUpload[];
   taskSubmissions: TaskSubmissionRecord[];
   qaReviewRecords: QaReviewRecord[];
+  sideSessions?: SideSession[];
 }) {
   state.timeClockEntries = data.timeClockEntries;
   state.taskTimeEntries = data.taskTimeEntries;
   state.taskFileUploads = data.taskFileUploads;
   state.taskSubmissions = data.taskSubmissions;
   state.qaReviewRecords = data.qaReviewRecords;
+  state.sideSessions = data.sideSessions ?? [];
   state.productionInitialized = true;
 }
 
@@ -84,6 +90,9 @@ function persistSubmission(record: TaskSubmissionRecord) {
 }
 function persistQaReview(record: QaReviewRecord) {
   void import("@/lib/data/production-tracking-db").then((m) => m.persistQaReviewRecord(record));
+}
+function persistSideSession(session: SideSession) {
+  void import("@/lib/data/production-tracking-db").then((m) => m.persistSideSession(session));
 }
 
 function uid(prefix: string) {
@@ -121,7 +130,126 @@ export function getProductionStore() {
     taskFileUploads: state.taskFileUploads,
     taskSubmissions: state.taskSubmissions,
     qaReviewRecords: state.qaReviewRecords,
+    sideSessions: state.sideSessions,
   };
+}
+
+// ——— Side sessions (meetings / training) ———
+
+export function getActiveSideSession(userId: string): SideSession | null {
+  initProductionTracking();
+  return (
+    state.sideSessions.find((s) => s.user_id === userId && s.status === "active") ?? null
+  );
+}
+
+export function getTodaySideSessions(userId: string): SideSession[] {
+  initProductionTracking();
+  const today = todayDate();
+  return state.sideSessions.filter(
+    (s) => s.user_id === userId && isAppCalendarDay(s.started_at, today)
+  );
+}
+
+/** Completed minutes today plus the live elapsed of an active session. */
+export function getSideSessionMinutesToday(userId: string): number {
+  const sessions = getTodaySideSessions(userId);
+  return sessions.reduce(
+    (sum, s) =>
+      sum + (s.status === "active" ? minutesBetween(s.started_at, ts()) : s.minutes),
+    0
+  );
+}
+
+const SIDE_SESSION_LABELS: Record<SideSessionCategory, string> = {
+  meeting: "meeting",
+  training: "training",
+};
+
+/**
+ * Start a meeting/training session: pauses the running task timer (remembering
+ * it so ending the session resumes it) and logs the start for the activity feed.
+ */
+export function startSideSession(
+  userId: string,
+  category: SideSessionCategory,
+  note?: string
+): SideSession {
+  initProductionTracking();
+  if (getActiveSideSession(userId)) {
+    throw new Error("You already have a meeting or training session running — end it first");
+  }
+
+  let pausedTaskId: string | null = null;
+  const timer = getActiveTaskTimeEntry(userId);
+  if (timer?.status === "active") {
+    pauseTaskTimer(userId);
+    pausedTaskId = timer.task_id;
+    logActivityBridge(userId, "time_log", `Task timer paused — ${SIDE_SESSION_LABELS[category]} started`, timer.task_id);
+  }
+
+  const now = ts();
+  const session: SideSession = {
+    id: uid("side"),
+    user_id: userId,
+    category,
+    note: note?.trim().slice(0, 200) || null,
+    started_at: now,
+    ended_at: null,
+    minutes: 0,
+    paused_task_id: pausedTaskId,
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  };
+  state.sideSessions = [session, ...state.sideSessions];
+  persistSideSession(session);
+  logActivityBridge(userId, "time_log", `Started ${SIDE_SESSION_LABELS[category]}${session.note ? ` — ${session.note}` : ""}`);
+  return session;
+}
+
+/** End the active session; resumes the task timer the session paused. */
+export function endSideSession(userId: string): SideSession {
+  initProductionTracking();
+  const session = getActiveSideSession(userId);
+  if (!session) throw new Error("No meeting or training session is running");
+
+  const now = ts();
+  const updated: SideSession = {
+    ...session,
+    ended_at: now,
+    minutes: minutesBetween(session.started_at, now),
+    status: "completed",
+    updated_at: now,
+  };
+  state.sideSessions = state.sideSessions.map((s) => (s.id === session.id ? updated : s));
+  persistSideSession(updated);
+  logActivityBridge(
+    userId,
+    "time_log",
+    `Ended ${SIDE_SESSION_LABELS[session.category]} — ${updated.minutes}m`
+  );
+
+  if (session.paused_task_id) {
+    const timer = getActiveTaskTimeEntry(userId);
+    if (timer?.status === "paused" && timer.task_id === session.paused_task_id) {
+      resumeTaskTimer(userId);
+      logActivityBridge(userId, "time_log", "Task timer resumed — back from session", timer.task_id);
+    }
+  }
+  return updated;
+}
+
+/** Clocking out (lunch or day) closes any open session — nothing runs unattended. */
+export function finalizeSideSessionOnShiftEnd(userId: string): void {
+  initProductionTracking();
+  if (getActiveSideSession(userId)) {
+    try {
+      endSideSession(userId);
+    } catch {
+      // best effort — clock-out must never fail because of session cleanup
+    }
+  }
 }
 
 // ——— Time clock ———
@@ -173,6 +301,9 @@ export function clockIn(userId: string): TimeClockEntry {
 
 export function clockOut(userId: string, outType: TimeClockOutType): TimeClockEntry {
   initProductionTracking();
+  // Close any open meeting/training first — it may resume the timer it paused,
+  // which the finalize below then pauses (lunch) or stops (end of day).
+  finalizeSideSessionOnShiftEnd(userId);
   finalizeTaskTimersOnShiftEnd(userId, outType);
 
   const entry = getActiveClockEntry(userId);

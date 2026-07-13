@@ -573,6 +573,27 @@ export interface TaskTimeEntry {
   updated_at: string;
 }
 
+export type SideSessionCategory = "meeting" | "training";
+
+/**
+ * A tracked one-off during a shift (meeting, training). Starting one pauses
+ * the active task timer; ending it resumes work. Fully attributed time.
+ */
+export interface SideSession {
+  id: string;
+  user_id: string;
+  category: SideSessionCategory;
+  note: string | null;
+  started_at: string;
+  ended_at: string | null;
+  minutes: number;
+  /** Task timer this session paused — resumed when the session ends. */
+  paused_task_id: string | null;
+  status: "active" | "completed";
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskFileUpload {
   id: string;
   task_id: string;
@@ -851,7 +872,8 @@ export type NotificationType =
   | "department_alert"
   | "activity_gap"
   | "validation_run_complete"
-  | "sop_updated";
+  | "sop_updated"
+  | "side_session_heavy";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =
@@ -1800,6 +1822,46 @@ export interface PeopleProfile {
   recentQaFeedback: QaReview[];
 }
 
+/** One person's live position inside a project — "who is where" without digging. */
+export interface ProjectPersonPulse {
+  userId: string;
+  name: string;
+  isClockedIn: boolean;
+  activeTaskId: string | null;
+  activeTaskTitle: string | null;
+  /** True when the person's task timer is running on that task right now. */
+  activeTaskIsLive: boolean;
+  doneCount: number;
+  openCount: number;
+  totalCount: number;
+  hoursLogged: number;
+}
+
+export type ProjectHoldupKind = "stuck" | "correction" | "overdue" | "waiting";
+
+/** One named task that is holding a project up, with the reason spelled out. */
+export interface ProjectHoldup {
+  taskId: string;
+  title: string;
+  manufacturer: string | null;
+  assigneeName: string | null;
+  kind: ProjectHoldupKind;
+  detail: string;
+  /** Age in days — used to sort worst-first. */
+  days: number;
+}
+
+/** Package counts by stage — "how much is left" at a glance. */
+export interface ProjectRemainingBreakdown {
+  notStarted: number;
+  inMotion: number;
+  waiting: number;
+  inQa: number;
+  correction: number;
+  done: number;
+  total: number;
+}
+
 export interface ProjectHealth {
   project: Project;
   overallProgress: number;
@@ -1813,6 +1875,9 @@ export interface ProjectHealth {
   projectedCompletion?: string | null;
   rollup: ProjectRollup;
   customMetrics: ProjectMetricView[];
+  people: ProjectPersonPulse[];
+  holdups: ProjectHoldup[];
+  remaining: ProjectRemainingBreakdown;
 }
 
 export interface ReportMetrics {
