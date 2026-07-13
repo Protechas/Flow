@@ -5,6 +5,7 @@ import { RequestForm } from "@/components/requests/request-form";
 import { RequestQueue } from "@/components/requests/request-queue";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { isTicketReceiver } from "@/lib/requests/audience";
 import { listActiveTickets, listTicketsForRequester } from "@/lib/requests/tickets";
 import { listFilesForTickets } from "@/lib/requests/ticket-files";
 
@@ -32,10 +33,20 @@ export default async function EmployeeRequestsPage() {
       />
       <div className="space-y-6">
         <RequestForm />
-        <div>
-          <p className="flow-section-title mb-2">Team queue</p>
-          <RequestQueue tickets={active} currentUserId={user.id} filesByTicket={filesByTicket} />
-        </div>
+        {(isTicketReceiver(user) || active.some((t) => t.claimed_by === user.id)) && (
+          <div>
+            <p className="flow-section-title mb-2">Team queue</p>
+            <RequestQueue
+              tickets={
+                isTicketReceiver(user)
+                  ? active
+                  : active.filter((t) => t.claimed_by === user.id)
+              }
+              currentUserId={user.id}
+              filesByTicket={filesByTicket}
+            />
+          </div>
+        )}
         <div>
           <p className="flow-section-title mb-2">Your requests</p>
           <MyRequestsList

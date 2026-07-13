@@ -5,8 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { getFlowStore, logActivityBridge } from "@/lib/data/production-bridge";
-import { isProductionEmployee } from "@/lib/users/production-roster";
-import { getOrganizationalPosition } from "@/lib/auth/access-level";
+import { isTicketReceiver, listTicketReceivers } from "@/lib/requests/audience";
 import { deliverNotification } from "@/lib/notifications/notifications";
 import {
   getActiveTaskTimeEntry,
@@ -72,13 +71,9 @@ function revalidateTickets() {
   for (const path of TICKET_PATHS) revalidatePath(path);
 }
 
-/** The receiving crew: production analysts plus their leads. */
+/** The receiving crew: production analysts plus their leads, in departments that carry production work. */
 function ticketAudience(users: User[]): User[] {
-  return users.filter(
-    (u) =>
-      u.is_active &&
-      (isProductionEmployee(u) || getOrganizationalPosition(u) === "team_lead")
-  );
+  return listTicketReceivers(users);
 }
 
 export async function submitRequestTicketAction(input: {
@@ -130,6 +125,10 @@ export async function claimRequestTicketAction(ticketId: string) {
 
   try {
     await ensureAppDataLoaded();
+    // Requester-only groups (departments without production work) submit; they don't claim.
+    if (!isTicketReceiver(user) && !hasPermission(user.role, "work:assign")) {
+      return { ok: false as const, message: "Requests are handled by the production team" };
+    }
     const ticket = await claimTicket(ticketId, user.id);
     if (!ticket) {
       revalidateTickets();

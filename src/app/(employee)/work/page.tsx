@@ -29,6 +29,7 @@ import { BadgesPanel } from "@/components/badges/badges-panel";
 import { computeBadges } from "@/lib/badges/badges";
 import Link from "next/link";
 import { RequestQueue } from "@/components/requests/request-queue";
+import { isTicketReceiver } from "@/lib/requests/audience";
 import { listActiveTickets } from "@/lib/requests/tickets";
 import { listFilesForTickets } from "@/lib/requests/ticket-files";
 
@@ -54,8 +55,11 @@ export default async function EmployeeWorkPage() {
   const coachNudges = computeCoachNudges(user);
   const badges = await computeBadges(user.id);
   const activeTickets = await listActiveTickets().catch(() => []);
+  // Open tickets are claimable only by the receiving departments; anything
+  // you already claimed always shows so it can be finished.
+  const canReceiveTickets = isTicketReceiver(user);
   const myVisibleTickets = activeTickets.filter(
-    (t) => t.status === "open" || t.claimed_by === user.id
+    (t) => (canReceiveTickets && t.status === "open") || t.claimed_by === user.id
   );
   const ticketFiles = await listFilesForTickets(myVisibleTickets.map((t) => t.id)).catch(
     () => ({})
