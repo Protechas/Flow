@@ -6,6 +6,7 @@ import { RequestQueue } from "@/components/requests/request-queue";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
 import { listActiveTickets, listTicketsForRequester } from "@/lib/requests/tickets";
+import { listFilesForTickets } from "@/lib/requests/ticket-files";
 
 /**
  * Requests, both directions: submit what you need from the team, and (for the
@@ -17,6 +18,9 @@ export default async function EmployeeRequestsPage() {
   const [active, mine] = await Promise.all([
     listActiveTickets(),
     listTicketsForRequester(user.id),
+  ]);
+  const filesByTicket = await listFilesForTickets([
+    ...new Set([...active, ...mine].map((t) => t.id)),
   ]);
 
   return (
@@ -30,11 +34,15 @@ export default async function EmployeeRequestsPage() {
         <RequestForm />
         <div>
           <p className="flow-section-title mb-2">Team queue</p>
-          <RequestQueue tickets={active} currentUserId={user.id} />
+          <RequestQueue tickets={active} currentUserId={user.id} filesByTicket={filesByTicket} />
         </div>
         <div>
           <p className="flow-section-title mb-2">Your requests</p>
-          <MyRequestsList tickets={mine.filter((t) => t.requested_by === user.id)} />
+          <MyRequestsList
+            tickets={mine.filter((t) => t.requested_by === user.id)}
+            filesByTicket={filesByTicket}
+            currentUserId={user.id}
+          />
         </div>
       </div>
     </>

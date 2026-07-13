@@ -20,6 +20,7 @@ import {
   listRecentTickets,
   listTicketsForRequester,
 } from "@/lib/requests/tickets";
+import { listFilesForTickets } from "@/lib/requests/ticket-files";
 import { appTodayDate } from "@/lib/datetime/timezone";
 
 function turnaroundMinutes(claimedAt: string | null, completedAt: string | null): number | null {
@@ -34,6 +35,9 @@ export default async function RequestsPage() {
     listActiveTickets(),
     listRecentTickets(100),
     listTicketsForRequester(user.id),
+  ]);
+  const filesByTicket = await listFilesForTickets([
+    ...new Set([...active, ...mine].map((t) => t.id)),
   ]);
 
   const open = active.filter((t) => t.status === "open").length;
@@ -159,11 +163,12 @@ export default async function RequestsPage() {
             currentUserId={user.id}
             showClaimedByOthers
             convertProjects={convertProjects}
+            filesByTicket={filesByTicket}
           />
           <RequestForm />
           <div>
             <p className="flow-section-title mb-2">Your requests</p>
-            <MyRequestsList tickets={mine} />
+            <MyRequestsList tickets={mine} filesByTicket={filesByTicket} currentUserId={user.id} />
           </div>
           <div>
             <p className="flow-section-title mb-2">Detailed metrics</p>

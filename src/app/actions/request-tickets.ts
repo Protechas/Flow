@@ -314,3 +314,83 @@ export async function listActiveTicketsAction() {
   await ensureAppDataLoaded();
   return listActiveTickets();
 }
+
+// ——— Attachments: the deliverable travels with the ticket ———————————————————
+
+function canTouchTicketFiles(
+  ticket: { requested_by: string; claimed_by: string | null; status: string },
+  userId: string,
+  role: string
+): boolean {
+  if (ticket.status === "canceled") return false;
+  return (
+    ticket.requested_by === userId ||
+    ticket.claimed_by === userId ||
+    hasPermission(role, "work:assign")
+  );
+}
+
+/** Drag-drop upload onto a ticket — requester context in, analyst deliverable out. */
+export async function uploadRequestTicketFileAction(formData: FormData) {
+  const user = await requireUser();
+  const ticketId = String(formData.get("ticketId") ?? "").trim();
+  const file = formData.get("file") as File | null;
+  if (!ticketId || !file?.size) {
+    return { ok: false as const, message: "Drop a file on the request" };
+  }
+
+  try {
+    await ensureAppDataLoaded();
+    const ticket = await getTicketById(ticketId);
+    if (!ticket) return { ok: false as const, message: "Request not found" };
+    if (!canTouchTicketFiles(ticket, user.id, user.role)) {
+      return { ok: false as const, message: "Only the requester or the person working it can attach files" };
+    }
+
+    const { uploadTicketFile } = await import("@/lib/requests/ticket-files");
+    const uploaded = await uploadTicketFile({
+      ticket_id: ticketId,
+      user_id: user.id,
+      file_name: file.name,
+      mime_type: file.type,
+      buffer: Buffer.from(await file.arrayBuffer()),
+    });
+
+    logActivityBridge(user.id, "file_upload", `Attached ${file.name} to request: ${ticket.title}`);
+    // The other side of the handoff gets told the file landed.
+    const counterpart = user.id === ticket.requested_by ? ticket.claimed_by : ticket.requested_by;
+    if (counterpart && counterpart !== user.id) {
+      deliverNotification({
+        user_id: counterpart,
+        type: "request_update",
+        title: "File attached to your request",
+        message: `${user.full_name} attached ${file.name} to "${ticket.title}".`,
+        related_entity_type: "request_ticket",
+        related_entity_id: ticketId,
+        link: "/work/requests",
+      });
+    }
+
+    revalidateTickets();
+    return { ok: true as const, file: uploaded };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Upload failed" };
+  }
+}
+
+export async function deleteRequestTicketFileAction(fileId: string) {
+  const user = await requireUser();
+  try {
+    const { deleteTicketFile, getTicketFileById } = await import("@/lib/requests/ticket-files");
+    const file = await getTicketFileById(fileId);
+    if (!file) return { ok: true as const };
+    if (file.user_id !== user.id && !hasPermission(user.role, "work:assign")) {
+      return { ok: false as const, message: "Only the uploader (or a lead) can remove a file" };
+    }
+    await deleteTicketFile(fileId);
+    revalidateTickets();
+    return { ok: true as const };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Could not remove file" };
+  }
+}

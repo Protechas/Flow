@@ -6,8 +6,13 @@ import { cancelRequestTicketAction } from "@/app/actions/request-tickets";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import { TicketFiles } from "@/components/requests/ticket-files";
 import { cn } from "@/lib/utils";
-import type { RequestTicketStatus, RequestTicketView } from "@/types/flow";
+import type {
+  RequestTicketFileView,
+  RequestTicketStatus,
+  RequestTicketView,
+} from "@/types/flow";
 import { X } from "lucide-react";
 
 const STATUS_META: Record<RequestTicketStatus, { label: string; className: string }> = {
@@ -18,7 +23,15 @@ const STATUS_META: Record<RequestTicketStatus, { label: string; className: strin
 };
 
 /** The requester's side: everything you've asked for and where it stands. */
-export function MyRequestsList({ tickets }: { tickets: RequestTicketView[] }) {
+export function MyRequestsList({
+  tickets,
+  filesByTicket = {},
+  currentUserId = "",
+}: {
+  tickets: RequestTicketView[];
+  filesByTicket?: Record<string, RequestTicketFileView[]>;
+  currentUserId?: string;
+}) {
   const router = useRouter();
   const { toast } = useFlowToast();
   const [pending, startTransition] = useTransition();
@@ -45,33 +58,41 @@ export function MyRequestsList({ tickets }: { tickets: RequestTicketView[] }) {
         return (
           <div
             key={t.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border/50 bg-muted/10 px-3 py-2"
+            className="rounded-md border border-border/50 bg-muted/10 px-3 py-2 space-y-2"
           >
-            <Badge variant="outline" className={cn("shrink-0", meta.className)}>
-              {meta.label}
-            </Badge>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{t.title}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {t.status === "claimed" && t.claimed_by_name
-                  ? `${t.claimed_by_name} is on it`
-                  : t.status === "done" && t.claimed_by_name
-                    ? `Done by ${t.claimed_by_name}`
-                    : new Date(t.created_at).toLocaleString()}
-              </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Badge variant="outline" className={cn("shrink-0", meta.className)}>
+                {meta.label}
+              </Badge>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{t.title}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t.status === "claimed" && t.claimed_by_name
+                    ? `${t.claimed_by_name} is on it`
+                    : t.status === "done" && t.claimed_by_name
+                      ? `Done by ${t.claimed_by_name} — grab your file below`
+                      : new Date(t.created_at).toLocaleString()}
+                </p>
+              </div>
+              {(t.status === "open" || t.status === "claimed") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  disabled={pending}
+                  onClick={() => cancel(t.id)}
+                  title="Cancel this request"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-            {(t.status === "open" || t.status === "claimed") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                disabled={pending}
-                onClick={() => cancel(t.id)}
-                title="Cancel this request"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+            <TicketFiles
+              ticketId={t.id}
+              files={filesByTicket[t.id] ?? []}
+              canUpload={t.status === "open" || t.status === "claimed"}
+              currentUserId={currentUserId}
+            />
           </div>
         );
       })}

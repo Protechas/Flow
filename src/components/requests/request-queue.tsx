@@ -27,8 +27,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFlowToast } from "@/components/ui/flow-toast";
+import { TicketFiles } from "@/components/requests/ticket-files";
 import { cn } from "@/lib/utils";
-import type { RequestTicketView } from "@/types/flow";
+import type { RequestTicketFileView, RequestTicketView } from "@/types/flow";
 import { CheckCircle2, Hand, ListTodo, Loader2, Undo2 } from "lucide-react";
 
 function ageLabel(iso: string): string {
@@ -55,18 +56,22 @@ export function RequestQueue({
   currentUserId,
   showClaimedByOthers = false,
   convertProjects,
+  filesByTicket = {},
 }: {
   tickets: RequestTicketView[];
   currentUserId: string;
   showClaimedByOthers?: boolean;
   /** When provided (leads/managers), claimed tickets gain "Make it a task". */
   convertProjects?: { id: string; name: string }[];
+  filesByTicket?: Record<string, RequestTicketFileView[]>;
 }) {
   const router = useRouter();
   const { toast } = useFlowToast();
   const [pending, startTransition] = useTransition();
   const [convertTarget, setConvertTarget] = useState<RequestTicketView | null>(null);
   const [convertProjectId, setConvertProjectId] = useState("");
+  /** Two-step Done when nothing is attached — the deliverable should ride the ticket. */
+  const [confirmNoFileId, setConfirmNoFileId] = useState<string | null>(null);
 
   const open = tickets.filter((t) => t.status === "open");
   const mine = tickets.filter((t) => t.status === "claimed" && t.claimed_by === currentUserId);
@@ -125,6 +130,14 @@ export function RequestQueue({
                   ? `On it for ${ageLabel(t.claimed_at).replace(" ago", "")}${t.paused_task_id ? " · your task timer is paused" : ""}`
                   : undefined
               }
+              attachments={
+                <TicketFiles
+                  ticketId={t.id}
+                  files={filesByTicket[t.id] ?? []}
+                  canUpload
+                  currentUserId={currentUserId}
+                />
+              }
             >
               {convertProjects && convertProjects.length > 0 && !t.linked_task_id && (
                 <Button
@@ -152,11 +165,21 @@ export function RequestQueue({
               </Button>
               <Button
                 size="sm"
+                variant={confirmNoFileId === t.id ? "outline" : "default"}
+                className={confirmNoFileId === t.id ? "border-amber-500/50 text-amber-500" : ""}
                 disabled={pending}
-                onClick={() => act(() => completeRequestTicketAction(t.id), "Marked done — the requester was notified")}
+                onClick={() => {
+                  const hasFiles = (filesByTicket[t.id] ?? []).length > 0;
+                  if (!hasFiles && confirmNoFileId !== t.id) {
+                    setConfirmNoFileId(t.id);
+                    return;
+                  }
+                  setConfirmNoFileId(null);
+                  act(() => completeRequestTicketAction(t.id), "Marked done — the requester was notified");
+                }}
               >
                 <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                Done
+                {confirmNoFileId === t.id ? "No file attached — complete anyway?" : "Done"}
               </Button>
             </TicketRow>
           ))}
@@ -167,7 +190,20 @@ export function RequestQueue({
         <div className="space-y-1.5">
           <p className="flow-section-title">Open — first claim wins</p>
           {open.map((t) => (
-            <TicketRow key={t.id} ticket={t}>
+            <TicketRow
+              key={t.id}
+              ticket={t}
+              attachments={
+                (filesByTicket[t.id] ?? []).length > 0 ? (
+                  <TicketFiles
+                    ticketId={t.id}
+                    files={filesByTicket[t.id] ?? []}
+                    canUpload={false}
+                    currentUserId={currentUserId}
+                  />
+                ) : undefined
+              }
+            >
               <Button
                 size="sm"
                 disabled={pending}
@@ -239,32 +275,38 @@ export function RequestQueue({
 function TicketRow({
   ticket,
   meta,
+  attachments,
   children,
 }: {
   ticket: RequestTicketView;
   /** Extra line under the title, e.g. the running ticket time. */
   meta?: string;
+  /** File chips + drop zone, rendered full-width under the row. */
+  attachments?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border/50 bg-muted/10 px-3 py-2",
+        "rounded-md border border-border/50 bg-muted/10 px-3 py-2 space-y-2",
         ticket.priority === "urgent" && "border-red-500/30 bg-red-500/5"
       )}
     >
-      <Badge variant="outline" className={cn("shrink-0 capitalize", PRIORITY_STYLES[ticket.priority])}>
-        {ticket.priority}
-      </Badge>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{ticket.title}</p>
-        <p className="text-xs text-muted-foreground truncate">
-          {ticket.requested_by_name} · {ageLabel(ticket.created_at)}
-          {ticket.details ? ` — ${ticket.details}` : ""}
-        </p>
-        {meta && <p className="text-[11px] text-primary/80 truncate">{meta}</p>}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Badge variant="outline" className={cn("shrink-0 capitalize", PRIORITY_STYLES[ticket.priority])}>
+          {ticket.priority}
+        </Badge>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{ticket.title}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {ticket.requested_by_name} · {ageLabel(ticket.created_at)}
+            {ticket.details ? ` — ${ticket.details}` : ""}
+          </p>
+          {meta && <p className="text-[11px] text-primary/80 truncate">{meta}</p>}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">{children}</div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">{children}</div>
+      {attachments}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import { computeBadges } from "@/lib/badges/badges";
 import Link from "next/link";
 import { RequestQueue } from "@/components/requests/request-queue";
 import { listActiveTickets } from "@/lib/requests/tickets";
+import { listFilesForTickets } from "@/lib/requests/ticket-files";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -56,6 +57,9 @@ export default async function EmployeeWorkPage() {
   const myVisibleTickets = activeTickets.filter(
     (t) => t.status === "open" || t.claimed_by === user.id
   );
+  const ticketFiles = await listFilesForTickets(myVisibleTickets.map((t) => t.id)).catch(
+    () => ({})
+  );
 
   return (
     <>
@@ -73,7 +77,7 @@ export default async function EmployeeWorkPage() {
               All requests
             </Link>
           </div>
-          <RequestQueue tickets={myVisibleTickets} currentUserId={user.id} />
+          <RequestQueue tickets={myVisibleTickets} currentUserId={user.id} filesByTicket={ticketFiles} />
         </div>
       )}
       <EmployeeHome

@@ -643,6 +643,24 @@ export interface RequestTicketView extends RequestTicket {
   claimed_by_name: string | null;
 }
 
+/** A file attached to a request ticket — how the deliverable changes hands. */
+export interface RequestTicketFile {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  storage_path: string;
+  uploaded_at: string;
+  /** Demo-mode only: file bytes kept in memory. */
+  file_data_base64?: string;
+}
+
+export interface RequestTicketFileView extends RequestTicketFile {
+  uploaded_by_name: string;
+}
+
 export type SideSessionCategory = "meeting" | "training";
 
 /**
