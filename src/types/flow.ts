@@ -573,6 +573,76 @@ export interface TaskTimeEntry {
   updated_at: string;
 }
 
+export type CoachingCategory =
+  | "time_attendance"
+  | "quality"
+  | "conduct"
+  | "performance"
+  | "other";
+
+export type CoachingLevel =
+  | "coaching"
+  | "verbal_warning"
+  | "written_warning"
+  | "final_warning";
+
+/**
+ * One coaching conversation, recorded for accountability: what happened,
+ * what was agreed, whether the employee acknowledged it, and the follow-up.
+ */
+export interface CoachingSession {
+  id: string;
+  employee_id: string;
+  coach_id: string;
+  session_date: string;
+  category: CoachingCategory;
+  level: CoachingLevel;
+  summary: string;
+  expectation: string | null;
+  follow_up_date: string | null;
+  status: "open" | "resolved";
+  resolved_at: string | null;
+  resolution_note: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CoachingSessionView extends CoachingSession {
+  employee_name: string;
+  coach_name: string;
+}
+
+export type RequestTicketStatus = "open" | "claimed" | "done" | "canceled";
+export type RequestTicketPriority = "low" | "normal" | "urgent";
+
+/**
+ * A lightweight cross-team request ("I need a doc for X"). Submitted by anyone,
+ * claimed first-come by the receiving team, tracked to done. Can be escalated
+ * into a real work package (linked_task_id) when it turns out to be big.
+ */
+export interface RequestTicket {
+  id: string;
+  title: string;
+  details: string | null;
+  priority: RequestTicketPriority;
+  requested_by: string;
+  status: RequestTicketStatus;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  completed_at: string | null;
+  linked_task_id: string | null;
+  /** Task timer the claim paused — resumed when the ticket closes. */
+  paused_task_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RequestTicketView extends RequestTicket {
+  requested_by_name: string;
+  claimed_by_name: string | null;
+}
+
 export type SideSessionCategory = "meeting" | "training";
 
 /**
@@ -873,7 +943,10 @@ export type NotificationType =
   | "activity_gap"
   | "validation_run_complete"
   | "sop_updated"
-  | "side_session_heavy";
+  | "side_session_heavy"
+  | "request_submitted"
+  | "request_update"
+  | "coaching_update";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =

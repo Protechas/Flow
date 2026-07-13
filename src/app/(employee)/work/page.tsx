@@ -27,6 +27,9 @@ import { CoachPanel } from "@/components/coach/coach-panel";
 import { computeCoachNudges, resolveCoachPersona } from "@/lib/coach/nudges";
 import { BadgesPanel } from "@/components/badges/badges-panel";
 import { computeBadges } from "@/lib/badges/badges";
+import Link from "next/link";
+import { RequestQueue } from "@/components/requests/request-queue";
+import { listActiveTickets } from "@/lib/requests/tickets";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -49,6 +52,10 @@ export default async function EmployeeWorkPage() {
 
   const coachNudges = computeCoachNudges(user);
   const badges = await computeBadges(user.id);
+  const activeTickets = await listActiveTickets().catch(() => []);
+  const myVisibleTickets = activeTickets.filter(
+    (t) => t.status === "open" || t.claimed_by === user.id
+  );
 
   return (
     <>
@@ -56,6 +63,19 @@ export default async function EmployeeWorkPage() {
       <div className="mb-4">
         <CoachPanel nudges={coachNudges} persona={resolveCoachPersona(user)} />
       </div>
+      {myVisibleTickets.length > 0 && (
+        <div className="enterprise-panel p-4 mb-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">
+              Team requests waiting
+            </p>
+            <Link href="/work/requests" className="text-xs text-primary hover:underline" prefetch={false}>
+              All requests
+            </Link>
+          </div>
+          <RequestQueue tickets={myVisibleTickets} currentUserId={user.id} />
+        </div>
+      )}
       <EmployeeHome
         dashboard={dashboard}
         userName={user.full_name}

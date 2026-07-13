@@ -456,6 +456,14 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | Permission[]> = {
 
   "/work/leaderboard": "work:view_own",
 
+  "/work/requests": "work:view_own",
+
+  "/work/coaching": "work:view_own",
+
+  "/requests": ["work:view_all", "work:view_team", "work:assign"],
+
+  "/coaching": "work:assign",
+
   "/executive": "dashboard:view",
 
   "/operations": ["work:view_all", "work:view_team", "work:assign"],
@@ -727,6 +735,10 @@ export type NavItemId =
 
   | "operations"
 
+  | "requests"
+
+  | "coaching"
+
   | "templates"
 
   | "projects"
@@ -885,6 +897,8 @@ export const NAV_CONFIG: {
 
   { id: "operations", href: "/operations", label: "Operations", icon: "Kanban", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
+  { id: "requests", href: "/requests", label: "Requests", icon: "Inbox", group: "operations", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
+
   { id: "projects", href: "/projects", label: "Projects", icon: "FolderKanban", group: "operations", permissions: ["projects:create", "projects:edit"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "production", href: "/production", label: "Production", icon: "Factory", group: "operations", permissions: ["reports:view_all", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
@@ -898,6 +912,8 @@ export const NAV_CONFIG: {
   { id: "performance", href: "/performance", label: "Performance", icon: "Trophy", group: "workforce", permissions: ["people:view_all", "reports:view_all", "people:view_team", "reports:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
   { id: "time-clock", href: "/time-clock", label: "Time Clock", icon: "Clock", group: "workforce", permissions: ["work:view_all", "work:view_team"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
+
+  { id: "coaching", href: "/coaching", label: "Coaching", icon: "ClipboardList", group: "workforce", permissions: "work:assign", roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead"] },
 
   { id: "org-chart", href: "/org-chart", label: "Org Chart", icon: "Network", group: "workforce", permissions: ["people:view_all", "people:view_team", "dashboard:view"], roles: ["admin", "super_admin", "senior_manager", "manager", "teamlead", "viewer"] },
 
@@ -937,6 +953,10 @@ export const EMPLOYEE_NAV = [
 
   { href: "/work", label: "Workspace", icon: "Briefcase" },
 
+  { href: "/work/requests", label: "Requests", icon: "Inbox" },
+
+  { href: "/work/coaching", label: "Coaching", icon: "ClipboardList" },
+
   { href: "/work/files", label: "Files & SOPs", icon: "FileStack" },
 
   { href: "/work/leaderboard", label: "Leaderboard", icon: "Trophy" },
@@ -955,7 +975,9 @@ export function isEmployeeNavActive(href: string, pathname: string): boolean {
       pathname === "/work" ||
       (pathname.startsWith("/work/") &&
         !pathname.startsWith("/work/files") &&
-        !pathname.startsWith("/work/leaderboard"))
+        !pathname.startsWith("/work/leaderboard") &&
+        !pathname.startsWith("/work/requests") &&
+        !pathname.startsWith("/work/coaching"))
     );
   }
   if (href === "/work/files") {

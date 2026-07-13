@@ -44,6 +44,9 @@ export const NOTIFICATION_TYPE_CATEGORY: Record<NotificationType, NotificationCa
   validation_run_complete: "project",
   sop_updated: "other",
   side_session_heavy: "workload",
+  request_submitted: "task",
+  request_update: "task",
+  coaching_update: "other",
 };
 
 export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>> = {
@@ -76,6 +79,9 @@ export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>>
   file_uploaded: "File uploaded",
   sop_updated: "SOP updated",
   side_session_heavy: "Heavy meeting/training time",
+  request_submitted: "New team request",
+  request_update: "Request update",
+  coaching_update: "Coaching session",
 };
 
 export function categoryForType(type: NotificationType): NotificationCategory {

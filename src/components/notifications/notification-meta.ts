@@ -43,6 +43,9 @@ export const NOTIFICATION_TYPE_ICONS: Partial<
   forecast_risk: TrendingDown,
   department_alert: Building2,
   side_session_heavy: TrendingDown,
+  request_submitted: LifeBuoy,
+  request_update: CheckCheck,
+  coaching_update: MessageSquare,
 };
 
 export function notificationIcon(type: NotificationType) {
