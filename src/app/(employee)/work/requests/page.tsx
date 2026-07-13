@@ -23,6 +23,7 @@ export default async function EmployeeRequestsPage() {
   const filesByTicket = await listFilesForTickets([
     ...new Set([...active, ...mine].map((t) => t.id)),
   ]);
+  const receiver = await isTicketReceiver(user);
 
   return (
     <>
@@ -33,15 +34,11 @@ export default async function EmployeeRequestsPage() {
       />
       <div className="space-y-6">
         <RequestForm />
-        {(isTicketReceiver(user) || active.some((t) => t.claimed_by === user.id)) && (
+        {(receiver || active.some((t) => t.claimed_by === user.id)) && (
           <div>
             <p className="flow-section-title mb-2">Team queue</p>
             <RequestQueue
-              tickets={
-                isTicketReceiver(user)
-                  ? active
-                  : active.filter((t) => t.claimed_by === user.id)
-              }
+              tickets={receiver ? active : active.filter((t) => t.claimed_by === user.id)}
               currentUserId={user.id}
               filesByTicket={filesByTicket}
             />

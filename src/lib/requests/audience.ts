@@ -2,19 +2,22 @@ import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getUserPrimaryDepartmentId } from "@/lib/departments/resolve";
 import { getOrganizationalPosition } from "@/lib/auth/access-level";
 import { isProductionEmployee } from "@/lib/users/production-roster";
+import { getReceivingTeamIds } from "@/lib/requests/settings";
 import type { User } from "@/types/flow";
 
 /**
  * Who receives (sees, claims, gets notified about) team requests.
  *
- * Rule: requests route to the departments that carry production work —
- * a department with at least one active project. A requester-only group
- * like the Email Team (no projects) automatically becomes submit-only:
- * its members never see claim buttons for their own team's asks.
+ * Owner-picked routing first: when receiving teams are configured
+ * (Requests page → routing panel), only members of those teams receive —
+ * e.g. "just the people under me on the SI team".
  *
- * Fail-open: users whose department can't be resolved, or an org where no
- * department owns a project yet, fall back to everyone — same behavior as
- * before departments split.
+ * Otherwise the rule derives from the org structure: requests route to
+ * departments that carry production work (≥1 active project), so a
+ * requester-only group like the Email Team is automatically submit-only.
+ *
+ * Fail-open: unresolvable users or an org with no project-owning
+ * department fall back to everyone — pre-split behavior.
  */
 export function receivingDepartmentIds(): Set<string> {
   initFlowStore();
@@ -26,11 +29,19 @@ export function receivingDepartmentIds(): Set<string> {
   );
 }
 
-export function isTicketReceiver(user: User): boolean {
+function eligibleRole(user: User): boolean {
   if (!user.is_active) return false;
-  if (!isProductionEmployee(user) && getOrganizationalPosition(user) !== "team_lead") {
-    return false;
+  return isProductionEmployee(user) || getOrganizationalPosition(user) === "team_lead";
+}
+
+export async function isTicketReceiver(user: User): Promise<boolean> {
+  if (!eligibleRole(user)) return false;
+
+  const receivingTeams = await getReceivingTeamIds();
+  if (receivingTeams.length > 0) {
+    return user.team_id != null && receivingTeams.includes(user.team_id);
   }
+
   const receiving = receivingDepartmentIds();
   if (receiving.size === 0) return true;
   const departmentId = getUserPrimaryDepartmentId(user.id);
@@ -39,6 +50,20 @@ export function isTicketReceiver(user: User): boolean {
 }
 
 /** The notify list for a new ticket. */
-export function listTicketReceivers(users: User[]): User[] {
-  return users.filter(isTicketReceiver);
+export async function listTicketReceivers(users: User[]): Promise<User[]> {
+  const receivingTeams = await getReceivingTeamIds();
+  if (receivingTeams.length > 0) {
+    return users.filter(
+      (u) => eligibleRole(u) && u.team_id != null && receivingTeams.includes(u.team_id)
+    );
+  }
+
+  const receiving = receivingDepartmentIds();
+  return users.filter((u) => {
+    if (!eligibleRole(u)) return false;
+    if (receiving.size === 0) return true;
+    const departmentId = getUserPrimaryDepartmentId(u.id);
+    if (!departmentId) return true;
+    return receiving.has(departmentId);
+  });
 }

@@ -57,7 +57,7 @@ export default async function EmployeeWorkPage() {
   const activeTickets = await listActiveTickets().catch(() => []);
   // Open tickets are claimable only by the receiving departments; anything
   // you already claimed always shows so it can be finished.
-  const canReceiveTickets = isTicketReceiver(user);
+  const canReceiveTickets = await isTicketReceiver(user);
   const myVisibleTickets = activeTickets.filter(
     (t) => (canReceiveTickets && t.status === "open") || t.claimed_by === user.id
   );

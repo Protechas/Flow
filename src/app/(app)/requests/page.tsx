@@ -10,6 +10,9 @@ import { MyRequestsList } from "@/components/requests/my-requests-list";
 import { RequestForm } from "@/components/requests/request-form";
 import { RequestMetrics } from "@/components/requests/request-metrics";
 import { RequestQueue } from "@/components/requests/request-queue";
+import { RequestRoutingPanel } from "@/components/requests/request-routing-panel";
+import { getReceivingTeamIds } from "@/lib/requests/settings";
+import { listTeamsStore } from "@/lib/data/flow-store";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
@@ -59,6 +62,12 @@ export default async function RequestsPage() {
         .projects.filter(isActiveProject)
         .map((p) => ({ id: p.id, name: p.name }))
     : undefined;
+
+  const canRoute = hasPermission(user.role, "work:assign");
+  const receivingTeamIds = canRoute ? await getReceivingTeamIds() : [];
+  const routingTeams = canRoute
+    ? listTeamsStore().map((t) => ({ id: t.id, name: t.name }))
+    : [];
 
   // Detailed metrics, all from the same recent-tickets fetch (last 100).
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -158,6 +167,9 @@ export default async function RequestsPage() {
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="space-y-6 p-4 sm:p-5">
           <LiveRefresh intervalMs={45_000} />
+          {canRoute && (
+            <RequestRoutingPanel teams={routingTeams} selectedTeamIds={receivingTeamIds} />
+          )}
           <RequestQueue
             tickets={active}
             currentUserId={user.id}

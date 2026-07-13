@@ -71,8 +71,8 @@ function revalidateTickets() {
   for (const path of TICKET_PATHS) revalidatePath(path);
 }
 
-/** The receiving crew: production analysts plus their leads, in departments that carry production work. */
-function ticketAudience(users: User[]): User[] {
+/** The receiving crew: the configured receiving teams, or (unset) departments that carry production work. */
+async function ticketAudience(users: User[]): Promise<User[]> {
   return listTicketReceivers(users);
 }
 
@@ -96,7 +96,7 @@ export async function submitRequestTicketAction(input: {
     });
 
     logActivityBridge(user.id, "status_change", `Submitted request: ${title}`);
-    for (const member of ticketAudience(getFlowStore().users)) {
+    for (const member of await ticketAudience(getFlowStore().users)) {
       if (member.id === user.id) continue;
       deliverNotification({
         user_id: member.id,
@@ -125,9 +125,9 @@ export async function claimRequestTicketAction(ticketId: string) {
 
   try {
     await ensureAppDataLoaded();
-    // Requester-only groups (departments without production work) submit; they don't claim.
-    if (!isTicketReceiver(user) && !hasPermission(user.role, "work:assign")) {
-      return { ok: false as const, message: "Requests are handled by the production team" };
+    // Requester-only groups submit; they don't claim.
+    if (!(await isTicketReceiver(user)) && !hasPermission(user.role, "work:assign")) {
+      return { ok: false as const, message: "Requests are handled by the receiving team" };
     }
     const ticket = await claimTicket(ticketId, user.id);
     if (!ticket) {
@@ -312,6 +312,28 @@ export async function listActiveTicketsAction() {
   await requireUser();
   await ensureAppDataLoaded();
   return listActiveTickets();
+}
+
+// ——— Routing: who receives tickets ———————————————————————————————————————————
+
+/** Owner control: route requests to specific team(s), e.g. just the SI team. */
+export async function setRequestRoutingAction(teamIds: string[]) {
+  const user = await requireUser();
+  if (!hasPermission(user.role, "work:assign")) {
+    return { ok: false as const, message: "You do not have permission to change request routing" };
+  }
+  try {
+    await ensureAppDataLoaded();
+    const validIds = new Set(getFlowStore().teams.map((t) => t.id));
+    const cleaned = [...new Set(teamIds)].filter((id) => validIds.has(id));
+    const { setReceivingTeamIds } = await import("@/lib/requests/settings");
+    await setReceivingTeamIds(cleaned, user.id);
+    logActivityBridge(user.id, "status_change", "Updated request routing teams");
+    revalidateTickets();
+    return { ok: true as const, teamIds: cleaned };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "Could not save routing" };
+  }
 }
 
 // ——— Attachments: the deliverable travels with the ticket ———————————————————
