@@ -22,7 +22,7 @@ import {
   getWrapUpReviewDetail,
   getWrapUpVisibleUserIds,
 } from "@/lib/wrap-up/review";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { format, subDays } from "date-fns";
 
@@ -54,7 +54,7 @@ export default async function WrapUpsPage({
   const departments = getActiveDepartments(filterDepartmentsForViewer(listDepartments(), user));
   const teams = listTeamsStore();
   const employees = store.users.filter(
-    (u) => isProductionEmployee(u) && (visibleIds === null || visibleIds.includes(u.id))
+    (u) => isProductionRosterMember(u) && (visibleIds === null || visibleIds.includes(u.id))
   );
 
   const rows = buildWrapUpReviewRows(user, {

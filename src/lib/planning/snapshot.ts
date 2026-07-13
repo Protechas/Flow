@@ -42,7 +42,7 @@ import {
   wrapUpsHref,
 } from "@/lib/navigation/deep-links";
 import { refreshPlanningForecasts } from "@/lib/planning/refresh-forecasts";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import type { User, WorkPackage } from "@/types/flow";
 import { addDays, addWeeks, format } from "date-fns";
 
@@ -223,8 +223,8 @@ export async function buildPlanningCenterSnapshot(viewer: User): Promise<Plannin
   }, 0);
 
   const scopedEmployees = memberIds
-    ? store.users.filter((u) => memberIds.includes(u.id) && isProductionEmployee(u))
-    : store.users.filter(isProductionEmployee);
+    ? store.users.filter((u) => memberIds.includes(u.id) && isProductionRosterMember(u))
+    : store.users.filter(isProductionRosterMember);
   const dailyCapacity =
     Math.max(scopedEmployees.length, 1) * productiveDayCapacityHours(settings);
   const capacityUtilizationPct = Math.min(

@@ -6,7 +6,7 @@ import {
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
 import { buildTeamScorecardSummary } from "@/lib/scoring/scorecard-periods";
-import { isProductionEmployee } from "@/lib/users/production-roster";
+import { isProductionRosterMember } from "@/lib/users/production-roster";
 import type { EmployeeScorecard, TeamScorecardSummary, User } from "@/types/flow";
 
 async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
@@ -25,7 +25,8 @@ async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
 
 export async function getPeopleProfiles(teamMemberIds?: string[]): Promise<EmployeeScorecard[]> {
   const store = await getPerformanceStore();
-  let employees = store.users.filter(isProductionEmployee);
+  // Team-aware: support teams (e.g. Email Team) don't get production scorecards.
+  let employees = store.users.filter(isProductionRosterMember);
   if (teamMemberIds?.length) {
     const ids = new Set(teamMemberIds);
     employees = employees.filter((u) => ids.has(u.id));
@@ -51,7 +52,7 @@ export async function getTeamScorecardSummary(teamMemberIds?: string[]): Promise
 }
 
 export function getAnalystsForScope(allUsers: User[], teamMemberIds?: string[]): User[] {
-  let analysts = allUsers.filter(isProductionEmployee);
+  let analysts = allUsers.filter(isProductionRosterMember);
   if (teamMemberIds?.length) {
     const ids = new Set(teamMemberIds);
     analysts = analysts.filter((u) => ids.has(u.id));
