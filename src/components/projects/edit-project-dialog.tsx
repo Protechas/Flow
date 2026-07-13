@@ -33,6 +33,7 @@ import {
   formatBoardDescription,
   parseBoardTaskDefaults,
 } from "@/lib/work-creation/board-defaults";
+import { stripWorkspaceConfig } from "@/lib/projects/workspace-config";
 import {
   projectOwnerCandidates,
   resolveOwnerLabel,
@@ -145,7 +146,8 @@ export function EditProjectDialog({
                 placeholder="What work will this board track?"
               />
             ) : (
-              <Input id="edit-desc" name="description" defaultValue={project.description ?? ""} />
+              // Human text only — the workspace config blob is re-attached on save.
+              <Input id="edit-desc" name="description" defaultValue={stripWorkspaceConfig(project.description)} />
             )}
           </div>
           {isBoard && (

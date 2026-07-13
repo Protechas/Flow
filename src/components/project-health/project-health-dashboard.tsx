@@ -9,6 +9,7 @@ import { PROJECT_HEALTH_STAT_HELP } from "@/lib/help/help-text";
 import type { HelpTextKey } from "@/lib/help/help-text";
 import { FLOW_MATERIAL } from "@/components/platform";
 import { operationsHref } from "@/lib/navigation/deep-links";
+import { stripWorkspaceConfig } from "@/lib/projects/workspace-config";
 import type { ProgramIntelligence } from "@/lib/projects/project-intelligence";
 import type { ProjectEarlyWarning } from "@/lib/forecast/project-early-warning";
 import type { ProjectHealth, ProjectHoldup, ProjectPersonPulse } from "@/types/flow";
@@ -68,7 +69,7 @@ export function ProjectHealthDashboard({
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold tracking-tight">{ph.project.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  {ph.project.description}
+                  {stripWorkspaceConfig(ph.project.description)}
                 </p>
               </div>
               <div className="flex items-center gap-4 shrink-0">

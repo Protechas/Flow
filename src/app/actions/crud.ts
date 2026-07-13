@@ -356,6 +356,21 @@ export async function createQuickTaskAction(input: {
 
 export async function updateProjectAction(id: string, updates: Partial<ProjectInput & { status?: string }>) {
   await requirePermission("projects:edit");
+  // Descriptions carry a machine-readable workspace config ([[FLOW_WORKSPACE:v1]]…).
+  // Edits arrive as the human text only — re-attach the existing config so a
+  // description edit can never wipe a board's column layout.
+  if (updates.description !== undefined) {
+    const { mergeProjectDescription, parseWorkspaceConfig, stripWorkspaceConfig } = await import(
+      "@/lib/projects/workspace-config"
+    );
+    const existing = getFlowStore().projects.find((proj) => proj.id === id);
+    const config = parseWorkspaceConfig(existing?.description);
+    const userText = stripWorkspaceConfig(updates.description);
+    updates = {
+      ...updates,
+      description: config ? mergeProjectDescription(userText, config) : userText || null,
+    };
+  }
   const p = updateProject(id, updates);
   if (p) await persistProjectUpdate(id, p);
   await writeAuditLog({

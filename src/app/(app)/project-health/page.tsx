@@ -11,6 +11,7 @@ import { requirePageAccess } from "@/lib/auth/guard";
 import { getProjectEarlyWarningMap, getProjectHealthIntelligenceMap, getProjectHealthList } from "@/lib/data/project-health";
 import { buildProjectMetricExportRows } from "@/lib/metrics/project-metrics-reporting";
 import { projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
+import { stripWorkspaceConfig } from "@/lib/projects/workspace-config";
 
 export default async function ProjectHealthPage({
   searchParams,
@@ -31,7 +32,7 @@ export default async function ProjectHealthPage({
     filtered = filtered.filter(
       (p) =>
         p.project.name.toLowerCase().includes(q) ||
-        p.project.description?.toLowerCase().includes(q)
+        stripWorkspaceConfig(p.project.description).toLowerCase().includes(q)
     );
   }
 
