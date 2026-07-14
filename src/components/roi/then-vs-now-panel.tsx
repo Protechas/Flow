@@ -29,42 +29,49 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
     flow: p.era === "flow" ? p.docsPerPersonDay : null,
   }));
 
+  // Measured minutes of doc work per person-day: rate × volume. The Monday
+  // number is small because Monday could only SEE a sliver of the day — that
+  // gap is the visibility story, not a 30x productivity claim.
+  const measuredMins = (perDoc: number | null, perDay: number | null) =>
+    perDoc != null && perDay != null ? Math.round(perDoc * perDay) : null;
+  const mondayMeasured = measuredMins(data.monday.minutesPerDoc, data.monday.docsPerPersonDay);
+  const flowMeasured = measuredMins(data.flow.minutesPerDoc, data.flow.docsPerPersonDay);
+  const fmtMins = (m: number | null) =>
+    m == null ? "—" : m >= 90 ? `${Math.round(m / 6) / 10}h` : `${m}m`;
+
   const cards = [
-    {
-      id: "rate",
-      label: "Production rate",
-      value: pct(data.productionRateChangePct),
-      sub:
-        data.monday.docsPerPersonDay != null && data.flow.docsPerPersonDay != null
-          ? `${data.monday.docsPerPersonDay} → ${data.flow.docsPerPersonDay} docs/person-day`
-          : "needs more Flow history",
-      good: (data.productionRateChangePct ?? 0) > 0,
-    },
     {
       id: "time",
       label: "Time per document",
       value: pct(data.timePerDocChangePct),
       sub:
         data.monday.minutesPerDoc != null && data.flow.minutesPerDoc != null
-          ? `${data.monday.minutesPerDoc}m → ${data.flow.minutesPerDoc}m avg`
+          ? `${data.monday.minutesPerDoc}m → ${data.flow.minutesPerDoc}m, both measured per item`
           : "needs more Flow history",
       good: (data.timePerDocChangePct ?? 0) < 0,
     },
     {
+      id: "visibility",
+      label: "Measured work per person-day",
+      value: `${fmtMins(mondayMeasured)} → ${fmtMins(flowMeasured)}`,
+      sub: "how much of the day each tool could actually see",
+      good: (flowMeasured ?? 0) > (mondayMeasured ?? 0),
+    },
+    {
       id: "monthly",
-      label: "Saved per month",
+      label: "Capacity gained per month",
       value: money(data.savings.dollarsSavedPerMonth),
       sub:
         data.savings.hoursSavedPerMonth != null
-          ? `${data.savings.hoursSavedPerMonth}h at $${data.savings.wagePerHour}/hr`
+          ? `${Math.round(data.savings.hoursSavedPerMonth).toLocaleString()}h vs old rate at $${data.savings.wagePerHour}/hr — hiring avoided, not payroll cut`
           : "computes once both eras have rates",
       good: (data.savings.dollarsSavedPerMonth ?? 0) > 0,
     },
     {
       id: "annual",
-      label: "Projected annual",
+      label: "Annual capacity value",
       value: money(data.savings.dollarsSavedPerYear),
-      sub: "at current pace",
+      sub: "today's volume at the old rate would need this much extra labor",
       good: (data.savings.dollarsSavedPerYear ?? 0) > 0,
     },
   ];
@@ -90,9 +97,9 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
       <div className="enterprise-panel p-4">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
           <div>
-            <h3 className="text-sm font-medium">Docs per person-day, weekly</h3>
+            <h3 className="text-sm font-medium">Measured docs per person-day, weekly</h3>
             <p className="text-xs text-muted-foreground">
-              Gray = Monday.com era · green = Flow era
+              Gray = Monday.com era · green = Flow era — the jump is mostly work Monday never saw
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -160,8 +167,9 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
           <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
             Monday rate uses doc-work boards only (per-item clocks, 5s–4h sanity window); quick
             per-system checks count toward volume, never the rate. Flow rate = timer minutes over
-            uploaded documents. $ at ${data.savings.wagePerHour}/hr wage only — real savings run
-            higher.
+            uploaded documents. Capacity $ = producing today&apos;s volume at the old measured
+            rate, priced at ${data.savings.wagePerHour}/hr wage only (no benefits burden) —
+            conservative by design.
           </p>
         </div>
       </div>
