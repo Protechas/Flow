@@ -28,6 +28,20 @@ export const HELP_TEXT = {
   workloadRisk: "Tasks or projects flagged as behind schedule or over capacity.",
   requiresAttention: "Signals that may need manager action today.",
 
+  // ——— Then vs Now (Monday.com comparison on /roi) ———
+  thenVsNowTimePerDoc:
+    "Average measured minutes per document, then vs now. Monday side comes from per-item clock columns on the old doc-work boards; Flow side comes from task timers over uploaded documents. Both are real measurements, so this is the most defensible number on the page.",
+  thenVsNowVisibility:
+    "How much of each person's workday the tool could actually measure. Monday only saw items someone remembered to log; Flow tracks the full day automatically. This gap is added visibility, not a claim that people work 10x harder.",
+  thenVsNowCapacityMonthly:
+    "What this month's document volume would cost in extra labor if it were still produced at the old measured rate. It's capacity gained — hiring avoided — not money removed from payroll.",
+  thenVsNowCapacityAnnual:
+    "The monthly capacity value carried out 12 months at the current pace, priced at the wage rate only (no benefits burden), so the real value runs higher.",
+  thenVsNowMondayEra:
+    "Everything imported from the Monday.com export: completed items that had a person attached. Stored as weekly summaries in a separate table — none of it touches live scorecards or forecasts.",
+  thenVsNowFlowEra:
+    "Live production since the team started in Flow: uploaded documents, the people producing them, and the current monthly pace. This side updates automatically as the team works.",
+
   // ——— Forecast & planning ———
   forecastCompletion:
     "Share of active projects forecasted to finish on or before their target date.",

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
+import type { HelpTextKey } from "@/lib/help/help-text";
 import type { ThenVsNowSummary } from "@/lib/legacy/then-vs-now";
 import {
   CartesianGrid,
@@ -39,9 +41,17 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
   const fmtMins = (m: number | null) =>
     m == null ? "—" : m >= 90 ? `${Math.round(m / 6) / 10}h` : `${m}m`;
 
-  const cards = [
+  const cards: {
+    id: string;
+    label: string;
+    value: string;
+    sub: string;
+    good: boolean;
+    helpKey: HelpTextKey;
+  }[] = [
     {
       id: "time",
+      helpKey: "thenVsNowTimePerDoc",
       label: "Time per document",
       value: pct(data.timePerDocChangePct),
       sub:
@@ -52,6 +62,7 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
     },
     {
       id: "visibility",
+      helpKey: "thenVsNowVisibility",
       label: "Measured work per person-day",
       value: `${fmtMins(mondayMeasured)} → ${fmtMins(flowMeasured)}`,
       sub: "how much of the day each tool could actually see",
@@ -59,6 +70,7 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
     },
     {
       id: "monthly",
+      helpKey: "thenVsNowCapacityMonthly",
       label: "Capacity gained per month",
       value: money(data.savings.dollarsSavedPerMonth),
       sub:
@@ -69,6 +81,7 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
     },
     {
       id: "annual",
+      helpKey: "thenVsNowCapacityAnnual",
       label: "Annual capacity value",
       value: money(data.savings.dollarsSavedPerYear),
       sub: "today's volume at the old rate would need this much extra labor",
@@ -81,7 +94,10 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <div key={c.id} className="enterprise-panel p-4">
-            <p className="text-xs text-muted-foreground">{c.label}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-xs text-muted-foreground">{c.label}</p>
+              <InfoTooltip helpKey={c.helpKey} />
+            </div>
             <p
               className={`text-2xl font-semibold tabular-nums mt-1 ${
                 c.good ? "text-emerald-400" : ""
@@ -144,7 +160,10 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="enterprise-panel p-4">
-          <p className="text-xs text-muted-foreground">Monday era on record</p>
+          <div className="flex items-center gap-1">
+            <p className="text-xs text-muted-foreground">Monday era on record</p>
+            <InfoTooltip helpKey="thenVsNowMondayEra" />
+          </div>
           <p className="text-lg font-semibold tabular-nums mt-1">
             {data.monday.doneItems.toLocaleString()} items done
           </p>
@@ -154,7 +173,10 @@ export function ThenVsNowPanel({ data }: { data: ThenVsNowSummary }) {
           </p>
         </div>
         <div className="enterprise-panel p-4">
-          <p className="text-xs text-muted-foreground">Flow era so far</p>
+          <div className="flex items-center gap-1">
+            <p className="text-xs text-muted-foreground">Flow era so far</p>
+            <InfoTooltip helpKey="thenVsNowFlowEra" />
+          </div>
           <p className="text-lg font-semibold tabular-nums mt-1">
             {data.flow.docsDone.toLocaleString()} documents
           </p>
