@@ -22,7 +22,7 @@ export async function previewSystemHealthRepairAction(repairKey: SystemHealthRep
   await requirePermission("settings:manage");
   initFlowStore();
   await ensureDepartmentsLoaded();
-  await hydrateAppStore();
+  await hydrateAppStore({ force: true });
   await ensureOrgPositionsLoaded();
 
   const store = getFlowStore();
@@ -51,7 +51,7 @@ export async function runSystemHealthRepairAction(repairKey: SystemHealthRepairK
   const actor = await requirePermission("settings:manage");
   initFlowStore();
   await ensureDepartmentsLoaded();
-  await hydrateAppStore();
+  await hydrateAppStore({ force: true });
   await ensureOrgPositionsLoaded();
 
   const store = getFlowStore();

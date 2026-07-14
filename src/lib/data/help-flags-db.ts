@@ -3,6 +3,7 @@ import { assertPersistRow, normalizePersistRowUuids } from "@/lib/server/persist
 import { logPersistFailure, shouldThrowPersistError } from "@/lib/server/db-error";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import { replaceHelpFlagStore } from "@/lib/help-flags/store";
 import type { HelpFlagRecord } from "@/types/flow";
 
@@ -63,9 +64,11 @@ const hydrateHelpFlags = cache(async (): Promise<void> => {
   }
 
   replaceHelpFlagStore((data ?? []).map((r) => mapHelpFlag(r as Record<string, unknown>)));
+  markHydrated("help-flags");
 });
 
 export async function ensureHelpFlagsHydrated(): Promise<void> {
+  if (isHydrationFresh("help-flags")) return;
   await hydrateHelpFlags();
 }
 

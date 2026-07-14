@@ -7,7 +7,7 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requirePermission } from "@/lib/auth/session";
 import { normalizeRole } from "@/lib/auth/permissions";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
-import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
+import { revalidateTaskSurfaces, revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
 import {
   createManufacturer,
   createProject,
@@ -201,7 +201,7 @@ export async function createWorkspaceTaskAction(input: {
   });
 
   await persistWorkPackageDb(pkg);
-  revalidateProject(input.projectId);
+  revalidateTaskSurfaces(input.projectId);
   return { ok: true as const, taskId: pkg.id };
 }
 

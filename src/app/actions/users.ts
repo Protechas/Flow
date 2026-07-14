@@ -464,7 +464,8 @@ export async function saveUserProfileAction(userId: string, input: SaveUserProfi
 
   const nextPositionId = input.assigned_position_id ?? null;
   if (nextPositionId !== (before.assigned_position_id ?? null)) {
-    await hydrateAppStore();
+    // Position reassignment must see the org exactly as the DB has it now.
+    await hydrateAppStore({ force: true });
     if (nextPositionId) {
       await assignUserToPositionAction(nextPositionId, userId);
     } else if (before.assigned_position_id) {

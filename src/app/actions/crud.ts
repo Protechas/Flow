@@ -70,7 +70,7 @@ import { formatBoardDescription } from "@/lib/work-creation/board-defaults";
 import { createQuickTask, type QuickTaskInput } from "@/lib/data/create-work-setup";
 import type { ForecastComplexityLevel } from "@/types/flow";
 import { syncDerivedOperationalAlerts } from "@/lib/integrations/sync-derived-alerts";
-import { revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
+import { revalidateTaskSurfaces, revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
 
 function revalidateAll(projectId?: string | null) {
   revalidateWorkSurfaces(projectId);
@@ -350,7 +350,13 @@ export async function createQuickTaskAction(input: {
     summary: `Created task ${task.title} → ${assigneeName}`,
     metadata: { project_id: task.project_id, assigned_to: input.assignedTo },
   });
-  revalidateAll(task.project_id);
+  // A brand-new project touches planning/health/report surfaces; a task added
+  // to an existing project only changes the task lists.
+  if (hadProject) {
+    revalidateTaskSurfaces(task.project_id);
+  } else {
+    revalidateAll(task.project_id);
+  }
   return task;
 }
 

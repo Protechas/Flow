@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { replaceTimeLogsStore } from "@/lib/data/flow-store";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import type { TimeLog } from "@/types/flow";
 
 function isUnavailable(error: { code?: string; message?: string }): boolean {
@@ -42,9 +43,11 @@ const hydrateTimeLogs = cache(async (): Promise<void> => {
     throw new Error(error.message);
   }
   replaceTimeLogsStore((data ?? []).map((r) => mapRow(r as Record<string, unknown>)));
+  markHydrated("time-logs");
 });
 
 export async function ensureTimeLogsHydrated(): Promise<void> {
+  if (isHydrationFresh("time-logs")) return;
   await hydrateTimeLogs();
 }
 

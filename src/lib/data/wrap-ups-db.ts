@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { replaceWrapUpStore } from "@/lib/data/flow-store";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import type { DailyWrapUp, DailyWrapUpOverride } from "@/types/flow";
 import { subDays, format } from "date-fns";
 
@@ -94,9 +95,11 @@ const hydrateWrapUps = cache(async (): Promise<void> => {
       mapOverride(r as Record<string, unknown>)
     ),
   });
+  markHydrated("wrap-ups");
 });
 
 export async function ensureWrapUpsHydrated(): Promise<void> {
+  if (isHydrationFresh("wrap-ups")) return;
   await hydrateWrapUps();
 }
 

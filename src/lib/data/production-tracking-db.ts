@@ -6,6 +6,7 @@ import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import {
   replaceProductionTrackingStore,
 } from "@/lib/data/production-tracking";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import { ensureWorkStructureHydrated } from "@/lib/data/work-items-db";
 import type {
   QaReviewRecord,
@@ -226,9 +227,11 @@ const hydrateProduction = cache(async (): Promise<void> => {
     qaReviewRecords: (qa.data ?? []).map((r) => mapQaReview(r as Record<string, unknown>)),
     sideSessions: (sides.data ?? []).map((r) => mapSideSession(r as Record<string, unknown>)),
   });
+  markHydrated("production-tracking");
 });
 
 export async function ensureProductionTrackingHydrated(): Promise<void> {
+  if (isHydrationFresh("production-tracking")) return;
   await hydrateProduction();
 }
 

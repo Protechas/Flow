@@ -9,6 +9,7 @@ import {
   listProjectsStore,
   replaceProjectsStructureStore,
 } from "@/lib/data/flow-store";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import type { Manufacturer, Project, WorkPriority } from "@/types/flow";
 
 function isUnavailable(error: { code?: string; message?: string }): boolean {
@@ -176,12 +177,14 @@ export async function hydrateProjectsStructure(): Promise<{
   );
 
   replaceProjectsStructureStore(projects, manufacturers);
+  markHydrated("projects");
   return { projects, manufacturers };
 }
 
 export const ensureProjectsHydrated = cache(async (): Promise<void> => {
   initFlowStore();
   if (!isSupabaseConfigured()) return;
+  if (isHydrationFresh("projects")) return;
   await hydrateProjectsStructure();
 });
 

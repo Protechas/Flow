@@ -7,6 +7,7 @@ import {
   initFlowStore,
   replaceWorkStructureStore,
 } from "@/lib/data/flow-store";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import { syncManufacturersForProject } from "@/lib/data/projects-db";
 import type {
   ForecastComplexityLevel,
@@ -281,12 +282,14 @@ export async function hydrateWorkStructure(): Promise<{
   );
 
   replaceWorkStructureStore(yearWorkItems, workPackages);
+  markHydrated("work-structure");
   return { yearWorkItems, workPackages };
 }
 
 export const ensureWorkStructureHydrated = cache(async (): Promise<void> => {
   initFlowStore();
   if (!isSupabaseConfigured()) return;
+  if (isHydrationFresh("work-structure")) return;
   await hydrateWorkStructure();
 });
 

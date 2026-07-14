@@ -3,6 +3,7 @@ import { assertPersistRow, normalizePersistRowUuids } from "@/lib/server/persist
 import { logPersistFailure, shouldThrowPersistError } from "@/lib/server/db-error";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import { replaceWorkloadAlertStore } from "@/lib/workload-alerts/store";
 import type { WorkloadAlertRecord } from "@/types/flow";
 
@@ -95,9 +96,11 @@ const hydrateWorkloadAlerts = cache(async (): Promise<void> => {
   }
 
   replaceWorkloadAlertStore((data ?? []).map((r) => mapWorkloadAlert(r as Record<string, unknown>)));
+  markHydrated("workload-alerts");
 });
 
 export async function ensureWorkloadAlertsHydrated(): Promise<void> {
+  if (isHydrationFresh("workload-alerts")) return;
   await hydrateWorkloadAlerts();
 }
 

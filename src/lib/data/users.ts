@@ -12,6 +12,7 @@ import { syncHierarchyOnManagerChange } from "@/lib/hierarchy/resolver";
 import { MOCK_TEAMS } from "@/lib/data/mock-data";
 import { listTeamsStore } from "@/lib/data/flow-store";
 import { ensureDepartmentsLoaded } from "@/lib/data/departments-db";
+import { isHydrationFresh, markHydrated } from "@/lib/data/hydration-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createAdminClient, isAdminConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -40,9 +41,12 @@ export async function listUsers(): Promise<User[]> {
 }
 
 /** Load real users into the in-memory store for Supabase deployments. */
-export async function hydrateAppStore(): Promise<User[]> {
+export async function hydrateAppStore(options?: { force?: boolean }): Promise<User[]> {
   initFlowStore();
   if (!isSupabaseConfigured()) {
+    return getAllUsers();
+  }
+  if (!options?.force && isHydrationFresh("users")) {
     return getAllUsers();
   }
   // Users and department structure are independent fetches; hierarchy init
@@ -51,6 +55,7 @@ export async function hydrateAppStore(): Promise<User[]> {
   setStoreUsers(users);
   const { initHierarchyFromStore } = await import("@/lib/auth/team-scope");
   initHierarchyFromStore(users);
+  markHydrated("users");
   return users;
 }
 
