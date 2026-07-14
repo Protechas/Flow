@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   getNotificationsAction,
   markAllNotificationsReadAction,
@@ -16,32 +16,116 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Bell, CheckCheck, ExternalLink } from "lucide-react";
-import type { Notification } from "@/types/flow";
+import { Bell, BellRing, CheckCheck, ExternalLink } from "lucide-react";
+import type { Notification as FlowNotification } from "@/types/flow";
+
+/** How often the bell checks for news. Light query; background tabs clamp to ~1/min anyway. */
+const POLL_MS = 60_000;
+/** High-water mark so a notification only pops on the desktop once. */
+const LAST_NOTIFIED_KEY = "flow-desktop-notified-at";
+
+function desktopSupported() {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
+/** Fire OS notifications for fresh items — only while Flow isn't the visible tab. */
+function notifyDesktop(fresh: FlowNotification[]) {
+  if (!desktopSupported() || window.Notification.permission !== "granted") return;
+  if (!document.hidden) return; // the in-app bell covers the foreground case
+  for (const n of fresh.slice(0, 3)) {
+    try {
+      const dn = new window.Notification(`Flow — ${n.title}`, {
+        body: n.message,
+        tag: n.id,
+        icon: "/favicon.ico",
+      });
+      dn.onclick = () => {
+        window.focus();
+        window.location.href = n.link || "/notifications";
+        dn.close();
+      };
+    } catch {
+      // Some platforms restrict page-scope notifications — never break the app.
+    }
+  }
+  if (fresh.length > 3) {
+    try {
+      new window.Notification("Flow", { body: `${fresh.length - 3} more notifications waiting` });
+    } catch {
+      /* same */
+    }
+  }
+}
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<Notification[]>([]);
+  const [items, setItems] = useState<FlowNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
   const [pending, startTransition] = useTransition();
+  const initializedRef = useRef(false);
 
   const refresh = useCallback(() => {
     startTransition(async () => {
       try {
         const data = await getNotificationsAction({ limit: 20, status: "all" });
+
+        // Desktop pops for anything newer than the high-water mark.
+        const lastNotified = localStorage.getItem(LAST_NOTIFIED_KEY);
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          // First load of a session: don't replay the backlog to the desktop.
+          if (!lastNotified) localStorage.setItem(LAST_NOTIFIED_KEY, new Date().toISOString());
+        } else if (lastNotified) {
+          const fresh = data.items.filter(
+            (n) => !n.read_status && n.created_at > lastNotified
+          );
+          if (fresh.length > 0) notifyDesktop(fresh);
+        }
+        const newest = data.items[0]?.created_at;
+        if (newest && (!lastNotified || newest > lastNotified)) {
+          localStorage.setItem(LAST_NOTIFIED_KEY, newest);
+        }
+
         setItems(data.items);
         setUnread(data.unread);
       } catch {
-        // Supabase busy — keep page alive; bell shows empty until next refresh.
+        // Supabase busy — keep page alive; bell shows stale data until next poll.
       }
     });
   }, []);
 
-  // Only fetch when opened — mount-time server actions were crashing /operations
-  // with "An unexpected response was received from the server" during Supabase load.
+  // Live badge + desktop alerts: poll on an interval, not just when opened.
+  // First poll is delayed so page hydration never races a cold Supabase.
+  useEffect(() => {
+    setPermission(desktopSupported() ? window.Notification.permission : "unsupported");
+    const first = setTimeout(refresh, 8_000);
+    const interval = setInterval(refresh, POLL_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+    };
+  }, [refresh]);
+
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);
+
+  const enableDesktopAlerts = () => {
+    if (!desktopSupported()) return;
+    void window.Notification.requestPermission().then((result) => {
+      setPermission(result);
+      if (result === "granted") {
+        try {
+          new window.Notification("Flow", {
+            body: "Desktop alerts are on — you'll see requests and updates even when Flow is minimized.",
+          });
+        } catch {
+          /* fine */
+        }
+      }
+    });
+  };
 
   const handleRead = (id: string) => {
     startTransition(async () => {
@@ -104,6 +188,30 @@ export function NotificationBell() {
             </div>
           </div>
         </SheetHeader>
+
+        {permission === "default" && (
+          <div className="mx-4 mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-start gap-2.5">
+              <BellRing className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Get alerts when Flow is minimized</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  New requests and updates pop up on your desktop — no more checking back.
+                </p>
+                <Button size="sm" className="mt-2 h-7 text-xs" onClick={enableDesktopAlerts}>
+                  Enable desktop alerts
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        {permission === "denied" && (
+          <p className="mx-4 mt-3 text-xs text-muted-foreground">
+            Desktop alerts are blocked for this site — enable notifications in your browser&apos;s
+            site settings to get pops when Flow is minimized.
+          </p>
+        )}
+
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {items.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-12">
