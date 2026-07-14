@@ -1175,6 +1175,20 @@ export function replaceTimeLogsStore(list: TimeLog[]): void {
   timeLogs = list;
 }
 
+/**
+ * Live QA reviews come from qa_review_records (production tracking); this
+ * store slice feeds scorecards, insights, and pass-rate math. Without this
+ * bridge the slice stays empty in Supabase mode and every quality number
+ * silently runs on defaults.
+ */
+export function replaceQaReviewsStore(list: QaReview[]): void {
+  qaReviews = list;
+}
+
+export function addQaReviewToStore(review: QaReview): void {
+  qaReviews = [review, ...qaReviews.filter((r) => r.id !== review.id)];
+}
+
 export function createTimeLog(input: {
   work_package_id: string;
   user_id: string;

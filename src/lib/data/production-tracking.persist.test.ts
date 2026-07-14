@@ -12,6 +12,8 @@ describe("production tracking persist contract", () => {
       persistTimeClockEntry: vi.fn(),
     }));
     vi.doMock("@/lib/data/production-bridge", () => ({
+    replaceQaReviewsStoreExternal: vi.fn(),
+    addQaReviewToStoreExternal: vi.fn(),
       getFlowStore: () => ({ users: [], workPackages: [], projects: [] }),
       initFlowStore: vi.fn(),
       logActivityBridge: vi.fn(),

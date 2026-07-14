@@ -1,18 +1,28 @@
 /**
  * Bridge between production-tracking and flow-store without circular imports.
  */
-import type { ActivityEventType, WorkPackage } from "@/types/flow";
+import type { ActivityEventType, QaReview, WorkPackage } from "@/types/flow";
 import {
   activateTaskLiveForecast,
+  addQaReviewToStore,
   getFlowStore,
   initFlowStore,
   logActivityBridge,
   recordTimerTimeLog,
   refreshTaskLiveForecast,
+  replaceQaReviewsStore,
   updateWorkPackage,
 } from "@/lib/data/flow-store";
 
 export { getFlowStore, initFlowStore, logActivityBridge };
+
+export function replaceQaReviewsStoreExternal(list: QaReview[]) {
+  return replaceQaReviewsStore(list);
+}
+
+export function addQaReviewToStoreExternal(review: QaReview) {
+  return addQaReviewToStore(review);
+}
 
 export function updateWorkPackageExternal(id: string, updates: Partial<WorkPackage>) {
   return updateWorkPackage(id, updates);

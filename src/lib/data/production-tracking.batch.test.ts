@@ -10,6 +10,8 @@ let pkgStatus = "working_on_it";
 
 function mockBridge() {
   vi.doMock("@/lib/data/production-bridge", () => ({
+    replaceQaReviewsStoreExternal: vi.fn(),
+    addQaReviewToStoreExternal: vi.fn(),
     getFlowStore: () => ({
       users: [],
       projects: [],

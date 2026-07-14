@@ -7,6 +7,8 @@ const USER = "75cbdc3d-0d5c-4fec-8cba-472e6ef6bff4";
 
 function mockBridge() {
   vi.doMock("@/lib/data/production-bridge", () => ({
+    replaceQaReviewsStoreExternal: vi.fn(),
+    addQaReviewToStoreExternal: vi.fn(),
     getFlowStore: () => ({ users: [], projects: [], workPackages: [] }),
     initFlowStore: vi.fn(),
     logActivityBridge: vi.fn(),

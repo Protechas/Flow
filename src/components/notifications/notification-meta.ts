@@ -5,6 +5,7 @@ import {
   Building2,
   CheckCheck,
   ClipboardCheck,
+  Clock,
   FileUp,
   LifeBuoy,
   MessageSquare,
@@ -46,6 +47,7 @@ export const NOTIFICATION_TYPE_ICONS: Partial<
   request_submitted: LifeBuoy,
   request_update: CheckCheck,
   coaching_update: MessageSquare,
+  time_auto_clock_out: Clock,
 };
 
 export function notificationIcon(type: NotificationType) {

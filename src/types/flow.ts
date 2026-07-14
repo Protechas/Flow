@@ -966,7 +966,8 @@ export type NotificationType =
   | "side_session_heavy"
   | "request_submitted"
   | "request_update"
-  | "coaching_update";
+  | "coaching_update"
+  | "time_auto_clock_out";
 
 /** High-level buckets for Notification Center filters */
 export type NotificationCategory =

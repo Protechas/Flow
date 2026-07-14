@@ -47,6 +47,7 @@ export const NOTIFICATION_TYPE_CATEGORY: Record<NotificationType, NotificationCa
   request_submitted: "task",
   request_update: "task",
   coaching_update: "other",
+  time_auto_clock_out: "workload",
 };
 
 export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>> = {
@@ -82,6 +83,7 @@ export const NOTIFICATION_TYPE_LABELS: Partial<Record<NotificationType, string>>
   request_submitted: "New team request",
   request_update: "Request update",
   coaching_update: "Coaching session",
+  time_auto_clock_out: "Auto clock-out",
 };
 
 export function categoryForType(type: NotificationType): NotificationCategory {

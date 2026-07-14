@@ -12,6 +12,8 @@ vi.mock("@/lib/data/production-tracking-db", () => ({
 const recordTimerTimeLogExternal = vi.fn();
 
 vi.mock("@/lib/data/production-bridge", () => ({
+  replaceQaReviewsStoreExternal: vi.fn(),
+  addQaReviewToStoreExternal: vi.fn(),
   getFlowStore: () => ({ users: [], workPackages: [], projects: [], files: [] }),
   initFlowStore: vi.fn(),
   logActivityBridge: vi.fn(),

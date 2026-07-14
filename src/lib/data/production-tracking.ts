@@ -7,8 +7,10 @@ import {
   initFlowStore,
   logActivityBridge,
   activateTaskLiveForecastExternal,
+  addQaReviewToStoreExternal,
   recordTimerTimeLogExternal,
   refreshTaskLiveForecastExternal,
+  replaceQaReviewsStoreExternal,
   updateWorkPackageExternal,
 } from "@/lib/data/production-bridge";
 import { resolveDepartmentForUser } from "@/lib/departments/resolve";
@@ -74,6 +76,26 @@ export function replaceProductionTrackingStore(data: {
   state.qaReviewRecords = data.qaReviewRecords;
   state.sideSessions = data.sideSessions ?? [];
   state.productionInitialized = true;
+  // Mirror live QA records into the flow-store slice that scorecards and
+  // pass-rate math read — without this, quality numbers run on an empty
+  // array in Supabase mode. Work structure hydrates before this call, so
+  // analyst resolution via assigned_to is safe here.
+  replaceQaReviewsStoreExternal(data.qaReviewRecords.map(qaRecordToReview));
+}
+
+/** qa_review_records carry no analyst — resolve from the task's assignee. */
+function qaRecordToReview(record: QaReviewRecord) {
+  const task = getFlowStore().workPackages.find((w) => w.id === record.task_id);
+  return {
+    id: record.id,
+    work_package_id: record.task_id,
+    reviewer_id: record.reviewer_id,
+    analyst_id: task?.assigned_to ?? "",
+    result: record.status,
+    notes: record.notes,
+    reviewed_at: record.reviewed_at,
+    created_at: record.created_at,
+  };
 }
 
 function persistClock(entry: TimeClockEntry) {
@@ -671,6 +693,95 @@ export function forceStopTaskTimer(userId: string): TaskTimeEntry | null {
   return stopTaskTimer(userId);
 }
 
+// ——— Stale-entry sweep ———
+
+/** A shift can't run longer than this; past it, the punch was forgotten. */
+export const MAX_SHIFT_MINUTES = 12 * 60;
+
+export interface StaleSweepResult {
+  closedClockEntries: TimeClockEntry[];
+  stoppedTimers: TaskTimeEntry[];
+}
+
+/**
+ * Close clock entries and task timers left running past the shift cap.
+ * A forgotten punch used to run until the next click — the audit found
+ * 50-hour "shifts" polluting hours. Clock entries close at clock_in + cap
+ * with an edit_reason so managers can spot and correct them; timers complete
+ * with minutes capped so one forgotten click can't write a two-day session
+ * into task hours. Callers handle notifications.
+ */
+export function sweepStaleProductionEntries(nowIso = ts()): StaleSweepResult {
+  initProductionTracking();
+  const nowMs = new Date(nowIso).getTime();
+  const capMs = MAX_SHIFT_MINUTES * 60_000;
+  const closedClockEntries: TimeClockEntry[] = [];
+  const stoppedTimers: TaskTimeEntry[] = [];
+
+  for (const entry of state.timeClockEntries) {
+    if (entry.status !== "active") continue;
+    const startMs = new Date(entry.clock_in_at).getTime();
+    if (!Number.isFinite(startMs) || nowMs - startMs < capMs) continue;
+    const updated: TimeClockEntry = {
+      ...entry,
+      clock_out_at: new Date(startMs + capMs).toISOString(),
+      total_minutes: MAX_SHIFT_MINUTES,
+      clock_out_type: "out",
+      status: "completed",
+      edit_reason: "Auto clock-out — shift passed 12h without a punch. Verify hours.",
+      updated_at: nowIso,
+    };
+    state.timeClockEntries = state.timeClockEntries.map((e) =>
+      e.id === entry.id ? updated : e
+    );
+    persistClock(updated);
+    closedClockEntries.push(updated);
+    logActivityBridge(
+      entry.user_id,
+      "time_log",
+      "Auto clock-out — shift passed 12h without a punch"
+    );
+  }
+
+  for (const entry of state.taskTimeEntries) {
+    if (entry.status !== "active") continue;
+    const anchorMs = new Date(entry.resumed_at ?? entry.started_at).getTime();
+    if (!Number.isFinite(anchorMs) || nowMs - anchorMs < capMs) continue;
+    const total = Math.min(calcActiveMinutes(entry, nowIso), MAX_SHIFT_MINUTES);
+    const updated: TaskTimeEntry = {
+      ...entry,
+      status: "completed",
+      completed_at: nowIso,
+      total_active_minutes: total,
+      updated_at: nowIso,
+    };
+    state.taskTimeEntries = state.taskTimeEntries.map((e) =>
+      e.id === entry.id ? updated : e
+    );
+    persistTaskTime(updated);
+    if (total > 0) {
+      recordTimerTimeLogExternal({
+        id: entry.id,
+        work_package_id: entry.task_id,
+        user_id: entry.user_id,
+        hours: Math.round((total / 60) * 100) / 100,
+        // Credit the day the work actually happened, not the sweep day.
+        log_date: formatAppCalendarDate(entry.started_at),
+      });
+    }
+    refreshTaskLiveForecastExternal(entry.task_id, getTotalTaskMinutes(entry.task_id));
+    stoppedTimers.push(updated);
+    logActivityBridge(
+      entry.user_id,
+      "time_log",
+      "Task timer auto-stopped — ran past 12h without activity",
+      entry.task_id
+    );
+  }
+
+  return { closedClockEntries, stoppedTimers };
+}
+
 export function getTaskTimeEntriesForTask(taskId: string): TaskTimeEntry[] {
   initProductionTracking();
   return state.taskTimeEntries.filter((e) => e.task_id === taskId);
@@ -1027,6 +1138,7 @@ export function recordProductionQaReview(input: {
     created_at: ts(),
   };
   state.qaReviewRecords = [record, ...state.qaReviewRecords];
+  addQaReviewToStoreExternal(qaRecordToReview(record));
   persistQaReview(record);
 
   if (input.submission_id) {

@@ -20,4 +20,8 @@ export async function ensureServerWriteContext(): Promise<void> {
   invalidateHydration("wrap-ups");
   await ensureProductionTrackingHydrated();
   await ensureWrapUpsHydrated();
+  // Fresh data in hand: close any shift or timer someone forgot overnight
+  // before this write validates against it.
+  const { runStaleTimeSweep } = await import("@/lib/time-clock/stale-sweep");
+  runStaleTimeSweep();
 }
