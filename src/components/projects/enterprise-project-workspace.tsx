@@ -124,6 +124,7 @@ export function EnterpriseProjectWorkspace({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newSectionName, setNewSectionName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [addTaskError, setAddTaskError] = useState<string | null>(null);
   const [view, setView] = useState<"tasks" | "forecast" | "qa" | "activity">("tasks");
   const [pending, startTransition] = useTransition();
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
@@ -197,16 +198,28 @@ export function EnterpriseProjectWorkspace({
 
   function addTask() {
     const title = newTaskTitle.trim();
-    if (!title || !activeSectionId) return;
+    if (!title) {
+      setAddTaskError("Type a task name first, then press + or Enter.");
+      return;
+    }
+    if (!activeSectionId) {
+      setAddTaskError("Pick a section on the left first.");
+      return;
+    }
+    setAddTaskError(null);
     startTransition(async () => {
-      await createWorkspaceTaskAction({
-        projectId: project.id,
-        sectionId: activeSectionId,
-        title,
-        qaRequired: config.tracking.qaRequired,
-        filesRequired: config.tracking.fileUploads,
-      });
-      setNewTaskTitle("");
+      try {
+        await createWorkspaceTaskAction({
+          projectId: project.id,
+          sectionId: activeSectionId,
+          title,
+          qaRequired: config.tracking.qaRequired,
+          filesRequired: config.tracking.fileUploads,
+        });
+        setNewTaskTitle("");
+      } catch (e) {
+        setAddTaskError(e instanceof Error ? e.message : "Task could not be added — try again.");
+      }
     });
   }
 
@@ -537,11 +550,14 @@ export function EnterpriseProjectWorkspace({
                         <Input
                           placeholder="Add task…"
                           value={newTaskTitle}
-                          onChange={(e) => setNewTaskTitle(e.target.value)}
+                          onChange={(e) => {
+                            setNewTaskTitle(e.target.value);
+                            if (addTaskError) setAddTaskError(null);
+                          }}
                           className="h-8 w-48"
                           onKeyDown={(e) => e.key === "Enter" && addTask()}
                         />
-                        <Button size="sm" disabled={pending || !activeSectionId} onClick={addTask}>
+                        <Button size="sm" disabled={pending} onClick={addTask} title="Add task">
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
@@ -549,6 +565,11 @@ export function EnterpriseProjectWorkspace({
                   )}
                 </div>
               </div>
+              {addTaskError && (
+                <p className="text-xs text-destructive text-right" role="alert">
+                  {addTaskError}
+                </p>
+              )}
 
               <div className="overflow-x-auto rounded-lg border bg-card">
                 <table className="w-full min-w-[720px] text-sm">
