@@ -26,11 +26,10 @@ import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-fl
 function isUnavailable(error: { code?: string; message?: string }): boolean {
   if (error.code === "42P01" || error.code === "PGRST205") return true;
   const msg = error.message ?? "";
-  return (
-    msg.includes("work_items") ||
-    msg.includes("year_work_items") ||
-    msg.includes("does not exist")
-  );
+  // Match only missing-table/schema errors. Matching on bare table names
+  // swallowed real failures — an FK violation mentions "year_work_items"
+  // too, and silently dropping it built projects with no year slots.
+  return msg.includes("does not exist") || msg.includes("schema cache");
 }
 
 function isMissingColumn(error: { code?: string; message?: string }): boolean {

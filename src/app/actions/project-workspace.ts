@@ -124,12 +124,15 @@ export async function createProjectFromWizardAction(input: {
     seedMetricsForProject(project.id, "custom");
   }
 
+  // The project row must exist before sections — year_work_items carries a
+  // foreign key to projects, and inserting children first fails silently.
+  await persistNewProject(project);
+
   const sections = template.sections.length > 0 ? template.sections : ["General"];
   for (const section of sections) {
     await createSectionStructure(project.id, section, input.priority ?? "medium");
   }
 
-  await persistNewProject(project);
   await persistWorkStructureForProject(project.id);
 
   writeAuditLog({
@@ -172,16 +175,38 @@ export async function createWorkspaceTaskAction(input: {
   await requirePermission("projects:edit");
   await ensureAppDataLoaded();
   const title = input.title.trim();
-  if (!title) throw new Error("Task title is required.");
+  // Thrown errors are redacted in production server actions — return typed
+  // failures so the workspace can show the actual reason.
+  if (!title) return { ok: false as const, error: "Task title is required." };
 
   const store = getFlowStore();
-  const yearItem =
+  const project = store.projects.find((p) => p.id === input.projectId);
+  let yearItem =
     store.yearWorkItems.find((y) => y.manufacturer_id === input.sectionId && y.project_id === input.projectId) ??
     store.yearWorkItems.find((y) => y.manufacturer_id === input.sectionId);
 
-  if (!yearItem) throw new Error("Section not found.");
-
-  const project = store.projects.find((p) => p.id === input.projectId);
+  if (!yearItem) {
+    // Self-heal: earlier wizard builds persisted sections without their year
+    // slot (children written before the project row existed). Create it now.
+    const section = store.manufacturers.find(
+      (m) => m.id === input.sectionId && m.project_id === input.projectId
+    );
+    if (!section) {
+      return { ok: false as const, error: "Section not found — refresh the page and try again." };
+    }
+    yearItem = createYearWorkItem({
+      manufacturer_id: section.id,
+      project_id: input.projectId,
+      year: new Date().getFullYear(),
+      assigned_to: null,
+      status: "not_started",
+      priority: project?.priority ?? "medium",
+      due_date: null,
+      estimated_hours: 8,
+      notes: "Tasks",
+    });
+    await persistYearWorkItemDb(yearItem);
+  }
   const pkg = createWorkPackage({
     project_id: input.projectId,
     manufacturer_id: input.sectionId,

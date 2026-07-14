@@ -15,7 +15,9 @@ import type { Manufacturer, Project, WorkPriority } from "@/types/flow";
 function isUnavailable(error: { code?: string; message?: string }): boolean {
   if (error.code === "42P01" || error.code === "PGRST205") return true;
   const msg = error.message ?? "";
-  return msg.includes("projects") || msg.includes("manufacturers");
+  // Missing-table/schema errors only — matching bare table names swallowed
+  // real failures (FK violations mention the table name too).
+  return msg.includes("does not exist") || msg.includes("schema cache");
 }
 
 function isMissingColumn(error: { code?: string; message?: string }): boolean {

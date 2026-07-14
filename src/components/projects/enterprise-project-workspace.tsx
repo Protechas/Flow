@@ -209,13 +209,17 @@ export function EnterpriseProjectWorkspace({
     setAddTaskError(null);
     startTransition(async () => {
       try {
-        await createWorkspaceTaskAction({
+        const res = await createWorkspaceTaskAction({
           projectId: project.id,
           sectionId: activeSectionId,
           title,
           qaRequired: config.tracking.qaRequired,
           filesRequired: config.tracking.fileUploads,
         });
+        if (!res.ok) {
+          setAddTaskError(res.error);
+          return;
+        }
         setNewTaskTitle("");
       } catch (e) {
         setAddTaskError(e instanceof Error ? e.message : "Task could not be added — try again.");
