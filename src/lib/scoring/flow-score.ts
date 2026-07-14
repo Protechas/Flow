@@ -83,6 +83,10 @@ export function computeAvgCompletionHours(packages: WorkPackage[]): number {
 
 export function isOverdue(pkg: WorkPackage): boolean {
   if (!pkg.due_date || pkg.status === "done") return false;
+  // Unassigned backlog is waiting for a person, not late — capacity alerts
+  // carry that signal. Overdue = ASSIGNED work past its date (matches the
+  // KPI help text), so the count is a real accountability list.
+  if (!pkg.assigned_to) return false;
   return isBefore(parseISO(pkg.due_date), startOfDay(new Date()));
 }
 

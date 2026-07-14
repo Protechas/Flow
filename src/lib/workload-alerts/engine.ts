@@ -240,6 +240,9 @@ export function listWorkloadAlertsForViewer(
   const records = listWorkloadAlertRecords().filter((r) => {
     const employee = users.find((u) => u.id === r.employee_id);
     if (!employee || !employeeInScope(employee, viewer, users)) return false;
+    // Records created before a team was excluded in settings (e.g. Email
+    // Team) must not keep rendering — re-check the filter on display too.
+    if (!passesSettingsFilter(employee, settings)) return false;
     if (r.status === "dismissed" || r.status === "reviewed") {
       return options?.includeDismissed ?? false;
     }

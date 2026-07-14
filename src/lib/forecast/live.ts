@@ -100,9 +100,13 @@ export function applyTaskLiveForecast(
     };
   }
 
+  // A task that hasn't started can't start earlier than today — planning from
+  // a stale assignment/creation date freezes forecasts in the past. Queue
+  // chaining passes its own cursor; everything else anchors to at least today.
+  const today = appTodayDate(now);
+  const historicalAnchor = anchorDate(pkg.assigned_at ?? pkg.created_at, today);
   const assignmentAnchor =
-    options.planningStartDate ??
-    anchorDate(pkg.assigned_at ?? pkg.created_at, appTodayDate(now));
+    options.planningStartDate ?? (historicalAnchor > today ? historicalAnchor : today);
 
   const planning = calculateTaskForecast(
     {
