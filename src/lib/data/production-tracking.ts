@@ -809,6 +809,11 @@ export function getAllTaskFileUploads(): TaskFileUpload[] {
   return [...state.taskFileUploads];
 }
 
+export function getAllTaskSubmissions(): TaskSubmissionRecord[] {
+  initProductionTracking();
+  return [...state.taskSubmissions];
+}
+
 // ——— Submissions ———
 
 export function submitTaskForReview(input: {
