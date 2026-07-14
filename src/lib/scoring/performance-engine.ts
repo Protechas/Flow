@@ -303,11 +303,16 @@ export function deriveCoachingInsights(
     | "submissionsToQa"
     | "avgHoursPerPackage"
     | "metrics"
+    | "recentQaFeedback"
   >
 ): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
+  // A 100% pass rate with zero reviews is absence of data, not excellence —
+  // never praise or criticize QA quality without at least one real review.
+  const hasQaData =
+    scorecard.recentQaFeedback.length > 0 || scorecard.submissionsToQa > 0;
 
-  if (scorecard.qaPassRate >= 90 && scorecard.productivityScore < 65) {
+  if (hasQaData && scorecard.qaPassRate >= 90 && scorecard.productivityScore < 65) {
     insights.push({
       priority: "high",
       category: "productivity",
@@ -340,7 +345,7 @@ export function deriveCoachingInsights(
       metric: `${scorecard.overdueItems} overdue · On-time ${scorecard.onTimeScore}%`,
     });
   }
-  if (scorecard.qualityScore < 70 || scorecard.qaPassRate < 80) {
+  if (scorecard.qualityScore < 70 || (hasQaData && scorecard.qaPassRate < 80)) {
     insights.push({
       priority: "high",
       category: "quality",
@@ -348,7 +353,9 @@ export function deriveCoachingInsights(
       title: "Improve first-pass quality",
       recommendation:
         "Review QA feedback before resubmitting. Pair with QA on recurring error categories.",
-      metric: `QA pass ${scorecard.qaPassRate}%`,
+      metric: hasQaData
+        ? `QA pass ${scorecard.qaPassRate}%`
+        : `${scorecard.metrics.correctionsReceived} corrections on record`,
     });
   }
   if (scorecard.productivityScore < 60) {
@@ -383,7 +390,7 @@ export function deriveCoachingInsights(
       metric: `${scorecard.stuckItems} stuck`,
     });
   }
-  if (scorecard.qaPassRate >= 95 && scorecard.qualityScore >= 85) {
+  if (hasQaData && scorecard.qaPassRate >= 95 && scorecard.qualityScore >= 85) {
     insights.push({
       priority: "low",
       category: "quality",
@@ -391,6 +398,17 @@ export function deriveCoachingInsights(
       title: "Excellent QA quality",
       recommendation: "Maintain standards; consider peer review mentor role.",
       metric: `QA ${scorecard.qaPassRate}%`,
+    });
+  }
+  if (!hasQaData && scorecard.metrics.packagesCompleted > 0) {
+    insights.push({
+      priority: "medium",
+      category: "quality",
+      type: "opportunity",
+      title: "No QA reviews on record",
+      recommendation:
+        "Work has been completed without passing through QA — route finished tasks through QA submit so quality is measured, not assumed.",
+      metric: `${scorecard.metrics.packagesCompleted} completed · 0 QA reviews`,
     });
   }
   if (insights.length === 0) {

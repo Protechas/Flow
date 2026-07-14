@@ -117,6 +117,13 @@ export function ProjectPortfolioCards({
           forecastSettings
         );
 
+        // The next-action pill and the insight sentence often say the same
+        // thing ("add tasks" twice per card) — drop the sentence only when it
+        // repeats the pill AND carries no number the pill doesn't have.
+        const insightRepeatsAction =
+          intel.primaryInsight.toLowerCase().includes(nextAction.label.toLowerCase()) &&
+          !/\d/.test(intel.primaryInsight);
+
         return (
           <article
             key={project.id}
@@ -139,17 +146,49 @@ export function ProjectPortfolioCards({
                     {departmentLabel(project, departments)} · {formatProjectType(project.project_type)}
                   </p>
                 </div>
-                {archived && (
-                  <Badge variant="outline" className="shrink-0">
-                    Archived
-                  </Badge>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {archived && <Badge variant="outline">Archived</Badge>}
+                  <ProgramHealthBadge score={intel.healthScore} tier={intel.riskTier} compact />
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <ProgramHealthBadge score={intel.healthScore} tier={intel.riskTier} compact />
-                <BoardTrackingBadges project={project} />
-                <DueDateStatusBadge status={project.project_due_date_status} />
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted/40">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      intel.riskTier === "critical"
+                        ? "bg-red-400"
+                        : intel.riskTier === "at_risk"
+                          ? "bg-amber-400"
+                          : "bg-emerald-400"
+                    )}
+                    style={{ width: `${Math.min(100, Math.max(0, project.completedPct))}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                  {project.completedPct}%
+                </span>
+              </div>
+
+              <dl className="grid grid-cols-3 gap-x-2 text-xs">
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Open</dt>
+                  <dd className="font-medium tabular-nums">{openTasks}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Due</dt>
+                  <dd className="font-medium tabular-nums">{primaryDue}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Est.</dt>
+                  <dd className="font-medium tabular-nums">
+                    {formatForecastHours(project.estimated_total_hours)}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="flex flex-wrap items-center gap-1.5">
                 {!archived && user && forecastSettings ? (
                   <ProjectNextActionBadge
                     action={nextAction}
@@ -171,28 +210,15 @@ export function ProjectPortfolioCards({
                     Next: {nextAction.label}
                   </span>
                 )}
+                <DueDateStatusBadge status={project.project_due_date_status} />
+                <BoardTrackingBadges project={project} />
               </div>
 
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <div>
-                  <dt className="text-muted-foreground">Progress</dt>
-                  <dd className="font-medium tabular-nums">{project.completedPct}%</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Open tasks</dt>
-                  <dd className="font-medium tabular-nums">{openTasks}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Primary due</dt>
-                  <dd className="font-medium">{primaryDue}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Est. hours</dt>
-                  <dd className="font-medium">{formatForecastHours(project.estimated_total_hours)}</dd>
-                </div>
-              </dl>
-
-              <p className="text-[11px] text-muted-foreground line-clamp-2">{intel.primaryInsight}</p>
+              {!insightRepeatsAction && (
+                <p className="text-[11px] text-muted-foreground line-clamp-2">
+                  {intel.primaryInsight}
+                </p>
+              )}
 
               <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                 <Factory className="h-3 w-3 shrink-0" />
