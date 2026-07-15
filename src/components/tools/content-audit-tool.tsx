@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   eddyModelReportAction,
   eddyReviewContentAction,
+  logContentAuditRunAction,
   saveModelReportAction,
 } from "@/app/actions/content-checks";
+import type { AuditHistorySummary } from "@/lib/content-checks/audit-runs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { EddyContentReview, EddyModelReport } from "@/lib/ai/content-review";
@@ -77,7 +80,8 @@ function verdictBadge(row: AuditRow) {
   );
 }
 
-export function ContentAuditTool() {
+export function ContentAuditTool({ history }: { history?: AuditHistorySummary }) {
+  const router = useRouter();
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -146,6 +150,31 @@ export function ContentAuditTool() {
         .sort((a, b) => severityRank(a.result.flags) - severityRank(b.result.flags))
     );
     setProgress(null);
+
+    // Scoreboard row for the history trend — aggregates only, fire-and-forget.
+    const failCounts: Record<string, number> = {};
+    for (const g of grouped) {
+      for (const f of g.result.flags) {
+        if (f.severity === "info") continue;
+        failCounts[f.code] = (failCounts[f.code] ?? 0) + 1;
+      }
+    }
+    const modelStats = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES).map((m) => ({
+      label: m.modelLabel,
+      missing: m.missingComponents,
+      docs: m.docs.length,
+      flagged: m.flaggedDocs,
+    }));
+    void logContentAuditRunAction({
+      docsChecked: grouped.length,
+      passed: grouped.filter((g) => g.result.verdict === "pass").length,
+      flagged: grouped.filter((g) => g.result.verdict === "flagged").length,
+      unreadable: grouped.filter((g) => g.result.verdict === "unreadable").length,
+      failCounts,
+      models: modelStats,
+    }).then((res) => {
+      if (res.ok) router.refresh(); // pull the new run into the history panel
+    });
   }
 
   async function runEddy(target: AuditRow) {
@@ -322,6 +351,74 @@ export function ContentAuditTool() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Checking {progress.done}/{progress.total}…
+        </div>
+      )}
+
+      {rows.length === 0 && !progress && history && history.runs.length > 0 && (
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="enterprise-panel p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              Flag rate by run · {history.totalDocsChecked.toLocaleString()} docs checked all-time
+            </p>
+            <div className="flex h-20 items-end gap-1">
+              {history.runs.slice(-24).map((r, i) => (
+                <div
+                  key={i}
+                  title={`${new Date(r.run_at).toLocaleDateString()} — ${r.docs} docs, ${r.flagRatePct}% flagged${r.isSpotCheck ? " (spot check)" : ""}`}
+                  className={cn(
+                    "flex-1 rounded-sm",
+                    r.isSpotCheck
+                      ? "bg-muted/50"
+                      : r.flagRatePct > 50
+                        ? "bg-red-400/70"
+                        : r.flagRatePct > 20
+                          ? "bg-amber-400/70"
+                          : "bg-emerald-400/70"
+                  )}
+                  style={{ height: `${Math.max(8, r.flagRatePct)}%` }}
+                />
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              Green &lt;20% · amber &lt;50% · red above · gray = spot check
+            </p>
+          </div>
+
+          <div className="enterprise-panel p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Most common violations</p>
+            {history.topViolations.length === 0 ? (
+              <p className="text-xs text-muted-foreground">None recorded yet.</p>
+            ) : (
+              <ul className="space-y-1">
+                {history.topViolations.slice(0, 6).map((v) => (
+                  <li key={v.code} className="flex items-center justify-between text-xs">
+                    <span className="capitalize">{v.code.replace(/_/g, " ")}</span>
+                    <span className="tabular-nums text-muted-foreground">{v.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="enterprise-panel p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              Models with open gaps ({history.openGaps.length})
+            </p>
+            {history.openGaps.length === 0 ? (
+              <p className="text-xs text-emerald-500">
+                No known coverage gaps — every audited model is complete.
+              </p>
+            ) : (
+              <ul className="max-h-24 space-y-1 overflow-y-auto pr-1">
+                {history.openGaps.slice(0, 20).map((g) => (
+                  <li key={g.label} className="text-xs">
+                    <span className="font-medium">{g.label}</span>
+                    <span className="text-red-400"> — missing {g.missing.join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 

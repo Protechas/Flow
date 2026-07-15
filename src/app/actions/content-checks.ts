@@ -17,6 +17,7 @@ import {
   createDocumentFolder,
   listDocumentFolders,
 } from "@/lib/files/document-folders";
+import { insertAuditRun, type AuditRunModel } from "@/lib/content-checks/audit-runs";
 
 /** Same crowd that can open /tools — leads and up. */
 const TOOL_ROLES = new Set(["admin", "super_admin", "senior_manager", "manager", "teamlead"]);
@@ -83,6 +84,52 @@ export async function eddyModelReportAction(input: {
     return { ok: true, report };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Eddy could not build the report" };
+  }
+}
+
+/** Runs under this many docs log as spot checks — kept out of the trend. */
+const SPOT_CHECK_THRESHOLD = 5;
+
+/**
+ * Log an audit run's scoreboard. Aggregates only — the library's health
+ * trend, most-common violations, and open model gaps come from these rows.
+ * This tool measures the LIBRARY, not people.
+ */
+export async function logContentAuditRunAction(input: {
+  docsChecked: number;
+  passed: number;
+  flagged: number;
+  unreadable: number;
+  failCounts: Record<string, number>;
+  models: AuditRunModel[];
+}): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  if (!TOOL_ROLES.has(normalizeRole(user.role))) return { ok: false };
+  if (!Number.isFinite(input.docsChecked) || input.docsChecked <= 0) return { ok: false };
+
+  try {
+    const failCounts: Record<string, number> = {};
+    for (const [code, count] of Object.entries(input.failCounts).slice(0, 30)) {
+      if (Number.isFinite(count) && count > 0) failCounts[code.slice(0, 40)] = Math.round(count);
+    }
+    await insertAuditRun({
+      run_by: user.id,
+      docs_checked: Math.round(input.docsChecked),
+      passed: Math.max(0, Math.round(input.passed)),
+      flagged: Math.max(0, Math.round(input.flagged)),
+      unreadable: Math.max(0, Math.round(input.unreadable)),
+      fail_counts: failCounts,
+      models: input.models.slice(0, 50).map((m) => ({
+        label: String(m.label).slice(0, 120),
+        missing: (m.missing ?? []).slice(0, 12).map((c) => String(c).slice(0, 12)),
+        docs: Math.round(m.docs ?? 0),
+        flagged: Math.round(m.flagged ?? 0),
+      })),
+      is_spot_check: input.docsChecked < SPOT_CHECK_THRESHOLD,
+    });
+    return { ok: true };
+  } catch {
+    return { ok: false };
   }
 }
 
