@@ -531,6 +531,14 @@ export function CompanyDocumentsPanel({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
                       onClick={() => {
+                        setNewFolderParent(folder.id);
+                        setNewFolderOpen(true);
+                      }}
+                    >
+                      New folder inside
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
                         setRenameTarget(folder);
                         setRenameValue(folder.name);
                       }}
