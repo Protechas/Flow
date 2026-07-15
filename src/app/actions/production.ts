@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { assertCanEditWorkPackage } from "@/lib/auth/session";
@@ -168,6 +169,8 @@ export async function uploadTaskFileAction(formData: FormData) {
         file_type: contentType,
         file_size: buffer.length,
         storage_path: storagePath,
+        // Renaming a file can't change its bytes — dedupe keys on this.
+        content_hash: createHash("sha256").update(buffer).digest("hex"),
         // Demo mode has no storage bucket — keep bytes in memory instead
         ...(useStorage ? {} : { file_data_base64: buffer.toString("base64") }),
       });

@@ -56,6 +56,31 @@ describe("effective document counting", () => {
     expect(documentKey("Report pt 4.pdf")).toBe("report");
   });
 
+  it("bracket-decorated renames are the same document", () => {
+    // The exploit someone literally texted the manager: "add a needless []"
+    const files = [
+      f("2026 Ram 1500 (ACC).pdf", 500),
+      f("2026 Ram 1500 (ACC)[].pdf", 501),
+      f("2026 Ram 1500 (ACC)[1].pdf", 502),
+    ];
+    expect(effectiveDocumentCount(files)).toBe(1);
+    expect(documentKey("2026 Ram 1500 (ACC)[].pdf")).toBe("2026 ram 1500 (acc)");
+  });
+
+  it("same bytes under any name count once when content hashes exist", () => {
+    const h = (file_name: string, content_hash: string, file_size = 999) => ({
+      file_name,
+      file_size,
+      content_hash,
+    });
+    const files = [
+      h("2026 Ram 1500 (ACC).pdf", "abc123"),
+      h("Totally Different Name.pdf", "abc123"), // renamed copy, same bytes
+      h("2026 Ram 1500 (AEB).pdf", "def456"), // genuinely different doc
+    ];
+    expect(effectiveDocumentCount(files)).toBe(2);
+  });
+
   it("analyzeInflation reports duplicates and split parts separately", () => {
     const files = [
       f("Doc-Part-1.pdf", 100),

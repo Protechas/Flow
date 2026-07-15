@@ -812,11 +812,20 @@ export function uploadTaskFile(input: {
   file_size: number;
   storage_path?: string | null;
   file_data_base64?: string;
+  content_hash?: string | null;
 }): TaskFileUpload {
   initProductionTracking();
   const store = getFlowStore();
   const pkg = store.workPackages.find((p) => p.id === input.task_id);
   if (!pkg) throw new Error("Task not found");
+
+  // Same bytes already on this task? The file still lands (harmless), but it
+  // will not count — and the attempt is visible in the activity trail.
+  const duplicateOf = input.content_hash
+    ? state.taskFileUploads.find(
+        (f) => f.task_id === input.task_id && f.content_hash === input.content_hash
+      )
+    : undefined;
 
   const fileId = input.id ?? uid("tfu");
   const upload: TaskFileUpload = {
@@ -831,11 +840,21 @@ export function uploadTaskFile(input: {
     file_url_or_path: `/api/files/${fileId}`,
     storage_path: input.storage_path ?? null,
     ...(input.file_data_base64 ? { file_data_base64: input.file_data_base64 } : {}),
+    content_hash: input.content_hash ?? null,
     uploaded_at: ts(),
     created_at: ts(),
   };
   state.taskFileUploads = [upload, ...state.taskFileUploads];
   persistFile(upload);
+
+  if (duplicateOf) {
+    logActivityBridge(
+      input.user_id,
+      "file_upload",
+      `Duplicate content detected — ${input.file_name} matches ${duplicateOf.file_name} already on this task; not counted`,
+      input.task_id
+    );
+  }
 
   // Effective documents, not raw uploads — split parts and duplicate
   // re-uploads must not inflate progress, forecasts, or scores.

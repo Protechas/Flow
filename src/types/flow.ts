@@ -696,6 +696,8 @@ export interface TaskFileUpload {
   file_url_or_path: string;
   storage_path?: string | null;
   file_data_base64?: string;
+  /** SHA-256 of the file bytes — duplicate detection that renames can't beat. */
+  content_hash?: string | null;
   uploaded_at: string;
   created_at: string;
 }
