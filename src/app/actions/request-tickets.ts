@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { ensureServerWriteContext } from "@/lib/server/write-context";
 import { getFlowStore, logActivityBridge } from "@/lib/data/production-bridge";
 import { isTicketReceiver, listTicketReceivers } from "@/lib/requests/audience";
 import { deliverNotification } from "@/lib/notifications/notifications";
@@ -53,7 +54,17 @@ async function resumeTaskTimerAfterTicket(
 ): Promise<void> {
   if (!pausedTaskId) return;
   const timer = getActiveTaskTimeEntry(userId);
-  if (timer?.status !== "paused" || timer.task_id !== pausedTaskId) return;
+  if (timer?.status !== "paused" || timer.task_id !== pausedTaskId) {
+    // Leave a trace instead of skipping silently — this is how a "my timer
+    // randomly stopped" report becomes diagnosable.
+    logActivityBridge(
+      userId,
+      "time_log",
+      `Ticket closed but the task timer was not auto-resumed (timer state: ${timer ? `${timer.status} on ${timer.task_id.slice(0, 8)}` : "none"})`,
+      pausedTaskId
+    );
+    return;
+  }
   try {
     resumeTaskTimer(userId);
     const { persistTaskTimeEntrySync } = await import("@/lib/data/production-tracking-db");
@@ -124,7 +135,9 @@ export async function claimRequestTicketAction(ticketId: string) {
   }
 
   try {
-    await ensureAppDataLoaded();
+    // Timer handoff validates against live timer state — must be fresh, never
+    // the hydration cache (a stale instance skips the pause/resume silently).
+    await ensureServerWriteContext();
     // Requester-only groups submit; they don't claim.
     if (!(await isTicketReceiver(user)) && !hasPermission(user.role, "work:assign")) {
       return { ok: false as const, message: "Requests are handled by the receiving team" };
@@ -167,7 +180,7 @@ export async function releaseRequestTicketAction(ticketId: string) {
       return { ok: false as const, message: "Only the person who claimed it (or a lead) can release it" };
     }
     await releaseTicket(ticketId);
-    await ensureAppDataLoaded();
+    await ensureServerWriteContext();
     if (ticket.claimed_by) {
       await resumeTaskTimerAfterTicket(ticket.paused_task_id, ticket.claimed_by);
     }
@@ -190,7 +203,7 @@ export async function completeRequestTicketAction(ticketId: string) {
       return { ok: false as const, message: "Only the person working it (or a lead) can complete it" };
     }
     const done = await completeTicket(ticketId);
-    await ensureAppDataLoaded();
+    await ensureServerWriteContext();
     if (ticket.claimed_by) {
       await resumeTaskTimerAfterTicket(ticket.paused_task_id, ticket.claimed_by);
     }
@@ -230,7 +243,7 @@ export async function cancelRequestTicketAction(ticketId: string) {
       return { ok: false as const, message: "Only the requester (or a lead) can cancel it" };
     }
     await cancelTicket(ticketId);
-    await ensureAppDataLoaded();
+    await ensureServerWriteContext();
     if (ticket.status === "claimed" && ticket.claimed_by) {
       await resumeTaskTimerAfterTicket(ticket.paused_task_id, ticket.claimed_by);
     }
