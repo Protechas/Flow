@@ -1,0 +1,279 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  runContentChecksOnSet,
+  type CheckFlag,
+  type ContentCheckResult,
+  type ExtractedDoc,
+} from "@/lib/content-checks/engine";
+import { extractDocInBrowser } from "@/lib/content-checks/extract-browser";
+import { DEFAULT_CONTENT_RULES } from "@/lib/content-checks/rules";
+import { cn } from "@/lib/utils";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  EyeOff,
+  FileWarning,
+  Loader2,
+  Upload,
+} from "lucide-react";
+
+interface AuditRow {
+  fileName: string;
+  partCount: number;
+  sizeKb: number;
+  pages: number;
+  result: ContentCheckResult;
+}
+
+function severityRank(flags: CheckFlag[]): number {
+  if (flags.some((f) => f.severity === "fail")) return 0;
+  if (flags.some((f) => f.severity === "warn")) return 1;
+  return 2;
+}
+
+function verdictBadge(row: AuditRow) {
+  if (row.result.verdict === "unreadable")
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        <EyeOff className="mr-1 h-3 w-3" />
+        Unreadable
+      </Badge>
+    );
+  if (row.result.verdict === "pass")
+    return (
+      <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        Pass
+      </Badge>
+    );
+  const fails = row.result.flags.filter((f) => f.severity === "fail").length;
+  return (
+    <Badge
+      variant="outline"
+      className={fails > 0 ? "text-red-400 border-red-500/30" : "text-amber-400 border-amber-500/30"}
+    >
+      <AlertTriangle className="mr-1 h-3 w-3" />
+      {row.result.flags.length} flag{row.result.flags.length === 1 ? "" : "s"}
+    </Badge>
+  );
+}
+
+export function ContentAuditTool() {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const runId = useRef(0);
+
+  const summary = useMemo(() => {
+    const pass = rows.filter((r) => r.result.verdict === "pass").length;
+    const unreadable = rows.filter((r) => r.result.verdict === "unreadable").length;
+    const flagged = rows.length - pass - unreadable;
+    const fails = rows.reduce(
+      (s, r) => s + r.result.flags.filter((f) => f.severity === "fail").length,
+      0
+    );
+    return { total: rows.length, pass, flagged, unreadable, fails };
+  }, [rows]);
+
+  async function runAudit(files: File[]) {
+    const pdfs = files.filter((f) => f.name.toLowerCase().endsWith(".pdf"));
+    if (pdfs.length === 0) return;
+    const id = ++runId.current;
+    setRows([]);
+    setExpanded(null);
+    setProgress({ done: 0, total: pdfs.length });
+
+    // Extract every part first, then check as logical documents so
+    // "-Part-1..N" files are judged together the way the SOP means them.
+    const extracted: ExtractedDoc[] = [];
+    for (let i = 0; i < pdfs.length; i++) {
+      if (runId.current !== id) return; // a newer run superseded this one
+      extracted.push(await extractDocInBrowser(pdfs[i]));
+      setProgress({ done: i + 1, total: pdfs.length });
+    }
+    if (runId.current !== id) return;
+    const grouped = runContentChecksOnSet(extracted, DEFAULT_CONTENT_RULES);
+    setRows(
+      grouped
+        .map((g) => ({
+          fileName: g.baseName,
+          partCount: g.partFiles.length,
+          sizeKb: g.totalSizeKb,
+          pages: g.totalPages,
+          result: g.result,
+        }))
+        .sort((a, b) => severityRank(a.result.flags) - severityRank(b.result.flags))
+    );
+    setProgress(null);
+  }
+
+  function downloadCsv() {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const lines = [
+      ["File", "Verdict", "Pages", "Size KB", "Flags"].join(","),
+      ...rows.map((r) =>
+        [
+          esc(r.fileName),
+          r.result.verdict,
+          String(r.pages),
+          String(r.sizeKb),
+          esc(r.result.flags.map((f) => `[${f.severity}] ${f.message}`).join(" | ")),
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `content-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void runAudit([...e.dataTransfer.files]);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "cursor-pointer rounded-lg border-2 border-dashed p-10 text-center transition-colors",
+          dragOver ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/50"
+        )}
+      >
+        <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
+        <p className="mt-2 text-sm font-medium">
+          Drop a folder of SI PDFs here — or click to pick files
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Everything runs on YOUR computer. Files are never uploaded; close the tab and nothing
+          leaves this machine.
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) void runAudit([...e.target.files]);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {progress && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking {progress.done}/{progress.total}…
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="enterprise-panel p-4">
+              <p className="text-xs text-muted-foreground">Checked</p>
+              <p className="text-2xl font-semibold tabular-nums">{summary.total}</p>
+            </div>
+            <div className="enterprise-panel p-4">
+              <p className="text-xs text-muted-foreground">Pass</p>
+              <p className="text-2xl font-semibold tabular-nums text-emerald-500">{summary.pass}</p>
+            </div>
+            <div className="enterprise-panel p-4">
+              <p className="text-xs text-muted-foreground">Flagged</p>
+              <p
+                className={cn(
+                  "text-2xl font-semibold tabular-nums",
+                  summary.flagged > 0 ? "text-amber-400" : ""
+                )}
+              >
+                {summary.flagged}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{summary.fails} SOP failures</p>
+            </div>
+            <div className="enterprise-panel p-4">
+              <p className="text-xs text-muted-foreground">Unreadable</p>
+              <p className="text-2xl font-semibold tabular-nums">{summary.unreadable}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Flagged files sort first. Click a row for details.
+            </p>
+            <Button variant="outline" size="sm" onClick={downloadCsv}>
+              <Download className="mr-1.5 h-4 w-4" />
+              Download report (CSV)
+            </Button>
+          </div>
+
+          <div className="enterprise-panel divide-y divide-border/40 overflow-hidden">
+            {rows.map((row) => (
+              <div key={row.fileName}>
+                <button
+                  type="button"
+                  onClick={() => setExpanded(expanded === row.fileName ? null : row.fileName)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-muted/30"
+                >
+                  <FileWarning
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      row.result.verdict === "pass" ? "text-emerald-500/50" : "text-muted-foreground"
+                    )}
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {row.fileName}
+                    {row.partCount > 1 && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">
+                        ({row.partCount} parts)
+                      </span>
+                    )}
+                  </span>
+                  <span className="hidden sm:inline text-xs text-muted-foreground tabular-nums">
+                    {row.pages}p · {row.sizeKb}KB
+                  </span>
+                  {verdictBadge(row)}
+                </button>
+                {expanded === row.fileName && row.result.flags.length > 0 && (
+                  <ul className="space-y-1.5 bg-muted/10 px-11 py-3">
+                    {row.result.flags.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs">
+                        <span
+                          className={cn(
+                            "mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full",
+                            f.severity === "fail"
+                              ? "bg-red-400"
+                              : f.severity === "warn"
+                                ? "bg-amber-400"
+                                : "bg-sky-400"
+                          )}
+                        />
+                        <span>{f.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

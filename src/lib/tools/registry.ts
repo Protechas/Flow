@@ -8,10 +8,18 @@ export interface ToolEntry {
   description: string;
   href: string;
   /** lucide icon name resolved by the hub page */
-  icon: "FileSearch" | "Calculator" | "Wrench";
+  icon: "FileSearch" | "Calculator" | "Wrench" | "ShieldCheck";
 }
 
 export const TOOLS: ToolEntry[] = [
+  {
+    id: "content-audit",
+    name: "Content Audit",
+    description:
+      "Drop a folder of SI PDFs and batch-check them against the library SOPs — naming grammar, size, orientation, highlights, and content-vs-label identity. Runs entirely in your browser.",
+    href: "/tools/content-audit",
+    icon: "ShieldCheck",
+  },
   {
     id: "file-check",
     name: "File Name Checker",

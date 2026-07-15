@@ -5,9 +5,9 @@ import {
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { TOOLS } from "@/lib/tools/registry";
-import { ArrowRight, Calculator, FileSearch, Wrench } from "lucide-react";
+import { ArrowRight, Calculator, FileSearch, ShieldCheck, Wrench } from "lucide-react";
 
-const ICONS = { FileSearch, Calculator, Wrench } as const;
+const ICONS = { FileSearch, Calculator, Wrench, ShieldCheck } as const;
 
 export default async function ToolsHubPage() {
   await requirePageAccess("/tools");
