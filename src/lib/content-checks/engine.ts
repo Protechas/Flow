@@ -65,10 +65,26 @@ export function parseDocumentName(fileName: string): ParsedDocumentName | null {
   };
 }
 
+/** The team's placeholder naming convention:
+ * "No Night Vision [NV] - (NV) For This Vehicle.pdf" — the (parenthesized)
+ * acronym is the component slot the placeholder fills. */
+const PLACEHOLDER_NAME_RE =
+  /^no\s+.+?\(([^)]+)\)[\s.-]*for\s+this\s+vehicle/i;
+
+export function parsePlaceholderName(fileName: string): { component: string } | null {
+  const m = fileName.trim().match(PLACEHOLDER_NAME_RE);
+  if (!m) return null;
+  return { component: m[1].trim().toUpperCase() };
+}
+
 /** Placeholder docs mark "this system doesn't apply to this model" — required
  * by SOP, judged gently, and they DO fill their component slot. */
 export function isPlaceholderDoc(fileName: string, text: string): boolean {
-  return /place\s*holder/i.test(fileName) || /place\s*holder/i.test(text.slice(0, 800));
+  return (
+    parsePlaceholderName(fileName) != null ||
+    /place\s*holder/i.test(fileName) ||
+    /place\s*holder/i.test(text.slice(0, 800))
+  );
 }
 
 function knownAcronym(component: string, rules: ContentCheckRules): boolean {
@@ -127,6 +143,26 @@ export function runContentChecks(
   }
   const sizeKb = doc.fileSizeBytes / 1024;
   const parsed = parseDocumentName(doc.fileName);
+
+  // A placeholder's whole job is to say "this system doesn't apply" — naming
+  // grammar, orientation, size, and highlight rules are for real SI docs.
+  if (isPlaceholder) {
+    const slot = parsePlaceholderName(doc.fileName)?.component ?? parsed?.component ?? null;
+    return {
+      verdict: "pass",
+      flags: [
+        {
+          code: "placeholder",
+          severity: "info",
+          message: slot
+            ? `SOP placeholder — ${slot} does not apply to this vehicle.`
+            : "SOP placeholder — system does not apply to this vehicle.",
+        },
+      ],
+      parsedName: parsed,
+      isPlaceholder: true,
+    };
+  }
   if (sizeKb > rules.maxFileKb) {
     flags.push({
       code: "oversize",
@@ -432,9 +468,17 @@ export function analyzeModelCoverage(
   rules: ContentCheckRules
 ): ModelCoverage[] {
   const byModel = new Map<string, LogicalDocResult[]>();
+  // Team placeholders carry no year/model in the name ("No Night Vision [NV]
+  // - (NV) For This Vehicle") — they live inside the model's folder, so they
+  // attach to the batch's model when the batch is about exactly one model.
+  const floatingPlaceholders: { doc: LogicalDocResult; component: string }[] = [];
   for (const r of results) {
     const parsed = r.result.parsedName;
-    if (!parsed) continue;
+    if (!parsed) {
+      const ph = r.result.isPlaceholder ? parsePlaceholderName(r.baseName) : null;
+      if (ph) floatingPlaceholders.push({ doc: r, component: ph.component });
+      continue;
+    }
     const key = `${parsed.year} ${parsed.makeModel}`.toLowerCase();
     byModel.set(key, [...(byModel.get(key) ?? []), r]);
   }
@@ -477,6 +521,26 @@ export function analyzeModelCoverage(
       flaggedDocs: docs.filter((d) => d.result.verdict === "flagged").length,
       extraDocs: extras,
     });
+  }
+
+  // Attach generic placeholders when the model is unambiguous.
+  if (out.length === 1 && floatingPlaceholders.length > 0) {
+    const model = out[0];
+    for (const { doc, component } of floatingPlaceholders) {
+      const slot = componentSlot(component, rules);
+      model.docs.push(doc);
+      if (
+        slot &&
+        model.missingComponents.includes(slot) &&
+        !model.componentsPresent[slot]
+      ) {
+        model.componentsViaPlaceholder[slot] = [
+          ...(model.componentsViaPlaceholder[slot] ?? []),
+          doc.baseName,
+        ];
+        model.missingComponents = model.missingComponents.filter((c) => c !== slot);
+      }
+    }
   }
 
   return out.sort((a, b) => a.modelLabel.localeCompare(b.modelLabel));

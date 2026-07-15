@@ -219,6 +219,42 @@ describe("analyzeModelCoverage — the 8-docs-per-model rule", () => {
     expect(placeholderDoc?.result.isPlaceholder).toBe(true);
   });
 
+  it("recognizes the team's real placeholder convention and attaches to the batch model", () => {
+    // Exact names from the 2017 Acura ILX production audit.
+    const grouped = runContentChecksOnSet(
+      [
+        mk("2017 Acura ILX (WSC).pdf"),
+        doc({
+          fileName: "No Night Vision [NV] - (NV) For This Vehicle.pdf",
+          text: "This vehicle is not equipped with Night Vision.",
+          highlights: [],
+          landscapePages: 0,
+          numPages: 1,
+        }),
+        doc({
+          fileName: "No Park Distance Sensor [PDS] - (APA) For This Vehicle.pdf",
+          text: "This vehicle is not equipped with Park Distance Sensors.",
+          highlights: [],
+          landscapePages: 0,
+          numPages: 1,
+        }),
+      ],
+      DEFAULT_CONTENT_RULES
+    );
+    // Placeholders pass with a single info note — no naming/orientation noise.
+    const ph = grouped.find((g) => g.baseName.startsWith("No Night Vision"));
+    expect(ph?.result.verdict).toBe("pass");
+    expect(ph?.result.flags).toHaveLength(1);
+    expect(ph?.result.flags[0].code).toBe("placeholder");
+
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(model.modelLabel).toBe("2017 Acura ILX");
+    // NV directly; (APA) maps to the PDS slot per the conversion table.
+    expect(Object.keys(model.componentsViaPlaceholder).sort()).toEqual(["NV", "PDS"]);
+    expect(model.missingComponents).not.toContain("NV");
+    expect(model.missingComponents).not.toContain("PDS");
+  });
+
   it("a real doc outranks its own placeholder for the same slot", () => {
     const grouped = runContentChecksOnSet(
       [
