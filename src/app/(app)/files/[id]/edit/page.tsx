@@ -17,8 +17,8 @@ import {
   isDocumentEditable,
 } from "@/lib/files/document-editing";
 import { getAcknowledgmentStatus } from "@/lib/files/document-revisions";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CircleDashed, Download } from "lucide-react";
+import { AcknowledgmentReceipts } from "@/components/files/acknowledgment-receipts";
+import { Download } from "lucide-react";
 
 export default async function DocumentEditPage({
   params,
@@ -43,65 +43,7 @@ export default async function DocumentEditPage({
       description="Edit this document inside Flow — the uploaded original is never modified."
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="space-y-6">
-          {ackStatus && (
-            <div className="enterprise-panel p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold">
-                  Revision {ackStatus.revision.revision_number}
-                </p>
-                <Badge
-                  variant="outline"
-                  className={
-                    ackStatus.pending.length === 0 ? "text-emerald-500 border-emerald-500/30" : ""
-                  }
-                >
-                  {ackStatus.acknowledged.length}/
-                  {ackStatus.acknowledged.length + ackStatus.pending.length} accepted
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  Published {new Date(ackStatus.revision.published_at).toLocaleString()} ·{" "}
-                  {ackStatus.revision.change_summary}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Accepted</p>
-                  {ackStatus.acknowledged.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nobody yet.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {ackStatus.acknowledged.map((a) => (
-                        <li key={a.userId} className="flex items-center gap-1.5 text-xs">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                          {a.name}
-                          <span className="text-muted-foreground">
-                            · {new Date(a.at).toLocaleString()}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    Still pending
-                  </p>
-                  {ackStatus.pending.length === 0 ? (
-                    <p className="text-xs text-emerald-500">Everyone has accepted.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {ackStatus.pending.map((p) => (
-                        <li key={p.userId} className="flex items-center gap-1.5 text-xs">
-                          <CircleDashed className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                          {p.name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {ackStatus && <AcknowledgmentReceipts status={ackStatus} />}
           {content ? (
             <>
               <DocumentEditor

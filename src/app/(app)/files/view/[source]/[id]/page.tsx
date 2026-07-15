@@ -1,3 +1,4 @@
+import { AcknowledgmentReceipts } from "@/components/files/acknowledgment-receipts";
 import { DocumentViewer } from "@/components/files/document-viewer";
 import { FlowDocumentContentView } from "@/components/files/flow-document-content";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -6,6 +7,7 @@ import {
   getCompanyDocumentById,
   getCompanyDocumentContent,
 } from "@/lib/files/company-documents";
+import { getAcknowledgmentStatus } from "@/lib/files/document-revisions";
 import { getTaskFileById, initProductionTracking } from "@/lib/data/production-tracking";
 import { notFound, redirect } from "next/navigation";
 
@@ -25,33 +27,51 @@ export default async function FileViewPage({
     const doc = await getCompanyDocumentById(id);
     if (!doc) notFound();
 
+    // Managers see who has accepted the current revision wherever they read
+    // the doc — not just inside the editor.
+    const canManage = hasPermission(user.role, "company_documents:manage");
+    const ackStatus = canManage
+      ? await getAcknowledgmentStatus(doc.id).catch(() => null)
+      : null;
+    const receipts = ackStatus ? (
+      <div className="mx-auto w-full max-w-4xl px-4 pt-4">
+        <AcknowledgmentReceipts status={ackStatus} />
+      </div>
+    ) : null;
+
     // Once a doc has an in-Flow working copy, that copy is what the team reads.
     if (doc.content_updated_at != null) {
       const html = await getCompanyDocumentContent(doc.id).catch(() => null);
       if (html != null) {
         return (
-          <FlowDocumentContentView
-            title={doc.title}
-            fileName={doc.file_name}
-            html={html}
-            updatedAt={doc.content_updated_at}
-            backHref="/files"
-            documentId={doc.id}
-            canEdit={hasPermission(user.role, "company_documents:manage")}
-          />
+          <>
+            {receipts}
+            <FlowDocumentContentView
+              title={doc.title}
+              fileName={doc.file_name}
+              html={html}
+              updatedAt={doc.content_updated_at}
+              backHref="/files"
+              documentId={doc.id}
+              canEdit={canManage}
+            />
+          </>
         );
       }
     }
 
     return (
-      <DocumentViewer
-        source="company"
-        id={doc.id}
-        title={doc.title}
-        fileName={doc.file_name}
-        mimeType={doc.mime_type}
-        backHref="/files"
-      />
+      <>
+        {receipts}
+        <DocumentViewer
+          source="company"
+          id={doc.id}
+          title={doc.title}
+          fileName={doc.file_name}
+          mimeType={doc.mime_type}
+          backHref="/files"
+        />
+      </>
     );
   }
 
