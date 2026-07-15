@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectivePermissionRole } from "@/lib/auth/access-level";
+import { getEffectivePermissionRole, getSystemAccessLevel } from "@/lib/auth/access-level";
 import { hasPermission } from "@/lib/auth/permissions";
 import {
   createFlowNativeDocument,
@@ -39,6 +39,22 @@ const FILES_PATHS = ["/files", "/work/files"];
 
 function revalidateFiles() {
   for (const path of FILES_PATHS) revalidatePath(path);
+}
+
+/**
+ * Protected documents steer Eddy's QA judgment — editing one is
+ * reprogramming the AI's standards. Admin hands only.
+ */
+async function protectedDocGuard(
+  documentId: string,
+  user: Awaited<ReturnType<typeof requireUser>>
+): Promise<string | null> {
+  const doc = await getCompanyDocumentById(documentId);
+  if (!doc) return "Document not found";
+  if (!doc.is_protected) return null;
+  const level = getSystemAccessLevel(user);
+  if (level === "admin" || level === "super_admin") return null;
+  return "This document is protected — it guides Eddy's QA reviews, so only admins can change it.";
 }
 
 export async function listCompanyDocumentsAction() {
@@ -150,6 +166,8 @@ export async function updateCompanyDocumentMetaAction(
   if (patch.category !== undefined && !VALID_CATEGORIES.has(patch.category)) {
     return { ok: false as const, message: "Invalid document category" };
   }
+  const blocked = await protectedDocGuard(documentId, user);
+  if (blocked) return { ok: false as const, message: blocked };
 
   try {
     await updateCompanyDocumentMeta(documentId, patch);
@@ -168,6 +186,8 @@ export async function deleteCompanyDocumentAction(documentId: string) {
   if (!hasPermission(user.role, "company_documents:manage")) {
     return { ok: false as const, message: "You do not have permission to delete documents" };
   }
+  const blocked = await protectedDocGuard(documentId, user);
+  if (blocked) return { ok: false as const, message: blocked };
 
   try {
     await deleteCompanyDocument(documentId);
@@ -269,6 +289,10 @@ export async function publishDocumentRevisionAction(
 
   const doc = await getCompanyDocumentById(documentId);
   if (!doc) return { ok: false as const, message: "Document not found" };
+  {
+    const blocked = await protectedDocGuard(documentId, user);
+    if (blocked) return { ok: false as const, message: blocked };
+  }
   const content = await getCompanyDocumentContent(documentId);
   if (content == null) {
     return {
@@ -322,6 +346,8 @@ export async function saveDocumentContentAction(documentId: string, html: string
   if (html.length > 2_000_000) {
     return { ok: false as const, message: "Document content is too large to save" };
   }
+  const blocked = await protectedDocGuard(documentId, user);
+  if (blocked) return { ok: false as const, message: blocked };
 
   try {
     await saveCompanyDocumentContent(documentId, html, user.id);

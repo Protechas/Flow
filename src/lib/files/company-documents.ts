@@ -14,7 +14,7 @@ const BUCKET = "company-documents";
 
 /** List queries never fetch content_html — it can be large; the editor fetches it per-doc. */
 const LIST_COLUMNS =
-  "id, title, description, category, folder_id, tags, file_name, storage_path, file_size, mime_type, uploaded_by, created_at, content_updated_at, content_updated_by, current_revision_id";
+  "id, title, description, category, folder_id, tags, file_name, storage_path, file_size, mime_type, uploaded_by, created_at, content_updated_at, content_updated_by, current_revision_id, is_protected";
 
 let memoryDocuments: CompanyDocument[] = [];
 
@@ -53,6 +53,7 @@ function mapRow(row: Record<string, unknown>): CompanyDocument {
     content_updated_by: row.content_updated_by != null ? String(row.content_updated_by) : null,
     current_revision_id:
       row.current_revision_id != null ? String(row.current_revision_id) : null,
+    is_protected: Boolean(row.is_protected),
   };
 }
 

@@ -59,6 +59,7 @@ import {
   FolderPlus,
   Image as ImageIcon,
   Loader2,
+  Lock,
   MoreHorizontal,
   PencilLine,
   Search,
@@ -836,6 +837,16 @@ export function CompanyDocumentsPanel({
                                 {edited && (
                                   <Badge variant="outline" className="text-[10px] shrink-0">
                                     Edited in Flow
+                                  </Badge>
+                                )}
+                                {doc.is_protected && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] shrink-0 border-amber-500/40 text-amber-400"
+                                    title="Protected — guides Eddy's QA reviews; only admins can change it"
+                                  >
+                                    <Lock className="mr-0.5 h-2.5 w-2.5" />
+                                    Eddy&apos;s standard
                                   </Badge>
                                 )}
                               </div>

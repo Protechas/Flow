@@ -874,6 +874,9 @@ export interface CompanyDocument {
   content_updated_by?: string | null;
   /** Latest published (acknowledgment-required) revision, if any. */
   current_revision_id?: string | null;
+  /** Locked documents (e.g. the SOPs that steer Eddy's QA judgment) — only
+   * admin-level users may edit, move, or delete. Everyone can read. */
+  is_protected?: boolean;
   /** Demo / local fallback only */
   file_data_base64?: string;
   /** Demo / local fallback only — in-Flow edited copy */
