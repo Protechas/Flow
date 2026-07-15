@@ -71,6 +71,7 @@ import { createQuickTask, type QuickTaskInput } from "@/lib/data/create-work-set
 import type { ForecastComplexityLevel } from "@/types/flow";
 import { syncDerivedOperationalAlerts } from "@/lib/integrations/sync-derived-alerts";
 import { revalidateTaskSurfaces, revalidateWorkSurfaces } from "@/lib/data/revalidate-work";
+import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-flags";
 
 function revalidateAll(projectId?: string | null) {
   revalidateWorkSurfaces(projectId);
@@ -537,6 +538,22 @@ export async function updateWorkPackageAction(id: string, updates: Partial<WorkP
   if (updates.assigned_to !== undefined) {
     await assertCanAssignWorkPackage(user, updates.assigned_to);
   }
+  // A QA-required task exits through QA, not through a status dropdown.
+  // Hand-setting done with no passed review was how work skipped review
+  // invisibly. Legit exception path: turn off "QA required" on the task
+  // first — an explicit, auditable act.
+  if (updates.status === "done") {
+    const task = getFlowStore().workPackages.find((w) => w.id === id);
+    if (task && resolveWorkPackageTrackingFlags(task).qaRequired && task.status !== "done") {
+      const { getQaReviewRecordsForTask } = await import("@/lib/data/production-tracking");
+      const passed = getQaReviewRecordsForTask(id).some((r) => r.status === "pass");
+      if (!passed) {
+        throw new Error(
+          "This task requires QA — it completes when a reviewer passes it in the QA Center. If it genuinely doesn't need review, turn off 'QA required' on the task first."
+        );
+      }
+    }
+  }
   const p = updateWorkPackage(id, updates);
   if (p) await persistWorkPackageDb(p);
   if (updates.assigned_to !== undefined) {
@@ -615,6 +632,18 @@ export async function completeWorkPackageAction(id: string) {
   if (isEmployeeRole(user.role)) {
     await assertWorkEligible(user, "complete_task", { taskId: id });
   }
+  // This action used to stamp qa_status "passed" with no review — the widest
+  // QA bypass in the app. A QA-required task completes through the QA Center;
+  // only genuinely passed work gets the passed stamp here.
+  const task = getFlowStore().workPackages.find((w) => w.id === id);
+  const { getQaReviewRecordsForTask } = await import("@/lib/data/production-tracking");
+  const passed = getQaReviewRecordsForTask(id).some((r) => r.status === "pass");
+  if (task && resolveWorkPackageTrackingFlags(task).qaRequired && !passed) {
+    throw new Error(
+      "This task requires QA — it completes when a reviewer passes it in the QA Center. If it genuinely doesn't need review, turn off 'QA required' on the task first."
+    );
+  }
+  // Reaching here means the task either passed QA or never required it.
   const today = appTodayDate();
   updateWorkPackage(id, {
     status: "done",

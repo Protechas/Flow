@@ -18,6 +18,7 @@ import {
   parseCustomFields,
   taskProgress,
 } from "@/lib/projects/workspace-config";
+import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-flags";
 import { buildWorkspaceKpis } from "@/lib/projects/workspace-kpis";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
@@ -266,7 +267,15 @@ export function EnterpriseProjectWorkspace({
       }
       if (field === "complexity_level") patch.complexity_level = value;
       if (field === "notes") patch.notes = value;
-      await updateWorkPackageAction(taskId, patch);
+      if (field === "qa_required") patch.qa_required = value === "true";
+      try {
+        setAddTaskError(null);
+        await updateWorkPackageAction(taskId, patch);
+      } catch (e) {
+        // The QA gate (and other server rules) explain themselves — show it.
+        setAddTaskError(e instanceof Error ? e.message : "Change could not be saved.");
+        router.refresh();
+      }
     });
   }
 
@@ -348,7 +357,36 @@ export function EnterpriseProjectWorkspace({
       );
     }
     if (col.builtIn === "file_count") return task.file_count ?? 0;
-    if (col.builtIn === "qa_status") return <span className="capitalize">{task.qa_status}</span>;
+    if (col.builtIn === "qa_status") {
+      const qaOn = resolveWorkPackageTrackingFlags(task).qaRequired;
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="capitalize">{task.qa_status}</span>
+          {canEdit && (
+            <button
+              type="button"
+              className={cn(
+                "rounded-sm border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                qaOn
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                  : "border-border/60 text-muted-foreground"
+              )}
+              title={
+                qaOn
+                  ? "QA required — task completes through the QA Center. Click to turn off."
+                  : "QA off — task can be completed directly. Click to require QA."
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                updateTaskField(task.id, "qa_required", qaOn ? "false" : "true");
+              }}
+            >
+              {qaOn ? "QA required" : "QA off"}
+            </button>
+          )}
+        </span>
+      );
+    }
     if (col.builtIn === "progress") return <Progress value={taskProgress(task)} className="h-2 w-20" />;
     return custom[col.id] ?? "—";
   }

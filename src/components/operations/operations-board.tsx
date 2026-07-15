@@ -1365,7 +1365,16 @@ function PackageRow({
             }
             onComplete={
               canEdit && pkg.status !== "done"
-                ? () => startTransition(() => completeWorkPackageAction(pkg.id))
+                ? () =>
+                    startTransition(async () => {
+                      try {
+                        await completeWorkPackageAction(pkg.id);
+                      } catch (e) {
+                        alert(
+                          e instanceof Error ? e.message : "Task could not be completed."
+                        );
+                      }
+                    })
                 : undefined
             }
             onDuplicate={

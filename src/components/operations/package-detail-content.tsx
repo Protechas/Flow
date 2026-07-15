@@ -3,7 +3,7 @@
 import { appTodayDate } from "@/lib/datetime/timezone";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   completeWorkPackageAction,
   createCommentAction,
@@ -70,6 +70,7 @@ export function PackageDetailContent({
   onUpdated?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const router = useRouter();
   const { canAssign, canEdit, canSubmitQa } = actions;
 
@@ -154,8 +155,15 @@ export function PackageDetailContent({
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                await completeWorkPackageAction(pkg.id);
-                refresh();
+                try {
+                  setActionError(null);
+                  await completeWorkPackageAction(pkg.id);
+                  refresh();
+                } catch (e) {
+                  setActionError(
+                    e instanceof Error ? e.message : "Task could not be completed."
+                  );
+                }
               })
             }
           >
@@ -173,6 +181,12 @@ export function PackageDetailContent({
           </Link>
         )}
       </div>
+
+      {actionError && (
+        <p className="text-xs text-destructive" role="alert">
+          {actionError}
+        </p>
+      )}
 
       <TrackingFlagsBadges pkg={pkg} className="flex flex-wrap gap-1.5" />
 
