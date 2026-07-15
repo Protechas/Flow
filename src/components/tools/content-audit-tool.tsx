@@ -80,6 +80,52 @@ function verdictBadge(row: AuditRow) {
   );
 }
 
+/** Walk dropped items (files AND folders) into a flat file list — the drop
+ * zone should swallow an entire model folder, subfolders included. */
+async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> {
+  const out: File[] = [];
+
+  async function readAll(dir: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+    const reader = dir.createReader();
+    const all: FileSystemEntry[] = [];
+    // readEntries returns batches of ≤100; keep calling until empty.
+    for (;;) {
+      const batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+        reader.readEntries(resolve, reject)
+      );
+      if (batch.length === 0) return all;
+      all.push(...batch);
+    }
+  }
+
+  async function walk(entry: FileSystemEntry): Promise<void> {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) =>
+        (entry as FileSystemFileEntry).file(resolve, reject)
+      );
+      out.push(file);
+    } else if (entry.isDirectory) {
+      for (const child of await readAll(entry as FileSystemDirectoryEntry)) {
+        await walk(child);
+      }
+    }
+  }
+
+  const entries = [...dataTransfer.items]
+    .map((item) => (item.kind === "file" ? item.webkitGetAsEntry() : null))
+    .filter((e): e is FileSystemEntry => e != null);
+
+  if (entries.length === 0) return [...dataTransfer.files];
+  for (const entry of entries) {
+    try {
+      await walk(entry);
+    } catch {
+      // One unreadable entry shouldn't sink the drop.
+    }
+  }
+  return out;
+}
+
 export function ContentAuditTool({ history }: { history?: AuditHistorySummary }) {
   const router = useRouter();
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -87,6 +133,7 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
   const [dragOver, setDragOver] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const runId = useRef(0);
   /** Extracted text per file, kept client-side for on-demand Eddy reviews. */
   const textByFile = useRef(new Map<string, string>());
@@ -318,7 +365,7 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          void runAudit([...e.dataTransfer.files]);
+          void collectDroppedFiles(e.dataTransfer).then((files) => runAudit(files));
         }}
         onClick={() => inputRef.current?.click()}
         className={cn(
@@ -328,18 +375,39 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
       >
         <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
         <p className="mt-2 text-sm font-medium">
-          Drop a folder of SI PDFs here — or click to pick files
+          Drop a whole folder of SI PDFs here (subfolders included) — or click to pick files
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           Everything runs on YOUR computer. Files are never uploaded; close the tab and nothing
           leaves this machine.
         </p>
+        <button
+          type="button"
+          className="mt-2 text-xs text-primary hover:underline"
+          onClick={(e) => {
+            e.stopPropagation();
+            folderInputRef.current?.click();
+          }}
+        >
+          …or browse to a folder
+        </button>
         <input
           ref={inputRef}
           type="file"
           multiple
           accept=".pdf"
           className="hidden"
+          onChange={(e) => {
+            if (e.target.files) void runAudit([...e.target.files]);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          {...{ webkitdirectory: "" }}
           onChange={(e) => {
             if (e.target.files) void runAudit([...e.target.files]);
             e.target.value = "";
