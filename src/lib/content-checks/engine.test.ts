@@ -197,6 +197,45 @@ describe("analyzeModelCoverage — the 8-docs-per-model rule", () => {
     expect(model.missingComponents).toContain("LW");
   });
 
+  it("a placeholder fills its component slot — checked, not missing", () => {
+    const grouped = runContentChecksOnSet(
+      [
+        mk("2022 Chevrolet Silverado 1500 (FRS).pdf"),
+        doc({
+          fileName: "2022 Chevrolet Silverado 1500 (NV) Placeholder.pdf",
+          text: "Place Holder — Night Vision is not offered on this vehicle.",
+          highlights: [],
+        }),
+      ],
+      DEFAULT_CONTENT_RULES
+    );
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(model.missingComponents).not.toContain("NV");
+    expect(Object.keys(model.componentsViaPlaceholder)).toEqual(["NV"]);
+    expect(Object.keys(model.componentsPresent)).toEqual(["FRS"]);
+    // The placeholder file name parses despite the "Placeholder" suffix.
+    const placeholderDoc = grouped.find((g) => /placeholder/i.test(g.baseName));
+    expect(placeholderDoc?.result.parsedName?.component).toBe("NV");
+    expect(placeholderDoc?.result.isPlaceholder).toBe(true);
+  });
+
+  it("a real doc outranks its own placeholder for the same slot", () => {
+    const grouped = runContentChecksOnSet(
+      [
+        mk("2022 Chevrolet Silverado 1500 (BUC).pdf"),
+        doc({
+          fileName: "2022 Chevrolet Silverado 1500 (BUC) Placeholder.pdf",
+          text: "Place Holder",
+          highlights: [],
+        }),
+      ],
+      DEFAULT_CONTENT_RULES
+    );
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(Object.keys(model.componentsPresent)).toEqual(["BUC"]);
+    expect(model.componentsViaPlaceholder).toEqual({});
+  });
+
   it("special functions count as extras, never against the model", () => {
     const grouped = runContentChecksOnSet(
       [mk("2022 Chevrolet Silverado 1500 (SCI).pdf")],

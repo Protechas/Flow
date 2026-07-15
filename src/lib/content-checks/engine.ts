@@ -43,13 +43,15 @@ export interface ContentCheckResult {
   verdict: "pass" | "flagged" | "unreadable";
   flags: CheckFlag[];
   parsedName: ParsedDocumentName | null;
+  /** SOP placeholder: "this system doesn't apply to this model". */
+  isPlaceholder: boolean;
 }
 
 /** Component SOP naming grammar:
  * "2020 Chevrolet Silverado 1500 (FRS)" / "2025 Toyota Prius [HEV] (FRS)"
  * with optional "-Part-N" split suffix. */
 const NAME_RE =
-  /^(\d{4})\s+(.+?)\s*(?:\[([A-Za-z]+)\])?\s*\(([^)]+)\)\s*(?:[-\s]*part[-\s]*(\d{1,3}))?\s*\.pdf$/i;
+  /^(\d{4})\s+(.+?)\s*(?:\[([A-Za-z]+)\])?\s*\(([^)]+)\)\s*(?:[-\s]*place\s*holder)?\s*(?:[-\s]*part[-\s]*(\d{1,3}))?\s*\.pdf$/i;
 
 export function parseDocumentName(fileName: string): ParsedDocumentName | null {
   const m = fileName.trim().match(NAME_RE);
@@ -61,6 +63,12 @@ export function parseDocumentName(fileName: string): ParsedDocumentName | null {
     component: m[4].trim().toUpperCase(),
     partNumber: m[5] ? Number(m[5]) : null,
   };
+}
+
+/** Placeholder docs mark "this system doesn't apply to this model" — required
+ * by SOP, judged gently, and they DO fill their component slot. */
+export function isPlaceholderDoc(fileName: string, text: string): boolean {
+  return /place\s*holder/i.test(fileName) || /place\s*holder/i.test(text.slice(0, 800));
 }
 
 function knownAcronym(component: string, rules: ContentCheckRules): boolean {
@@ -98,7 +106,7 @@ export function runContentChecks(
   const flags: CheckFlag[] = [];
   const currentYear = new Date().getFullYear();
   const text = doc.text.toLowerCase();
-  const isPlaceholder = /placeholder/i.test(doc.fileName) || /place\s*holder/i.test(doc.text.slice(0, 500));
+  const isPlaceholder = isPlaceholderDoc(doc.fileName, doc.text);
 
   // ---- Structural ----
   if (doc.numPages === 0) {
@@ -106,6 +114,7 @@ export function runContentChecks(
       verdict: "unreadable",
       flags: [{ code: "corrupt", severity: "fail", message: "File could not be read as a PDF." }],
       parsedName: parseDocumentName(doc.fileName),
+      isPlaceholder,
     };
   }
   if (!doc.hasTextLayer) {
@@ -245,7 +254,7 @@ export function runContentChecks(
       ? "flagged"
       : "pass";
 
-  return { verdict, flags, parsedName: parsed };
+  return { verdict, flags, parsedName: parsed, isPlaceholder };
 }
 
 // ---- Logical documents: "-Part-1..N" files are ONE document ----
@@ -372,7 +381,12 @@ export function runContentChecksOnSet(
       partFiles: sorted.map((d) => d.fileName),
       totalPages: merged.numPages,
       totalSizeKb: Math.round(sorted.reduce((s, d) => s + d.fileSizeBytes, 0) / 1024),
-      result: { verdict, flags, parsedName: docResult.parsedName },
+      result: {
+        verdict,
+        flags,
+        parsedName: docResult.parsedName,
+        isPlaceholder: docResult.isPlaceholder,
+      },
     });
   }
 
@@ -390,6 +404,9 @@ export interface ModelCoverage {
   /** required component → the doc base names satisfying it (directly or via a
    * legacy feature doc per the 06-2026 conversion map). */
   componentsPresent: Record<string, string[]>;
+  /** Slots covered ONLY by a placeholder — "we checked, this model can't have
+   * it". Covered per SOP, but shown distinctly from real documentation. */
+  componentsViaPlaceholder: Record<string, string[]>;
   missingComponents: string[];
   flaggedDocs: number;
   /** Docs whose component doesn't map to any required slot (extra coverage —
@@ -432,15 +449,21 @@ export function analyzeModelCoverage(
     ];
 
     const present: Record<string, string[]> = {};
+    const viaPlaceholder: Record<string, string[]> = {};
     const extras: string[] = [];
     for (const doc of docs) {
       const component = doc.result.parsedName?.component ?? "";
       const slot = componentSlot(component, rules);
       if (slot && required.includes(slot)) {
-        present[slot] = [...(present[slot] ?? []), doc.baseName];
+        const bucket = doc.result.isPlaceholder ? viaPlaceholder : present;
+        bucket[slot] = [...(bucket[slot] ?? []), doc.baseName];
       } else {
         extras.push(doc.baseName);
       }
+    }
+    // A slot with a real doc doesn't also need its placeholder listed.
+    for (const slot of Object.keys(viaPlaceholder)) {
+      if (present[slot]) delete viaPlaceholder[slot];
     }
 
     out.push({
@@ -449,7 +472,8 @@ export function analyzeModelCoverage(
       makeModel: parsed.makeModel,
       docs,
       componentsPresent: present,
-      missingComponents: required.filter((c) => !present[c]),
+      componentsViaPlaceholder: viaPlaceholder,
+      missingComponents: required.filter((c) => !present[c] && !viaPlaceholder[c]),
       flaggedDocs: docs.filter((d) => d.result.verdict === "flagged").length,
       extraDocs: extras,
     });

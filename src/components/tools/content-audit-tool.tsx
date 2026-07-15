@@ -276,6 +276,10 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
       ...Object.entries(model.componentsPresent).map(
         ([slot, docs]) => `${slot}: covered by ${docs.join("; ")}`
       ),
+      ...Object.entries(model.componentsViaPlaceholder).map(
+        ([slot, docs]) =>
+          `${slot}: covered by PLACEHOLDER (system doesn't apply to this model) — ${docs.join("; ")}`
+      ),
       ...model.missingComponents.map((c) => `${c}: MISSING`),
       ...(model.extraDocs.length ? [`Extra (not in required set): ${model.extraDocs.join("; ")}`] : []),
     ];
@@ -523,7 +527,10 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
             <div className="space-y-3">
               {coverage.map((model) => {
                 const entry = modelReports[model.modelLabel] ?? {};
-                const required = Object.keys(model.componentsPresent).length + model.missingComponents.length;
+                const covered =
+                  Object.keys(model.componentsPresent).length +
+                  Object.keys(model.componentsViaPlaceholder).length;
+                const required = covered + model.missingComponents.length;
                 return (
                   <div key={model.modelLabel} className="enterprise-panel p-4 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -531,8 +538,7 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
                         <p className="text-sm font-semibold">{model.modelLabel}</p>
                         <p className="text-xs text-muted-foreground">
                           {model.docs.length} document{model.docs.length === 1 ? "" : "s"} ·{" "}
-                          {required - model.missingComponents.length}/{required} required
-                          components covered
+                          {covered}/{required} required components covered
                           {model.flaggedDocs > 0 && ` · ${model.flaggedDocs} flagged`}
                         </p>
                       </div>
@@ -563,6 +569,17 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
                         >
                           <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
                           {slot}
+                        </Badge>
+                      ))}
+                      {Object.entries(model.componentsViaPlaceholder).map(([slot, docs]) => (
+                        <Badge
+                          key={slot}
+                          variant="outline"
+                          className="text-[10px] text-sky-400 border-sky-500/30"
+                          title={`Covered by placeholder — system doesn't apply to this model\n${docs.join("\n")}`}
+                        >
+                          <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                          {slot} · placeholder
                         </Badge>
                       ))}
                       {model.missingComponents.map((slot) => (
