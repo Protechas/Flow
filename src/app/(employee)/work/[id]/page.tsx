@@ -96,7 +96,7 @@ export default async function EmployeeTaskPage({
 
   return (
     <>
-    <LiveRefresh intervalMs={120_000} />
+    <LiveRefresh intervalMs={60_000} />
     <EmployeeTaskWorkspace
       task={task}
       comments={store.comments}

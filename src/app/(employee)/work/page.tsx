@@ -87,7 +87,7 @@ export default async function EmployeeWorkPage() {
 
   return (
     <>
-      <LiveRefresh intervalMs={activeClock ? 30_000 : 90_000} />
+      <LiveRefresh intervalMs={activeClock ? 30_000 : 60_000} />
       <div className="mb-4">
         <CoachPanel nudges={coachNudges} persona={resolveCoachPersona(user)} />
       </div>

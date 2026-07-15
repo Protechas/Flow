@@ -201,6 +201,7 @@ export function CompanyDocumentsPanel({
   // --- Folder management state ---
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderParent, setNewFolderParent] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<DocumentFolder | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -370,7 +371,7 @@ export function CompanyDocumentsPanel({
     setNewFolderName("");
     if (!name) return;
     startTransition(async () => {
-      const res = await createDocumentFolderAction(name, currentFolderForUpload);
+      const res = await createDocumentFolderAction(name, newFolderParent);
       if (!res.ok) {
         toast({ variant: "error", title: "Folder not created", description: res.message });
         return;
@@ -451,8 +452,11 @@ export function CompanyDocumentsPanel({
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              title="New folder (inside the selected folder)"
-              onClick={() => setNewFolderOpen(true)}
+              title="New folder — pick where it goes in the dialog"
+              onClick={() => {
+                setNewFolderParent(currentFolderForUpload);
+                setNewFolderOpen(true);
+              }}
             >
               <FolderPlus className="h-4 w-4" />
             </Button>
@@ -1032,7 +1036,7 @@ export function CompanyDocumentsPanel({
           <DialogHeader>
             <DialogTitle>New folder</DialogTitle>
             <DialogDescription>
-              Created inside {folderName(currentFolderForUpload)}.
+              Nest folders as deep as you need — pick a parent to build a tree.
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -1044,6 +1048,23 @@ export function CompanyDocumentsPanel({
             }}
             autoFocus
           />
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Put it inside</p>
+            <select
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              value={newFolderParent ?? "__root__"}
+              onChange={(e) =>
+                setNewFolderParent(e.target.value === "__root__" ? null : e.target.value)
+              }
+            >
+              <option value="__root__">Top level</option>
+              {tree.map(({ folder, depth }) => (
+                <option key={folder.id} value={folder.id}>
+                  {`${" ".repeat(depth * 3)}${folder.name}`}
+                </option>
+              ))}
+            </select>
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setNewFolderOpen(false)}>
               Cancel
