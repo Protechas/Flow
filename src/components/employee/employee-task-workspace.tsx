@@ -25,6 +25,7 @@ import { HelpFlagDialog } from "@/components/help-flags/help-flag-dialog";
 import { WorkEligibilityGateDialog } from "@/components/employee/work-eligibility-gate-dialog";
 import { HelpFlagStatusList } from "@/components/help-flags/help-flag-status";
 import { TaskFileUploadZone } from "@/components/employee/task-file-upload-zone";
+import { TicketPulse, type TicketPulseData } from "@/components/requests/ticket-pulse";
 import { TaskSubmitChecklistPanel } from "@/components/employee/task-submit-checklist";
 import { TaskLiveForecastPanel } from "@/components/forecast/task-live-forecast-panel";
 import { primaryDueDate } from "@/lib/forecast/live";
@@ -105,6 +106,7 @@ export function EmployeeTaskWorkspace({
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
   workflowInput: EmployeeWorkflowInput;
+  ticketPulse?: TicketPulseData | null;
 }) {
   return (
     <EmployeeWorkflowProvider input={workflowInput}>
@@ -127,6 +129,7 @@ function EmployeeTaskWorkspaceContent({
   latestSubmission,
   helpFlags = [],
   workEligibility,
+  ticketPulse = null,
 }: {
   task: WorkPackage;
   comments: Comment[];
@@ -141,6 +144,7 @@ function EmployeeTaskWorkspaceContent({
   latestSubmission: TaskSubmissionRecord | null;
   helpFlags?: HelpFlagView[];
   workEligibility: WorkEligibility;
+  ticketPulse?: TicketPulseData | null;
 }) {
   const wf = useEmployeeWorkflow();
   const router = useRouter();
@@ -405,6 +409,8 @@ function EmployeeTaskWorkspaceContent({
           </p>
         )}
       </div>
+
+      {ticketPulse && <TicketPulse pulse={ticketPulse} className="mb-4" />}
 
       {otherActive && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">

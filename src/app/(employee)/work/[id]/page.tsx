@@ -24,6 +24,9 @@ import { getWrapUpComplianceStatus } from "@/lib/wrap-up/compliance";
 import { employeeHasOpenWorkloadRequest } from "@/lib/workload-alerts/employee-requests";
 import { redirect } from "next/navigation";
 import { enrichPackages } from "@/lib/data/flow-store";
+import { LiveRefresh } from "@/components/platform";
+import { isTicketReceiver } from "@/lib/requests/audience";
+import { listActiveTickets } from "@/lib/requests/tickets";
 
 export default async function EmployeeTaskPage({
   params,
@@ -57,6 +60,28 @@ export default async function EmployeeTaskPage({
   const today = appTodayDate();
   const payType = normalizePayType(user.pay_type, user.role);
 
+  // Requests must be visible where people actually spend the day — inside a
+  // task. Strip renders only when something is waiting.
+  const canReceiveTickets = await isTicketReceiver(user);
+  const openTickets = canReceiveTickets
+    ? (await listActiveTickets().catch(() => [])).filter((t) => t.status === "open")
+    : [];
+  const ticketPulse = canReceiveTickets
+    ? {
+        open: openTickets.length,
+        oldestMinutes: openTickets.length
+          ? Math.max(
+              0,
+              Math.round(
+                (Date.now() -
+                  Math.min(...openTickets.map((t) => new Date(t.created_at).getTime()))) /
+                  60000
+              )
+            )
+          : null,
+      }
+    : null;
+
   const workflowInput = buildTaskPageWorkflowInput({
     user,
     task,
@@ -70,6 +95,8 @@ export default async function EmployeeTaskPage({
   });
 
   return (
+    <>
+    <LiveRefresh intervalMs={120_000} />
     <EmployeeTaskWorkspace
       task={task}
       comments={store.comments}
@@ -85,6 +112,8 @@ export default async function EmployeeTaskPage({
       helpFlags={helpFlags}
       workEligibility={getWorkEligibility(user)}
       workflowInput={workflowInput}
+      ticketPulse={ticketPulse}
     />
+    </>
   );
 }

@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { TicketPulse } from "@/components/requests/ticket-pulse";
 import { EmployeeActivityHistory } from "@/components/employee/employee-activity-history";
 import { EmployeeAttentionPanel } from "@/components/employee/employee-attention-panel";
 import { EmployeeQuickActions } from "@/components/employee/employee-quick-actions";
@@ -162,56 +160,7 @@ export function EmployeeWorkspaceView({
               Here&apos;s your day — your mission, your queue, and where you stand.
             </p>
           </div>
-          {ticketPulse && (
-            <Link
-              href="/work/requests"
-              prefetch={false}
-              className={cn(
-                "group flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
-                ticketPulse.open > 0
-                  ? "border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/15"
-                  : "border-border/60 bg-card/60 hover:bg-muted/30"
-              )}
-            >
-              <Inbox
-                className={cn(
-                  "h-5 w-5 shrink-0",
-                  ticketPulse.open > 0 ? "text-amber-400" : "text-muted-foreground"
-                )}
-              />
-              <span className="min-w-0">
-                <span className="block text-xs font-medium">
-                  Email team requests
-                </span>
-                <span
-                  className={cn(
-                    "block text-[11px]",
-                    ticketPulse.open > 0 ? "text-amber-400 font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  {ticketPulse.open > 0
-                    ? `${ticketPulse.open} waiting${
-                        ticketPulse.oldestMinutes != null
-                          ? ` · oldest ${
-                              ticketPulse.oldestMinutes >= 90
-                                ? `${Math.round(ticketPulse.oldestMinutes / 60)}h`
-                                : `${ticketPulse.oldestMinutes}m`
-                            }`
-                          : ""
-                      } — first to claim it owns it`
-                    : "None waiting — all caught up"}
-                </span>
-              </span>
-              <span
-                className={cn(
-                  "ml-1 text-xl font-semibold tabular-nums",
-                  ticketPulse.open > 0 ? "text-amber-400" : "text-muted-foreground"
-                )}
-              >
-                {ticketPulse.open}
-              </span>
-            </Link>
-          )}
+          {ticketPulse && <TicketPulse pulse={ticketPulse} showWhenEmpty />}
         </div>
 
         <EmployeeWorkflowPanel
