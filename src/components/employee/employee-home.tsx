@@ -31,6 +31,8 @@ export function EmployeeHome(props: {
   pendingWorkRequest?: boolean;
   sideSession?: SideSession | null;
   sideSessionMinutes?: number;
+  /** Email-team request pulse for the header box; absent = not a receiver. */
+  ticketPulse?: { open: number; oldestMinutes: number | null } | null;
 }) {
   return (
     <EmployeeWorkspaceView

@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { EmployeeActivityHistory } from "@/components/employee/employee-activity-history";
 import { EmployeeAttentionPanel } from "@/components/employee/employee-attention-panel";
 import { EmployeeQuickActions } from "@/components/employee/employee-quick-actions";
@@ -35,6 +38,7 @@ export function EmployeeWorkspaceView({
   taskReadyForSubmission = false,
   sideSession = null,
   sideSessionMinutes = 0,
+  ticketPulse = null,
 }: {
   dashboard: EmployeeDashboard;
   userName: string;
@@ -55,6 +59,7 @@ export function EmployeeWorkspaceView({
   taskReadyForSubmission?: boolean;
   sideSession?: SideSession | null;
   sideSessionMinutes?: number;
+  ticketPulse?: { open: number; oldestMinutes: number | null } | null;
 }) {
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
 
@@ -139,22 +144,74 @@ export function EmployeeWorkspaceView({
   return (
     <EmployeeWorkflowProvider input={workflowInput}>
       <div className="flow-employee-workspace space-y-5 pb-10">
-        <div className="px-1 pt-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {(() => {
-              const h = new Date().getHours();
-              const greeting =
-                h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-              return (
-                <>
-                  {greeting}, <span className="text-primary">{userName.split(" ")[0]}</span>.
-                </>
-              );
-            })()}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Here&apos;s your day — your mission, your queue, and where you stand.
-          </p>
+        <div className="px-1 pt-1 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {(() => {
+                const h = new Date().getHours();
+                const greeting =
+                  h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+                return (
+                  <>
+                    {greeting}, <span className="text-primary">{userName.split(" ")[0]}</span>.
+                  </>
+                );
+              })()}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Here&apos;s your day — your mission, your queue, and where you stand.
+            </p>
+          </div>
+          {ticketPulse && (
+            <Link
+              href="/work/requests"
+              prefetch={false}
+              className={cn(
+                "group flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
+                ticketPulse.open > 0
+                  ? "border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/15"
+                  : "border-border/60 bg-card/60 hover:bg-muted/30"
+              )}
+            >
+              <Inbox
+                className={cn(
+                  "h-5 w-5 shrink-0",
+                  ticketPulse.open > 0 ? "text-amber-400" : "text-muted-foreground"
+                )}
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium">
+                  Email team requests
+                </span>
+                <span
+                  className={cn(
+                    "block text-[11px]",
+                    ticketPulse.open > 0 ? "text-amber-400 font-medium" : "text-muted-foreground"
+                  )}
+                >
+                  {ticketPulse.open > 0
+                    ? `${ticketPulse.open} waiting${
+                        ticketPulse.oldestMinutes != null
+                          ? ` · oldest ${
+                              ticketPulse.oldestMinutes >= 90
+                                ? `${Math.round(ticketPulse.oldestMinutes / 60)}h`
+                                : `${ticketPulse.oldestMinutes}m`
+                            }`
+                          : ""
+                      } — first to claim it owns it`
+                    : "None waiting — all caught up"}
+                </span>
+              </span>
+              <span
+                className={cn(
+                  "ml-1 text-xl font-semibold tabular-nums",
+                  ticketPulse.open > 0 ? "text-amber-400" : "text-muted-foreground"
+                )}
+              >
+                {ticketPulse.open}
+              </span>
+            </Link>
+          )}
         </div>
 
         <EmployeeWorkflowPanel

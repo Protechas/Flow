@@ -64,6 +64,26 @@ export default async function EmployeeWorkPage() {
   const ticketFiles = await listFilesForTickets(myVisibleTickets.map((t) => t.id)).catch(
     () => ({})
   );
+  // Header pulse: receivers always see the box, even at zero — visibility
+  // builds the habit of checking. Count = unclaimed requests only.
+  const openTickets = canReceiveTickets
+    ? activeTickets.filter((t) => t.status === "open")
+    : [];
+  const ticketPulse = canReceiveTickets
+    ? {
+        open: openTickets.length,
+        oldestMinutes: openTickets.length
+          ? Math.max(
+              0,
+              Math.round(
+                (Date.now() -
+                  Math.min(...openTickets.map((t) => new Date(t.created_at).getTime()))) /
+                  60000
+              )
+            )
+          : null,
+      }
+    : null;
 
   return (
     <>
@@ -98,6 +118,7 @@ export default async function EmployeeWorkPage() {
       pendingWorkRequest={employeeHasOpenWorkloadRequest(user.id)}
       sideSession={getActiveSideSession(user.id)}
       sideSessionMinutes={getSideSessionMinutesToday(user.id)}
+      ticketPulse={ticketPulse}
     />
       <div className="mt-4">
         <BadgesPanel
