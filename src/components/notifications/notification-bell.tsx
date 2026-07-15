@@ -28,10 +28,18 @@ function desktopSupported() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-/** Fire OS notifications for fresh items — only while Flow isn't the visible tab. */
-function notifyDesktop(fresh: FlowNotification[]) {
+/**
+ * Fire OS notifications for fresh items. Hidden tab: everything pops.
+ * Visible tab: team requests still pop — a waiting ticket shouldn't depend
+ * on which window has focus; the bell badge covers the rest.
+ */
+const ALWAYS_POP_TYPES = new Set(["request_submitted", "request_update"]);
+
+function notifyDesktop(allFresh: FlowNotification[]) {
   if (!desktopSupported() || window.Notification.permission !== "granted") return;
-  if (!document.hidden) return; // the in-app bell covers the foreground case
+  const fresh = document.hidden
+    ? allFresh
+    : allFresh.filter((n) => ALWAYS_POP_TYPES.has(n.type));
   for (const n of fresh.slice(0, 3)) {
     try {
       const dn = new window.Notification(`Flow — ${n.title}`, {
