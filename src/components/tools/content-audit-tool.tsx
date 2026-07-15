@@ -1,15 +1,22 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { eddyReviewContentAction } from "@/app/actions/content-checks";
+import {
+  eddyModelReportAction,
+  eddyReviewContentAction,
+  saveModelReportAction,
+} from "@/app/actions/content-checks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { EddyContentReview } from "@/lib/ai/content-review";
+import type { EddyContentReview, EddyModelReport } from "@/lib/ai/content-review";
 import {
+  analyzeModelCoverage,
   runContentChecksOnSet,
   type CheckFlag,
   type ContentCheckResult,
   type ExtractedDoc,
+  type LogicalDocResult,
+  type ModelCoverage,
 } from "@/lib/content-checks/engine";
 import { extractDocInBrowser } from "@/lib/content-checks/extract-browser";
 import { DEFAULT_CONTENT_RULES } from "@/lib/content-checks/rules";
@@ -79,6 +86,18 @@ export function ContentAuditTool() {
   const runId = useRef(0);
   /** Extracted text per file, kept client-side for on-demand Eddy reviews. */
   const textByFile = useRef(new Map<string, string>());
+  const [groups, setGroups] = useState<LogicalDocResult[]>([]);
+  const [modelReports, setModelReports] = useState<
+    Record<
+      string,
+      { report?: EddyModelReport; pending?: boolean; error?: string | null; savedId?: string }
+    >
+  >({});
+
+  const coverage = useMemo(
+    () => analyzeModelCoverage(groups, DEFAULT_CONTENT_RULES),
+    [groups]
+  );
 
   const summary = useMemo(() => {
     const pass = rows.filter((r) => r.result.verdict === "pass").length;
@@ -112,6 +131,8 @@ export function ContentAuditTool() {
     }
     if (runId.current !== id) return;
     const grouped = runContentChecksOnSet(extracted, DEFAULT_CONTENT_RULES);
+    setGroups(grouped);
+    setModelReports({});
     setRows(
       grouped
         .map((g) => ({
@@ -172,6 +193,59 @@ export function ContentAuditTool() {
       // Sequential on purpose: keeps costs visible and the UI readable.
       await runEddy(t);
     }
+  }
+
+  function coverageSummaryFor(model: ModelCoverage): string {
+    const lines = [
+      ...Object.entries(model.componentsPresent).map(
+        ([slot, docs]) => `${slot}: covered by ${docs.join("; ")}`
+      ),
+      ...model.missingComponents.map((c) => `${c}: MISSING`),
+      ...(model.extraDocs.length ? [`Extra (not in required set): ${model.extraDocs.join("; ")}`] : []),
+    ];
+    return lines.join("\n");
+  }
+
+  async function runModelReport(model: ModelCoverage) {
+    setModelReports((prev) => ({
+      ...prev,
+      [model.modelLabel]: { ...prev[model.modelLabel], pending: true, error: null },
+    }));
+    const docLines = model.docs.map((d) => {
+      const row = rows.find((r) => r.fileName === d.baseName);
+      const flags = d.result.flags.map((f) => `[${f.severity}] ${f.message}`).join(" | ") || "clean";
+      const eddy = row?.eddy
+        ? ` || Eddy: ${row.eddy.verdict} — ${row.eddy.summary}`
+        : "";
+      return `${d.baseName} (${d.partFiles.length} part${d.partFiles.length === 1 ? "" : "s"}) → ${d.result.verdict}: ${flags}${eddy}`;
+    });
+    const res = await eddyModelReportAction({
+      modelLabel: model.modelLabel,
+      coverageSummary: coverageSummaryFor(model),
+      docLines,
+    });
+    setModelReports((prev) => ({
+      ...prev,
+      [model.modelLabel]: res.ok
+        ? { report: res.report, pending: false, error: null }
+        : { ...prev[model.modelLabel], pending: false, error: res.message },
+    }));
+  }
+
+  async function saveModelReport(model: ModelCoverage) {
+    const entry = modelReports[model.modelLabel];
+    if (!entry?.report) return;
+    const res = await saveModelReportAction({
+      modelLabel: model.modelLabel,
+      coverageSummary: coverageSummaryFor(model),
+      report: entry.report,
+    });
+    setModelReports((prev) => ({
+      ...prev,
+      [model.modelLabel]: res.ok
+        ? { ...prev[model.modelLabel], savedId: res.documentId }
+        : { ...prev[model.modelLabel], error: res.message },
+    }));
   }
 
   function downloadCsv() {
@@ -279,6 +353,128 @@ export function ContentAuditTool() {
               <p className="text-2xl font-semibold tabular-nums">{summary.unreadable}</p>
             </div>
           </div>
+
+          {coverage.length > 0 && (
+            <div className="space-y-3">
+              {coverage.map((model) => {
+                const entry = modelReports[model.modelLabel] ?? {};
+                const required = Object.keys(model.componentsPresent).length + model.missingComponents.length;
+                return (
+                  <div key={model.modelLabel} className="enterprise-panel p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">{model.modelLabel}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {model.docs.length} document{model.docs.length === 1 ? "" : "s"} ·{" "}
+                          {required - model.missingComponents.length}/{required} required
+                          components covered
+                          {model.flaggedDocs > 0 && ` · ${model.flaggedDocs} flagged`}
+                        </p>
+                      </div>
+                      {!entry.report && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={entry.pending}
+                          onClick={() => void runModelReport(model)}
+                        >
+                          {entry.pending ? (
+                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                          )}
+                          {entry.pending ? "Eddy is writing…" : "Eddy model report (~2¢)"}
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(model.componentsPresent).map(([slot, docs]) => (
+                        <Badge
+                          key={slot}
+                          variant="outline"
+                          className="text-[10px] text-emerald-500 border-emerald-500/30"
+                          title={docs.join("\n")}
+                        >
+                          <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                          {slot}
+                        </Badge>
+                      ))}
+                      {model.missingComponents.map((slot) => (
+                        <Badge
+                          key={slot}
+                          variant="outline"
+                          className="text-[10px] text-red-400 border-red-500/40"
+                        >
+                          <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />
+                          {slot} missing
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {entry.error && <p className="text-xs text-destructive">{entry.error}</p>}
+
+                    {entry.report && (
+                      <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="flex items-center gap-1.5 text-xs font-medium">
+                            <Sparkles className="h-3.5 w-3.5 text-primary" />
+                            Eddy&apos;s model report
+                          </p>
+                          {entry.savedId ? (
+                            <a
+                              href={`/files/view/company/${entry.savedId}`}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Saved to Files — open it
+                            </a>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => void saveModelReport(model)}
+                            >
+                              Save report to Files
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs">{entry.report.overview}</p>
+                        {entry.report.risks.length > 0 && (
+                          <ul className="space-y-1">
+                            {entry.report.risks.map((r, i) => (
+                              <li key={i} className="text-xs">
+                                <span
+                                  className={cn(
+                                    "mr-1.5 font-medium",
+                                    r.severity === "high"
+                                      ? "text-red-400"
+                                      : r.severity === "medium"
+                                        ? "text-amber-400"
+                                        : "text-muted-foreground"
+                                  )}
+                                >
+                                  {r.severity}:
+                                </span>
+                                {r.issue}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {entry.report.actions.length > 0 && (
+                          <ol className="list-decimal space-y-0.5 pl-4 text-xs text-muted-foreground">
+                            {entry.report.actions.map((a, i) => (
+                              <li key={i}>{a}</li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">

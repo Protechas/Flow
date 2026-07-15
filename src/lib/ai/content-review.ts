@@ -76,6 +76,99 @@ function extractJson(text: string): Record<string, unknown> {
   return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
 }
 
+// ---- Model-level report ----
+
+export interface EddyModelReport {
+  overview: string;
+  strengths: string[];
+  risks: { severity: "high" | "medium" | "low"; issue: string }[];
+  actions: string[];
+}
+
+const MODEL_REPORT_PROMPT =
+  "You are Eddy, QA assistant for a Service Information team. You are writing a MODEL-LEVEL " +
+  "audit report from structured check results for one vehicle model's SI document set. Per " +
+  "the team's SOP, every model needs a variant of each required component document (SI doc or " +
+  "placeholder). The component acronyms mean EXACTLY this — never repurpose them: FRS = front " +
+  "radar sensor, WSC = windshield (forward recognition) camera, PDS = parking distance " +
+  "sensors, BUC = backup camera, SVC = surround view camera system, RRS = rear radar sensor, " +
+  "NV = night vision camera, LW = Honda LaneWatch (Honda only). You receive: the component " +
+  "coverage (present/missing), each document's automated check verdict and flags, and any " +
+  "per-document Eddy reads already run. Write for the team's manager: concrete, plain " +
+  "English, no fluff. Missing required components and wrong-content documents are the " +
+  "highest-priority risks. Do not invent findings not present in the input. Respond with " +
+  "ONLY a JSON object:\n" +
+  "{\n" +
+  '  "overview": "3-5 sentences: overall state of this model\'s document set",\n' +
+  '  "strengths": ["what is in good shape"],\n' +
+  '  "risks": [ { "severity": "high"|"medium"|"low", "issue": "specific gap or problem" } ],\n' +
+  '  "actions": ["ordered, concrete next steps for the team"]\n' +
+  "}\n" +
+  "At most 6 strengths, 10 risks, 8 actions.";
+
+/**
+ * ALLOWLIST: model report sends ONLY file names, check verdicts/flags, and
+ * prior Eddy summaries — never document text or people data.
+ */
+export async function eddyModelReport(input: {
+  modelLabel: string;
+  coverageSummary: string;
+  docLines: string[];
+  userId?: string | null;
+}): Promise<EddyModelReport> {
+  const client = await getAiClient();
+  if (!client) throw new Error("AI is not configured");
+
+  const userContent =
+    `Model: ${capText(input.modelLabel, 120)}\n` +
+    `Component coverage:\n${capText(input.coverageSummary, 2_000)}\n\n` +
+    `Documents (${input.docLines.length}):\n` +
+    capText(input.docLines.map((l) => `- ${l}`).join("\n"), 20_000);
+
+  const response = await client.messages.create({
+    model: AI_MODELS.fast,
+    max_tokens: 1500,
+    system: MODEL_REPORT_PROMPT,
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  await logAiUsage({
+    feature: "content_model_report",
+    model: AI_MODELS.fast,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    userId: input.userId ?? null,
+  });
+
+  const textOut = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => ("text" in b ? b.text : ""))
+    .join("");
+  const parsed = extractJson(textOut);
+  const severities = new Set(["high", "medium", "low"]);
+
+  return {
+    overview: String(parsed.overview ?? "").slice(0, 1500),
+    strengths: Array.isArray(parsed.strengths)
+      ? parsed.strengths.slice(0, 6).map((s) => String(s).slice(0, 300))
+      : [],
+    risks: Array.isArray(parsed.risks)
+      ? (parsed.risks as Record<string, unknown>[])
+          .slice(0, 10)
+          .map((r) => ({
+            severity: severities.has(String(r.severity))
+              ? (String(r.severity) as "high" | "medium" | "low")
+              : "medium",
+            issue: String(r.issue ?? "").slice(0, 400),
+          }))
+          .filter((r) => r.issue)
+      : [],
+    actions: Array.isArray(parsed.actions)
+      ? parsed.actions.slice(0, 8).map((a) => String(a).slice(0, 300))
+      : [],
+  };
+}
+
 export async function eddyReviewContent(input: {
   fileName: string;
   claim: string;

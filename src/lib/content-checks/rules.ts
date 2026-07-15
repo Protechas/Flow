@@ -31,6 +31,14 @@ export interface ContentCheckRules {
   conditionKeywords: string[];
   /** Earliest valid model year (SI Library covers 2012–current). */
   minYear: number;
+  /** Component SOP: every model needs a variant of each of these (SI or
+   * placeholder). Honda adds LW. */
+  requiredComponentSet: string[];
+  /** Extra required components by make (lowercased make word). */
+  requiredExtrasByMake: Record<string, string[]>;
+  /** 06-2026 Feature→Component conversion: a legacy feature doc satisfies its
+   * parent component's slot. */
+  featureToComponent: Record<string, string>;
 }
 
 export const DEFAULT_CONTENT_RULES: ContentCheckRules = {
@@ -81,4 +89,35 @@ export const DEFAULT_CONTENT_RULES: ContentCheckRules = {
     "dtc",
   ],
   minYear: 2012,
+  requiredComponentSet: ["FRS", "WSC", "PDS", "BUC", "SVC", "RRS", "NV"],
+  requiredExtrasByMake: { honda: ["LW"] },
+  featureToComponent: {
+    // Component SOP 06-2026: "ACC (1) & AEB (1) are now both covered by (FRS)";
+    // dominant-component rule for multi-hardware features.
+    ACC: "FRS",
+    "ACC 1": "FRS",
+    "ACC 2": "FRS",
+    "ACC 3": "WSC",
+    AEB: "FRS",
+    "AEB 1": "FRS",
+    "AEB 2": "FRS",
+    "AEB 3": "WSC",
+    LKA: "WSC",
+    "LKA 1": "WSC",
+    "LKA 2": "BUC",
+    "BSW/RCTW": "RRS",
+    "BSW/RCTW 1": "RRS",
+    "BSW/RCTW 2": "RRS",
+    "BSW/RCTW 3": "BUC",
+    "BSW 1": "RRS",
+    "BSW 2": "RRS",
+    "BSW 3": "BUC",
+    APA: "PDS",
+    "APA 1": "PDS",
+    BUC: "BUC",
+    SVC: "SVC",
+    "SVC 1": "SVC",
+    NV: "NV",
+    WSC: "WSC",
+  },
 };

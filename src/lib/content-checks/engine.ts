@@ -379,6 +379,85 @@ export function runContentChecksOnSet(
   return results;
 }
 
+// ---- Model coverage: the SOP's "every model needs its component set" ----
+
+export interface ModelCoverage {
+  /** "2022 Chevrolet Silverado 1500" */
+  modelLabel: string;
+  year: number;
+  makeModel: string;
+  docs: LogicalDocResult[];
+  /** required component → the doc base names satisfying it (directly or via a
+   * legacy feature doc per the 06-2026 conversion map). */
+  componentsPresent: Record<string, string[]>;
+  missingComponents: string[];
+  flaggedDocs: number;
+  /** Docs whose component doesn't map to any required slot (extra coverage —
+   * special functions etc. — never counted against the model). */
+  extraDocs: string[];
+}
+
+function componentSlot(component: string, rules: ContentCheckRules): string | null {
+  const c = component.toUpperCase();
+  const direct = rules.featureToComponent[c];
+  if (direct) return direct;
+  if (rules.requiredComponentSet.includes(c)) return c;
+  const base = c.split(/[\s[]/)[0];
+  if (rules.featureToComponent[base]) return rules.featureToComponent[base];
+  if (rules.requiredComponentSet.includes(base)) return base;
+  return null;
+}
+
+/** Group checked documents by model and grade the component set against the
+ * SOP requirement (FRS/WSC/PDS/BUC/SVC/RRS/NV, +LW for Honda). */
+export function analyzeModelCoverage(
+  results: LogicalDocResult[],
+  rules: ContentCheckRules
+): ModelCoverage[] {
+  const byModel = new Map<string, LogicalDocResult[]>();
+  for (const r of results) {
+    const parsed = r.result.parsedName;
+    if (!parsed) continue;
+    const key = `${parsed.year} ${parsed.makeModel}`.toLowerCase();
+    byModel.set(key, [...(byModel.get(key) ?? []), r]);
+  }
+
+  const out: ModelCoverage[] = [];
+  for (const docs of byModel.values()) {
+    const parsed = docs[0].result.parsedName!;
+    const makeWord = parsed.makeModel.split(/\s+/)[0]?.toLowerCase() ?? "";
+    const required = [
+      ...rules.requiredComponentSet,
+      ...(rules.requiredExtrasByMake[makeWord] ?? []),
+    ];
+
+    const present: Record<string, string[]> = {};
+    const extras: string[] = [];
+    for (const doc of docs) {
+      const component = doc.result.parsedName?.component ?? "";
+      const slot = componentSlot(component, rules);
+      if (slot && required.includes(slot)) {
+        present[slot] = [...(present[slot] ?? []), doc.baseName];
+      } else {
+        extras.push(doc.baseName);
+      }
+    }
+
+    out.push({
+      modelLabel: `${parsed.year} ${parsed.makeModel}`,
+      year: parsed.year,
+      makeModel: parsed.makeModel,
+      docs,
+      componentsPresent: present,
+      missingComponents: required.filter((c) => !present[c]),
+      flaggedDocs: docs.filter((d) => d.result.verdict === "flagged").length,
+      extraDocs: extras,
+    });
+  }
+
+  return out.sort((a, b) => a.modelLabel.localeCompare(b.modelLabel));
+}
+
 /** Classify a PDF highlight-annotation color into the SOP's meaning groups. */
 export function classifyHighlightColor(rgb: number[] | null | undefined): ExtractedHighlight["colorGroup"] {
   if (!rgb || rgb.length < 3) return "other";

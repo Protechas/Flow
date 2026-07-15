@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  analyzeModelCoverage,
   classifyHighlightColor,
   documentBaseName,
   parseDocumentName,
@@ -162,6 +163,48 @@ describe("runContentChecksOnSet — logical documents", () => {
     expect(documentBaseName("2020 Chevrolet Silverado 1500 (FRS).pdf")).toBe(
       "2020 Chevrolet Silverado 1500 (FRS)"
     );
+  });
+});
+
+describe("analyzeModelCoverage — the 8-docs-per-model rule", () => {
+  const mk = (name: string) =>
+    doc({ fileName: name, text: "matching content 2022 chevrolet silverado 1500" });
+
+  it("grades a model's component set, mapping legacy features to components", () => {
+    const files = [
+      "2022 Chevrolet Silverado 1500 (ACC 2).pdf", // legacy → FRS
+      "2022 Chevrolet Silverado 1500 (LKA 1).pdf", // legacy → WSC
+      "2022 Chevrolet Silverado 1500 (APA 1).pdf", // legacy → PDS
+      "2022 Chevrolet Silverado 1500 (BUC).pdf",
+      "2022 Chevrolet Silverado 1500 (SVC 1).pdf",
+      "2022 Chevrolet Silverado 1500 (BSW 1).pdf", // legacy → RRS
+    ].map(mk);
+    const grouped = runContentChecksOnSet(files, DEFAULT_CONTENT_RULES);
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(model.modelLabel).toBe("2022 Chevrolet Silverado 1500");
+    expect(Object.keys(model.componentsPresent).sort()).toEqual(
+      ["BUC", "FRS", "PDS", "RRS", "SVC", "WSC"]
+    );
+    expect(model.missingComponents).toEqual(["NV"]);
+  });
+
+  it("Honda models additionally require LW", () => {
+    const grouped = runContentChecksOnSet(
+      [mk("2024 Honda Civic (FRS).pdf")],
+      DEFAULT_CONTENT_RULES
+    );
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(model.missingComponents).toContain("LW");
+  });
+
+  it("special functions count as extras, never against the model", () => {
+    const grouped = runContentChecksOnSet(
+      [mk("2022 Chevrolet Silverado 1500 (SCI).pdf")],
+      DEFAULT_CONTENT_RULES
+    );
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(model.extraDocs).toHaveLength(1);
+    expect(model.missingComponents).toHaveLength(7);
   });
 });
 
