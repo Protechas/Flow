@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { eddyReviewContentAction } from "@/app/actions/content-checks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { EddyContentReview } from "@/lib/ai/content-review";
 import {
   runContentChecksOnSet,
   type CheckFlag,
@@ -19,15 +21,20 @@ import {
   EyeOff,
   FileWarning,
   Loader2,
+  Sparkles,
   Upload,
 } from "lucide-react";
 
 interface AuditRow {
   fileName: string;
+  partFiles: string[];
   partCount: number;
   sizeKb: number;
   pages: number;
   result: ContentCheckResult;
+  eddy?: EddyContentReview | null;
+  eddyPending?: boolean;
+  eddyError?: string | null;
 }
 
 function severityRank(flags: CheckFlag[]): number {
@@ -70,6 +77,8 @@ export function ContentAuditTool() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const runId = useRef(0);
+  /** Extracted text per file, kept client-side for on-demand Eddy reviews. */
+  const textByFile = useRef(new Map<string, string>());
 
   const summary = useMemo(() => {
     const pass = rows.filter((r) => r.result.verdict === "pass").length;
@@ -93,9 +102,12 @@ export function ContentAuditTool() {
     // Extract every part first, then check as logical documents so
     // "-Part-1..N" files are judged together the way the SOP means them.
     const extracted: ExtractedDoc[] = [];
+    textByFile.current.clear();
     for (let i = 0; i < pdfs.length; i++) {
       if (runId.current !== id) return; // a newer run superseded this one
-      extracted.push(await extractDocInBrowser(pdfs[i]));
+      const doc = await extractDocInBrowser(pdfs[i]);
+      extracted.push(doc);
+      textByFile.current.set(doc.fileName, doc.text);
       setProgress({ done: i + 1, total: pdfs.length });
     }
     if (runId.current !== id) return;
@@ -104,6 +116,7 @@ export function ContentAuditTool() {
       grouped
         .map((g) => ({
           fileName: g.baseName,
+          partFiles: g.partFiles,
           partCount: g.partFiles.length,
           sizeKb: g.totalSizeKb,
           pages: g.totalPages,
@@ -114,10 +127,57 @@ export function ContentAuditTool() {
     setProgress(null);
   }
 
+  async function runEddy(target: AuditRow) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.fileName === target.fileName ? { ...r, eddyPending: true, eddyError: null } : r
+      )
+    );
+    const text = target.partFiles
+      .map((f) => textByFile.current.get(f) ?? "")
+      .join("\n")
+      .trim();
+    const res = await eddyReviewContentAction({
+      fileName: target.fileName,
+      claim: target.fileName,
+      text,
+      structuralNote: target.result.flags.map((f) => `[${f.severity}] ${f.code}`).join(", "),
+    });
+    setRows((prev) =>
+      prev.map((r) =>
+        r.fileName === target.fileName
+          ? {
+              ...r,
+              eddyPending: false,
+              eddy: res.ok ? res.review : null,
+              eddyError: res.ok ? null : res.message,
+            }
+          : r
+      )
+    );
+  }
+
+  async function runEddyOnFlagged() {
+    const targets = rows.filter((r) => r.result.verdict === "flagged" && !r.eddy && !r.eddyPending);
+    if (targets.length === 0) return;
+    const cents = Math.max(1, Math.round(targets.length * 1));
+    if (
+      !confirm(
+        `Ask Eddy to read ${targets.length} flagged document${targets.length === 1 ? "" : "s"}? Estimated cost ≈ ${cents}¢ total. Results are advisory — you decide what matters.`
+      )
+    ) {
+      return;
+    }
+    for (const t of targets) {
+      // Sequential on purpose: keeps costs visible and the UI readable.
+      await runEddy(t);
+    }
+  }
+
   function downloadCsv() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const lines = [
-      ["File", "Verdict", "Pages", "Size KB", "Flags"].join(","),
+      ["File", "Verdict", "Pages", "Size KB", "Flags", "Eddy"].join(","),
       ...rows.map((r) =>
         [
           esc(r.fileName),
@@ -125,6 +185,13 @@ export function ContentAuditTool() {
           String(r.pages),
           String(r.sizeKb),
           esc(r.result.flags.map((f) => `[${f.severity}] ${f.message}`).join(" | ")),
+          esc(
+            r.eddy
+              ? `${r.eddy.verdict}: ${r.eddy.summary} ${r.eddy.findings
+                  .map((f) => `[${f.severity}] ${f.issue}`)
+                  .join(" | ")}`
+              : ""
+          ),
         ].join(",")
       ),
     ];
@@ -217,10 +284,18 @@ export function ContentAuditTool() {
             <p className="text-xs text-muted-foreground">
               Flagged files sort first. Click a row for details.
             </p>
-            <Button variant="outline" size="sm" onClick={downloadCsv}>
-              <Download className="mr-1.5 h-4 w-4" />
-              Download report (CSV)
-            </Button>
+            <div className="flex items-center gap-2">
+              {summary.flagged > 0 && (
+                <Button variant="outline" size="sm" onClick={() => void runEddyOnFlagged()}>
+                  <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                  Ask Eddy about flagged ({summary.flagged} · ~{Math.max(1, summary.flagged)}¢)
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={downloadCsv}>
+                <Download className="mr-1.5 h-4 w-4" />
+                Download report (CSV)
+              </Button>
+            </div>
           </div>
 
           <div className="enterprise-panel divide-y divide-border/40 overflow-hidden">
@@ -250,24 +325,97 @@ export function ContentAuditTool() {
                   </span>
                   {verdictBadge(row)}
                 </button>
-                {expanded === row.fileName && row.result.flags.length > 0 && (
-                  <ul className="space-y-1.5 bg-muted/10 px-11 py-3">
-                    {row.result.flags.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs">
-                        <span
-                          className={cn(
-                            "mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full",
-                            f.severity === "fail"
-                              ? "bg-red-400"
-                              : f.severity === "warn"
-                                ? "bg-amber-400"
-                                : "bg-sky-400"
+                {expanded === row.fileName && (
+                  <div className="space-y-3 bg-muted/10 px-11 py-3">
+                    {row.result.flags.length > 0 && (
+                      <ul className="space-y-1.5">
+                        {row.result.flags.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs">
+                            <span
+                              className={cn(
+                                "mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full",
+                                f.severity === "fail"
+                                  ? "bg-red-400"
+                                  : f.severity === "warn"
+                                    ? "bg-amber-400"
+                                    : "bg-sky-400"
+                              )}
+                            />
+                            <span>{f.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {row.eddy ? (
+                      <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                        <p className="flex items-center gap-1.5 text-xs font-medium">
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          Eddy&apos;s read:{" "}
+                          <span
+                            className={cn(
+                              row.eddy.verdict === "looks_right" && "text-emerald-500",
+                              row.eddy.verdict === "issues_found" && "text-amber-400",
+                              row.eddy.verdict === "cannot_assess" && "text-muted-foreground"
+                            )}
+                          >
+                            {row.eddy.verdict === "looks_right"
+                              ? "content supports the label"
+                              : row.eddy.verdict === "issues_found"
+                                ? "worth a human look"
+                                : "not enough text to judge"}
+                          </span>
+                        </p>
+                        {row.eddy.summary && (
+                          <p className="mt-1 text-xs text-muted-foreground">{row.eddy.summary}</p>
+                        )}
+                        {row.eddy.findings.length > 0 && (
+                          <ul className="mt-2 space-y-1.5">
+                            {row.eddy.findings.map((f, i) => (
+                              <li key={i} className="text-xs">
+                                <span
+                                  className={cn(
+                                    "mr-1.5 font-medium",
+                                    f.severity === "high"
+                                      ? "text-red-400"
+                                      : f.severity === "medium"
+                                        ? "text-amber-400"
+                                        : "text-muted-foreground"
+                                  )}
+                                >
+                                  {f.severity}:
+                                </span>
+                                {f.issue}
+                                {f.quote && (
+                                  <span className="text-muted-foreground"> — “{f.quote}”</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={row.eddyPending}
+                          onClick={() => void runEddy(row)}
+                        >
+                          {row.eddyPending ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
                           )}
-                        />
-                        <span>{f.message}</span>
-                      </li>
-                    ))}
-                  </ul>
+                          {row.eddyPending ? "Eddy is reading…" : "Ask Eddy to read it (~1¢)"}
+                        </Button>
+                        {row.eddyError && (
+                          <span className="text-xs text-destructive">{row.eddyError}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
