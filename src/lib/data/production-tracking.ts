@@ -894,16 +894,53 @@ export function getTaskFilesForPendingSession(taskId: string): TaskFileUpload[] 
 /** Task minutes for the current pending session — every entry since the last
  * submission, including a live timer. (Early-returning just the active entry
  * made the session total "reset" to zero on each new start.) */
+/** Reconstruct the ACTIVE intervals of a session from its pause history. */
+function activeIntervals(e: TaskTimeEntry, nowIso: string): [string, string][] {
+  const intervals: [string, string][] = [];
+  let cursor: string | null = e.started_at;
+  for (const ev of e.pause_events ?? []) {
+    if (cursor && ev.paused_at > cursor) intervals.push([cursor, ev.paused_at]);
+    cursor = ev.resumed_at ?? null;
+  }
+  if (cursor) {
+    const end =
+      e.status === "completed"
+        ? e.completed_at ?? e.updated_at
+        : e.status === "paused"
+          ? e.paused_at ?? cursor
+          : nowIso;
+    if (end > cursor) intervals.push([cursor, end]);
+  }
+  return intervals;
+}
+
+/** Minutes a session actively accrued AFTER a boundary — a session that
+ * spans a batch submission keeps only its post-submission slice. */
+export function activeMinutesAfter(e: TaskTimeEntry, sinceIso: string | null, nowIso = ts()): number {
+  if (!sinceIso) {
+    return e.status === "active" || e.status === "paused"
+      ? calcActiveMinutes(e, nowIso)
+      : e.total_active_minutes;
+  }
+  let minutes = 0;
+  for (const [a, b] of activeIntervals(e, nowIso)) {
+    const start = a > sinceIso ? a : sinceIso;
+    if (b > start) minutes += minutesBetween(start, b);
+  }
+  return minutes;
+}
+
 export function getPendingSessionTaskMinutes(taskId: string, _userId: string): number {
   initProductionTracking();
   const since = getPendingSessionSince(taskId);
-  const entries = getTaskTimeEntriesForTask(taskId).filter(
-    (e) => !since || e.started_at > since
+  const now = ts();
+  // Sessions that STARTED before the last submission still count for the
+  // part worked after it — excluding them zeroed the task clock for anyone
+  // who batches mid-session (one long session used to vanish entirely).
+  return getTaskTimeEntriesForTask(taskId).reduce(
+    (s, e) => s + activeMinutesAfter(e, since, now),
+    0
   );
-  return entries.reduce((s, e) => {
-    if (e.status === "active" || e.status === "paused") return s + calcActiveMinutes(e);
-    return s + e.total_active_minutes;
-  }, 0);
 }
 
 /** Files in the current pending session — used for live metrics and submission. */
