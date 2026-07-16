@@ -154,6 +154,11 @@
   --surface-3: #ffffff;
   --surface-4: #ffffff;
   --surface-5: #ffffff;
+  /* Athena ambience — the login scene's glow + ring field carried into the
+     app shell. Whisper-level in light mode, atmospheric in dark. */
+  --ambient-glow-a: 0.035;
+  --ambient-glow-b: 0.022;
+  --ambient-ring: 0.02;
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 250ms;
@@ -287,6 +292,10 @@
     rgba(7, 10, 26, 0.78) 55%,
     rgba(5, 7, 18, 0.84) 100%
   );
+  /* Athena ambience — full presence in the dark theme */
+  --ambient-glow-a: 0.12;
+  --ambient-glow-b: 0.07;
+  --ambient-ring: 0.055;
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 250ms;
@@ -294,6 +303,19 @@
 }
 
 /* Nebula fusion — neon energy and glass depth, dark theme only */
+.dark .flow-hero-panel {
+  border-color: rgba(147, 180, 255, 0.14);
+  border-top-color: rgba(190, 214, 255, 0.2);
+  box-shadow:
+    var(--shadow-material-elevated),
+    0 0 0 1px rgba(63, 140, 255, 0.06),
+    0 0 56px rgba(63, 140, 255, 0.07);
+}
+.dark .enterprise-panel-elevated {
+  box-shadow:
+    var(--shadow-material-elevated),
+    0 0 40px rgba(63, 140, 255, 0.05);
+}
 .dark .flow-hero-eyebrow {
   color: #9ab1ff;
   text-shadow: 0 0 14px rgba(91, 124, 255, 0.45);
@@ -548,7 +570,22 @@
 
   .flow-layer-content {
     background-color: var(--surface-primary);
-    background-image: var(--surface-gradient);
+    /* Athena ambience: the login scene's glow + concentric ring field lives
+       in the negative space behind every page — fixed so it doesn't scroll,
+       pure CSS so it costs nothing. Data surfaces sit on their own flat
+       panels above this and stay fully readable. */
+    background-image:
+      radial-gradient(ellipse 55% 42% at 70% -8%, rgba(63, 140, 255, var(--ambient-glow-a)) 0%, transparent 62%),
+      radial-gradient(ellipse 44% 36% at 2% 106%, rgba(99, 102, 241, var(--ambient-glow-b)) 0%, transparent 58%),
+      repeating-radial-gradient(
+        circle at 70% -8%,
+        rgba(102, 165, 255, var(--ambient-ring)) 0px,
+        rgba(102, 165, 255, var(--ambient-ring)) 1px,
+        transparent 1px,
+        transparent 130px
+      ),
+      var(--surface-gradient);
+    background-attachment: fixed, fixed, fixed, scroll;
     min-width: 0;
   }
   .flow-app-content {
@@ -634,8 +671,35 @@
     inset: 0;
     background: radial-gradient(
       ellipse 75% 55% at 12% 0%,
-      color-mix(in oklch, var(--primary) 7%, transparent),
+      color-mix(in oklch, var(--primary) 9%, transparent),
       transparent 62%
+    );
+    pointer-events: none;
+  }
+  /* Concentric ring field radiating from the corner — the login screen's
+     signature, fading out before it reaches the title. */
+  .flow-hero-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-radial-gradient(
+      circle at 103% -80%,
+      color-mix(in oklch, var(--primary) 12%, transparent) 0px,
+      color-mix(in oklch, var(--primary) 12%, transparent) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+    -webkit-mask-image: radial-gradient(
+      ellipse 70% 130% at 100% 0%,
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.3) 55%,
+      transparent 80%
+    );
+    mask-image: radial-gradient(
+      ellipse 70% 130% at 100% 0%,
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.3) 55%,
+      transparent 80%
     );
     pointer-events: none;
   }
