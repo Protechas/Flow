@@ -128,12 +128,56 @@ export function applyTaskLiveForecast(
   const planningDue = planning.suggested_due_date;
 
   if (mode === "planning" || !pkg.started_at || !isLiveActive) {
-    const liveStatus = deriveLiveStatus(pkg, "planning", null, planningDue);
     const dueDate = pkg.manual_due_date ?? planningDue ?? pkg.due_date;
+
+    // A STARTED task keeps its behind-schedule projection even when nobody
+    // is timing it right now — being behind standard doesn't pause with the
+    // clock. Only never-started tasks have no variance to report.
+    let restingProjection: {
+      active_due_date: string;
+      forecast_variance_days: number | null;
+      due_date_status: DueDateStatus;
+    } | null = null;
+    if (actualStart) {
+      const completed = Math.max(
+        pkg.current_documents_completed ?? 0,
+        pkg.file_count ?? 0
+      );
+      const remaining = Math.max(0, docTotal - completed);
+      const standardRate =
+        (planning.estimated_minutes_per_document ?? settings.minutes_per_document) *
+        (planning.complexity_multiplier ?? getComplexityMultiplier(pkg.complexity_level));
+      const restingRate = pkg.current_production_rate ?? standardRate;
+      const capacity = productiveDayCapacityHours(settings);
+      const projDays =
+        capacity > 0
+          ? Math.round(((remaining * restingRate) / 60 / capacity) * 100) / 100
+          : 0;
+      const todayAnchor = format(startOfDay(now), "yyyy-MM-dd");
+      const projectedDue =
+        projDays > 0
+          ? addWorkDays(todayAnchor, Math.ceil(projDays), settings.working_days)
+          : todayAnchor;
+      restingProjection = {
+        active_due_date: projectedDue,
+        forecast_variance_days: forecastVarianceDays(planningDue, projectedDue),
+        due_date_status: compareDueDateStatus(
+          pkg.manual_due_date ?? planningDue,
+          projectedDue
+        ),
+      };
+    }
+
+    const liveStatus = deriveLiveStatus(
+      pkg,
+      "planning",
+      restingProjection?.active_due_date ?? null,
+      planningDue
+    );
     return {
       forecast_mode: "planning",
       planning_due_date: planningDue,
-      active_due_date: pkg.active_due_date ?? null,
+      active_due_date: restingProjection?.active_due_date ?? pkg.active_due_date ?? null,
       suggested_due_date: planningDue,
       estimated_remaining_documents: docTotal,
       // 1 uploaded file = 1 completed document; manual progress can only add
@@ -149,9 +193,9 @@ export function applyTaskLiveForecast(
       estimated_work_hours: planning.estimated_work_hours,
       estimated_work_days: planning.estimated_work_days,
       estimated_hours: planning.estimated_work_hours ?? pkg.estimated_hours,
-      due_date_status: planning.due_date_status,
+      due_date_status: restingProjection?.due_date_status ?? planning.due_date_status,
       live_forecast_status: liveStatus,
-      forecast_variance_days: null,
+      forecast_variance_days: restingProjection?.forecast_variance_days ?? null,
       forecast_last_calculated: planning.forecast_last_calculated,
       forecast_last_updated: nowIso,
       due_date: dueDate,

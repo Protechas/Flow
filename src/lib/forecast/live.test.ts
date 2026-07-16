@@ -79,6 +79,28 @@ describe("applyTaskLiveForecast — standard-based due dates", () => {
     expect(fields.forecast_variance_days).toBeGreaterThanOrEqual(0);
   });
 
+  it("keeps reporting behind-schedule when the analyst is off the clock", () => {
+    // Started task, slow measured rate stored, but NOT the live task right
+    // now (timer stopped / clocked out). The variance must not disappear.
+    const pkg = task({
+      started_at: "2026-07-14T13:00:00Z",
+      estimated_document_count: 100,
+      estimated_minutes_per_document: 3,
+      current_documents_completed: 10,
+      current_production_rate: 60, // measured 60 min/doc from earlier sessions
+    });
+    const fields = applyTaskLiveForecast(pkg, {
+      settings,
+      now: NOW,
+      activeTaskId: "some-other-task",
+    });
+    expect(fields.forecast_mode).toBe("planning");
+    expect(fields.due_date).toBe("2026-07-15");
+    expect(fields.forecast_variance_days).toBeLessThan(0);
+    expect(fields.active_due_date! > "2026-07-20").toBe(true);
+    expect(fields.due_date_status).toBe("behind_capacity");
+  });
+
   it("keeps a started-but-paused task anchored at its start, not the queue cursor", () => {
     const pkg = task({
       started_at: "2026-07-14T13:00:00Z",
