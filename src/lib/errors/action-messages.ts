@@ -56,6 +56,11 @@ export function formatActionError(error: unknown): string {
     return map["ACTIVE_TASK:"];
   }
 
+  if (msg.startsWith("UPLOADS_REQUIRED:")) {
+    const tasks = msg.slice("UPLOADS_REQUIRED:".length);
+    return `Upload today's completed files before clocking out — required on: ${tasks}.`;
+  }
+
   if (map[msg]) {
     return map[msg];
   }

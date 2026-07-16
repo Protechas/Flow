@@ -142,7 +142,7 @@ export function EmployeeWorkflowPanel({
           setWrapUpGateOpen(true);
           setPendingClockOut(true);
         } else {
-          setError(msg);
+          setError(formatActionError(e));
         }
       }
     });

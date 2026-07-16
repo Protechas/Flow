@@ -1014,6 +1014,26 @@ export function getAllTaskFileUploads(): TaskFileUpload[] {
   return [...state.taskFileUploads];
 }
 
+/** Distinct task ids the user put timer work into today (any entry status). */
+export function getTodayTimedTaskIds(userId: string): string[] {
+  initProductionTracking();
+  const today = todayDate();
+  return [
+    ...new Set(
+      state.taskTimeEntries
+        .filter((e) => e.user_id === userId && isAppCalendarDay(e.started_at, today))
+        .map((e) => e.task_id)
+    ),
+  ];
+}
+
+/** Uploads recorded today, for the clock-out upload gate. */
+export function getTodayTaskFileUploads(): TaskFileUpload[] {
+  initProductionTracking();
+  const today = todayDate();
+  return state.taskFileUploads.filter((f) => isAppCalendarDay(f.uploaded_at, today));
+}
+
 export function getAllTaskSubmissions(): TaskSubmissionRecord[] {
   initProductionTracking();
   return [...state.taskSubmissions];

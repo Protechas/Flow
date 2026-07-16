@@ -16,6 +16,8 @@ import {
 import { listLegacyMetrics } from "@/lib/legacy/monday-baseline";
 import { buildThenVsNow } from "@/lib/legacy/then-vs-now";
 import { computeFlowRoiSummary } from "@/lib/validation-center/roi";
+import { summarizeAiUsage } from "@/lib/ai/usage";
+import { AiUsagePanel } from "@/components/roi/ai-usage-panel";
 
 /** First Monday the team clocked real work in Flow. */
 const FLOW_ERA_START = "2026-06-29";
@@ -24,6 +26,7 @@ export default async function FlowRoiPage() {
   const user = await requirePageAccess("/roi");
   const roi = await computeFlowRoiSummary();
   await ensureAppDataLoaded();
+  const aiUsage = await summarizeAiUsage();
   const thenVsNow = buildThenVsNow({
     legacy: await listLegacyMetrics(),
     uploads: getAllTaskFileUploads(),
@@ -81,6 +84,7 @@ export default async function FlowRoiPage() {
             </div>
             <ThenVsNowPanel data={thenVsNow} />
           </section>
+          {aiUsage && aiUsage.totalCalls > 0 && <AiUsagePanel summary={aiUsage} />}
           <FlowRoiView
             summary={roi}
             canEdit={hasPermission(

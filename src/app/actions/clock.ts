@@ -11,6 +11,7 @@ import { getFlowStore, listDepartmentUsers, listTeamsStore } from "@/lib/data/fl
 import { isUserProductionReady } from "@/lib/setup/account";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { canClockOutForDay } from "@/lib/wrap-up/compliance";
+import { findUploadGateViolations } from "@/lib/time-clock/upload-gate";
 import { recordWrapUpBlockAttempt } from "@/lib/data/flow-store";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
@@ -26,6 +27,8 @@ import {
   getAllClockEntries,
   getClockEntriesForUser,
   getSideSessionMinutesToday,
+  getTodayTaskFileUploads,
+  getTodayTimedTaskIds,
   forceStopTaskTimer,
   startSideSession,
 } from "@/lib/data/production-tracking";
@@ -119,6 +122,28 @@ export async function clockOutAction(outType: "lunch" | "out") {
         actorEmail: user.email,
       });
       throw new Error("WRAP_UP_REQUIRED");
+    }
+
+    // Tasks flagged "files required" must show at least one upload from this
+    // analyst on any day they put timer work into them.
+    const violations = findUploadGateViolations({
+      userId: user.id,
+      timedTaskIds: getTodayTimedTaskIds(user.id),
+      tasks: getFlowStore().workPackages,
+      uploadsToday: getTodayTaskFileUploads(),
+    });
+    if (violations.length > 0) {
+      const titles = violations.map((v) => v.taskTitle).join(", ");
+      await writeAuditLog({
+        action: "status_changed",
+        entityType: "work_package",
+        entityId: violations[0].taskId,
+        summary: `${user.full_name} blocked from clock-out — no files uploaded today on: ${titles}`,
+        metadata: { event: "clock_out_blocked_uploads", task_ids: violations.map((v) => v.taskId) },
+        actorId: user.id,
+        actorEmail: user.email,
+      });
+      throw new Error(`UPLOADS_REQUIRED:${titles}`);
     }
   }
 
