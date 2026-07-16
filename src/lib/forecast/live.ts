@@ -100,13 +100,18 @@ export function applyTaskLiveForecast(
     };
   }
 
-  // A task that hasn't started can't start earlier than today — planning from
-  // a stale assignment/creation date freezes forecasts in the past. Queue
-  // chaining passes its own cursor; everything else anchors to at least today.
+  // The expected due date comes from the STANDARD (docs × min/doc), never
+  // from measured speed. Once the analyst actually starts, the target is
+  // anchored at their real start date and stays fixed — they chase the date,
+  // the date doesn't chase them. Before start, a task that hasn't started
+  // can't start earlier than today — planning from a stale assignment date
+  // freezes forecasts in the past; queue chaining passes its own cursor.
   const today = appTodayDate(now);
+  const actualStart = pkg.forecast_start_date ?? pkg.started_at;
   const historicalAnchor = anchorDate(pkg.assigned_at ?? pkg.created_at, today);
-  const assignmentAnchor =
-    options.planningStartDate ?? (historicalAnchor > today ? historicalAnchor : today);
+  const assignmentAnchor = actualStart
+    ? anchorDate(actualStart, today)
+    : options.planningStartDate ?? (historicalAnchor > today ? historicalAnchor : today);
 
   const planning = calculateTaskForecast(
     {
@@ -158,51 +163,57 @@ export function applyTaskLiveForecast(
     pkg.file_count ?? 0
   );
   const remaining = Math.max(0, docTotal - completed);
-  const defaultRate =
-    settings.minutes_per_document * getComplexityMultiplier(pkg.complexity_level);
-  const taskMinutes = options.taskActiveMinutes ?? 0;
 
-  let productionRate = pkg.current_production_rate ?? defaultRate;
+  // Remaining effort priced at STANDARD — this is what the work should cost,
+  // and it's what the project rollup aggregates.
+  const standardRate =
+    (planning.estimated_minutes_per_document ?? settings.minutes_per_document) *
+    (planning.complexity_multiplier ?? getComplexityMultiplier(pkg.complexity_level));
+  const standardRemainingMinutes = Math.round(remaining * standardRate);
+  const standardRemainingHours = Math.round((standardRemainingMinutes / 60) * 100) / 100;
+  const capacityHours = productiveDayCapacityHours(settings);
+  const standardRemainingDays =
+    capacityHours > 0
+      ? Math.round((standardRemainingHours / capacityHours) * 100) / 100
+      : 0;
+
+  // Advisory projection at MEASURED pace, from today: where this actually
+  // lands if the current speed holds. Shown as variance — never the due date.
+  const taskMinutes = options.taskActiveMinutes ?? 0;
+  let productionRate = pkg.current_production_rate ?? standardRate;
   if (completed > 0 && taskMinutes > 0) {
     productionRate = Math.round((taskMinutes / completed) * 100) / 100;
   }
-
-  const remainingMinutes = Math.round(remaining * productionRate);
-  const remainingHours =
-    Math.round((remainingMinutes / 60) * 100) / 100;
-  const capacityHours = productiveDayCapacityHours(settings);
-  const remainingDays =
+  const projectedMinutes = Math.round(remaining * productionRate);
+  const projectedDays =
     capacityHours > 0
-      ? Math.round((remainingHours / capacityHours) * 100) / 100
+      ? Math.round((projectedMinutes / 60 / capacityHours) * 100) / 100
       : 0;
+  const todayAnchor = format(startOfDay(now), "yyyy-MM-dd");
+  const projectedDue =
+    projectedDays > 0
+      ? addWorkDays(todayAnchor, Math.ceil(projectedDays), settings.working_days)
+      : todayAnchor;
 
-  const startAnchor = anchorDate(
-    pkg.forecast_start_date ?? pkg.started_at,
-    format(startOfDay(now), "yyyy-MM-dd")
-  );
-  const activeDue =
-    remainingDays > 0
-      ? addWorkDays(startAnchor, Math.ceil(remainingDays), settings.working_days)
-      : startAnchor;
-
-  const variance = forecastVarianceDays(planningDue, activeDue);
+  // planningDue is the standard target anchored at the analyst's actual start.
+  const variance = forecastVarianceDays(planningDue, projectedDue);
   const dueDateStatus = compareDueDateStatus(
     pkg.manual_due_date ?? planningDue,
-    activeDue
+    projectedDue
   );
-  const liveStatus = deriveLiveStatus(pkg, "active", activeDue, planningDue);
+  const liveStatus = deriveLiveStatus(pkg, "active", projectedDue, planningDue);
 
   return {
     forecast_mode: "active",
     planning_due_date: planningDue,
-    active_due_date: activeDue,
-    suggested_due_date: activeDue,
+    active_due_date: projectedDue,
+    suggested_due_date: planningDue,
     estimated_remaining_documents: remaining,
     current_documents_completed: completed,
     current_production_rate: productionRate,
-    estimated_work_minutes: remainingMinutes,
-    estimated_work_hours: remainingHours,
-    estimated_work_days: remainingDays,
+    estimated_work_minutes: standardRemainingMinutes,
+    estimated_work_hours: standardRemainingHours,
+    estimated_work_days: standardRemainingDays,
     complexity_level: planning.complexity_level,
     complexity_multiplier: planning.complexity_multiplier,
     estimated_minutes_per_document: planning.estimated_minutes_per_document,
@@ -211,7 +222,7 @@ export function applyTaskLiveForecast(
     forecast_variance_days: variance,
     forecast_last_calculated: nowIso,
     forecast_last_updated: nowIso,
-    due_date: activeDue,
+    due_date: pkg.manual_due_date ?? planningDue,
   };
 }
 
@@ -221,8 +232,14 @@ export function isPreStartStatus(status: WorkStatus): boolean {
 
 export function primaryDueDate(pkg: WorkPackage): string | null {
   if (pkg.status === "done") return pkg.completed_date ?? pkg.due_date ?? null;
-  if (pkg.forecast_mode === "active" && pkg.active_due_date) {
-    return pkg.active_due_date;
-  }
-  return pkg.planning_due_date ?? pkg.suggested_due_date ?? pkg.due_date ?? null;
+  // The due date shown is the STANDARD target (or a manual promise) — the
+  // measured-pace projection lives in active_due_date and is shown as
+  // variance, never as the date itself.
+  return (
+    pkg.manual_due_date ??
+    pkg.planning_due_date ??
+    pkg.suggested_due_date ??
+    pkg.due_date ??
+    null
+  );
 }

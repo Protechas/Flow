@@ -80,8 +80,15 @@ export function ProjectForecastPanel({
             <p className="font-semibold">{project.planning_project_due_date ?? project.suggested_project_due_date ?? "—"}</p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              {hasActive ? "Active Due Date" : "Primary Due Date"}
+            <p
+              className="text-[10px] text-muted-foreground uppercase tracking-wide"
+              title={
+                hasActive
+                  ? "Where in-progress work lands at the team's current measured pace — advisory, not the due date."
+                  : undefined
+              }
+            >
+              {hasActive ? "Projected (Current Pace)" : "Primary Due Date"}
             </p>
             <p className="font-semibold">
               {hasActive

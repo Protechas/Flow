@@ -232,6 +232,21 @@ export function WorkspaceTaskDetailSheet({
                 />
               )}
 
+              {task.forecast_mode === "active" &&
+                task.active_due_date &&
+                (task.forecast_variance_days ?? 0) < 0 && (
+                  <div className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm">
+                    <span className="font-medium text-red-500">
+                      Tracking {Math.abs(task.forecast_variance_days ?? 0)} work day
+                      {Math.abs(task.forecast_variance_days ?? 0) === 1 ? "" : "s"} behind standard
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      — at the current pace this lands {task.active_due_date}. The due date stays at
+                      standard; the pace is the thing to fix.
+                    </span>
+                  </div>
+                )}
+
               <div className="space-y-2">
                 <Label>Progress</Label>
                 <Progress value={taskProgress(task)} />

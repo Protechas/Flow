@@ -39,10 +39,13 @@ export function listAssigneeWorkQueue(
 }
 
 function slotEndDate(fields: Partial<WorkPackage>): string | null {
+  // Chain the queue at STANDARD pace: the next task is planned after this
+  // one's expected end, not after its measured-pace slip (active_due_date is
+  // an advisory projection, not a schedule).
   return (
-    fields.active_due_date ??
     fields.planning_due_date ??
     fields.suggested_due_date ??
+    fields.active_due_date ??
     null
   );
 }
