@@ -284,18 +284,34 @@ export function TaskFilesBrowser({
                   </span>
                   <span className="ml-auto flex items-center gap-2">
                     {(() => {
+                      const checked = g.files.filter((f) => f.checkVerdict).length;
                       const flagged = g.files.filter(
                         (f) => f.checkVerdict === "flagged" || f.checkVerdict === "unreadable"
                       ).length;
-                      return flagged > 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-amber-500/40 text-amber-500 text-[10px]"
-                        >
-                          <ShieldAlert className="h-3 w-3" />
-                          {flagged} check flag{flagged === 1 ? "" : "s"}
-                        </Badge>
-                      ) : null;
+                      if (flagged > 0) {
+                        return (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/40 text-amber-500 text-[10px]"
+                          >
+                            <ShieldAlert className="h-3 w-3" />
+                            {flagged} check flag{flagged === 1 ? "" : "s"}
+                          </Badge>
+                        );
+                      }
+                      if (checked > 0) {
+                        return (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-emerald-500/30 text-emerald-500 text-[10px]"
+                            title={`${checked} of ${g.files.length} files passed the automatic content checks`}
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            {checked} checked
+                          </Badge>
+                        );
+                      }
+                      return null;
                     })()}
                     {g.missingContent > 0 && (
                       <Badge
