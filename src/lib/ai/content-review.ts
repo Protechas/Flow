@@ -169,6 +169,87 @@ export async function eddyModelReport(input: {
   };
 }
 
+// ---- Findings → draft tasks (human approves before anything is created) ----
+
+export interface EddyTaskDraft {
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+}
+
+const TASK_DRAFT_PROMPT =
+  "You are Eddy, QA assistant for a Service Information team. Turn audit findings for one " +
+  "vehicle model's SI document set into a SHORT list of concrete work tasks. Component " +
+  "acronyms: FRS = front radar sensor, WSC = windshield camera, PDS = parking distance " +
+  "sensors, BUC = backup camera, SVC = surround view camera, RRS = rear radar sensor, NV = " +
+  "night vision, LW = Honda LaneWatch. Rules for good tasks:\n" +
+  "- One task per missing required component: source the OEM documentation, or file the " +
+  "team's placeholder if the vehicle isn't equipped with that system.\n" +
+  "- Group formatting fixes (orientation, highlights, naming) into ONE task per document — " +
+  "never one task per flag.\n" +
+  "- Slots covered by placeholders are DONE — no task.\n" +
+  "- Wrong-content/identity findings are high priority; formatting is medium; nice-to-haves " +
+  "are low.\n" +
+  "- Titles start with a verb, ≤ 70 characters, and name the model and component.\n" +
+  "These are DRAFTS a manager reviews and approves — never claim they are assigned or " +
+  "created. Respond with ONLY a JSON object:\n" +
+  "{\n" +
+  '  "tasks": [ { "title": "…", "description": "what to do and why, citing the finding", "priority": "low"|"medium"|"high" } ]\n' +
+  "}\n" +
+  "At most 10 tasks, highest priority first. An empty list is valid when nothing needs doing.";
+
+/** ALLOWLIST: file names, verdicts, flags, coverage lines — never doc text. */
+export async function eddyDraftTasks(input: {
+  modelLabel: string;
+  coverageSummary: string;
+  docLines: string[];
+  userId?: string | null;
+}): Promise<EddyTaskDraft[]> {
+  const client = await getAiClient();
+  if (!client) throw new Error("AI is not configured");
+
+  const userContent =
+    `Model: ${capText(input.modelLabel, 120)}\n` +
+    `Component coverage:\n${capText(input.coverageSummary, 2_000)}\n\n` +
+    `Documents:\n` +
+    capText(input.docLines.map((l) => `- ${l}`).join("\n"), 20_000);
+
+  const response = await client.messages.create({
+    model: AI_MODELS.fast,
+    max_tokens: 1400,
+    system: TASK_DRAFT_PROMPT,
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  await logAiUsage({
+    feature: "content_audit_tasks",
+    model: AI_MODELS.fast,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    userId: input.userId ?? null,
+  });
+
+  const textOut = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => ("text" in b ? b.text : ""))
+    .join("");
+  const parsed = extractJson(textOut);
+  const priorities = new Set(["low", "medium", "high"]);
+
+  return Array.isArray(parsed.tasks)
+    ? (parsed.tasks as Record<string, unknown>[])
+        .slice(0, 10)
+        .map((t) => ({
+          title: String(t.title ?? "").slice(0, 90),
+          description: String(t.description ?? "").slice(0, 600),
+          priority: priorities.has(String(t.priority))
+            ? (String(t.priority) as EddyTaskDraft["priority"])
+            : "medium",
+        }))
+        .filter((t) => t.title)
+    : [];
+}
+
 export async function eddyReviewContent(input: {
   fileName: string;
   claim: string;

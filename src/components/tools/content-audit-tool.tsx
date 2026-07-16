@@ -3,11 +3,23 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  draftAuditTasksAction,
   eddyModelReportAction,
   eddyReviewContentAction,
   logContentAuditRunAction,
   saveModelReportAction,
 } from "@/app/actions/content-checks";
+import { createQuickTaskAction } from "@/app/actions/crud";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import type { EddyTaskDraft } from "@/lib/ai/content-review";
 import type { AuditHistorySummary } from "@/lib/content-checks/audit-runs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,7 +138,20 @@ async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> 
   return out;
 }
 
-export function ContentAuditTool({ history }: { history?: AuditHistorySummary }) {
+interface PickerOption {
+  id: string;
+  name: string;
+}
+
+export function ContentAuditTool({
+  history,
+  projects = [],
+  assignees = [],
+}: {
+  history?: AuditHistorySummary;
+  projects?: PickerOption[];
+  assignees?: PickerOption[];
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -149,6 +174,17 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
     () => analyzeModelCoverage(groups, DEFAULT_CONTENT_RULES),
     [groups]
   );
+
+  // ---- Findings → tasks (Eddy drafts, a human approves) ----
+  const [taskDialog, setTaskDialog] = useState<{
+    model: ModelCoverage;
+    drafts: (EddyTaskDraft & { checked: boolean })[];
+  } | null>(null);
+  const [draftingFor, setDraftingFor] = useState<string | null>(null);
+  const [taskProject, setTaskProject] = useState("");
+  const [taskAssignee, setTaskAssignee] = useState("");
+  const [creatingTasks, setCreatingTasks] = useState(false);
+  const [taskResult, setTaskResult] = useState<{ model: string; message: string } | null>(null);
 
   const summary = useMemo(() => {
     const pass = rows.filter((r) => r.result.verdict === "pass").length;
@@ -326,6 +362,69 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
         ? { ...prev[model.modelLabel], savedId: res.documentId }
         : { ...prev[model.modelLabel], error: res.message },
     }));
+  }
+
+  async function draftTasks(model: ModelCoverage) {
+    setDraftingFor(model.modelLabel);
+    setTaskResult(null);
+    const docLines = model.docs.map((d) => {
+      const flags = d.result.flags.map((f) => `[${f.severity}] ${f.message}`).join(" | ") || "clean";
+      return `${d.baseName} → ${d.result.verdict}: ${flags}`;
+    });
+    const res = await draftAuditTasksAction({
+      modelLabel: model.modelLabel,
+      coverageSummary: coverageSummaryFor(model),
+      docLines,
+    });
+    setDraftingFor(null);
+    if (!res.ok) {
+      setTaskResult({ model: model.modelLabel, message: res.message });
+      return;
+    }
+    if (res.drafts.length === 0) {
+      setTaskResult({
+        model: model.modelLabel,
+        message: "Eddy found nothing worth a task — this set looks handled.",
+      });
+      return;
+    }
+    setTaskDialog({
+      model,
+      drafts: res.drafts.map((d) => ({ ...d, checked: true })),
+    });
+  }
+
+  async function createApprovedTasks() {
+    if (!taskDialog || !taskProject) return;
+    const approved = taskDialog.drafts.filter((d) => d.checked && d.title.trim());
+    if (approved.length === 0) return;
+    setCreatingTasks(true);
+    let created = 0;
+    for (const draft of approved) {
+      try {
+        await createQuickTaskAction({
+          projectId: taskProject,
+          manufacturerName: "Content Audit",
+          taskTitle: draft.title.trim(),
+          assignedTo: taskAssignee || null,
+          priority: draft.priority,
+          notes: `${draft.description}\n\n(From Content Audit — ${taskDialog.model.modelLabel}, drafted by Eddy, approved by a lead.)`,
+          qaRequired: true,
+        });
+        created++;
+      } catch {
+        // keep going; report the total honestly below
+      }
+    }
+    setCreatingTasks(false);
+    const modelLabel = taskDialog.model.modelLabel;
+    setTaskDialog(null);
+    setTaskResult({
+      model: modelLabel,
+      message: `Created ${created} of ${approved.length} task${approved.length === 1 ? "" : "s"} in ${
+        projects.find((p) => p.id === taskProject)?.name ?? "the project"
+      }${taskAssignee ? ` — assigned to ${assignees.find((a) => a.id === taskAssignee)?.name}` : " — unassigned (backlog)"}.`,
+    });
   }
 
   function downloadCsv() {
@@ -542,21 +641,40 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
                           {model.flaggedDocs > 0 && ` · ${model.flaggedDocs} flagged`}
                         </p>
                       </div>
-                      {!entry.report && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={entry.pending}
-                          onClick={() => void runModelReport(model)}
-                        >
-                          {entry.pending ? (
-                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
-                          )}
-                          {entry.pending ? "Eddy is writing…" : "Eddy model report (~2¢)"}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!entry.report && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={entry.pending}
+                            onClick={() => void runModelReport(model)}
+                          >
+                            {entry.pending ? (
+                              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                            )}
+                            {entry.pending ? "Eddy is writing…" : "Eddy model report (~2¢)"}
+                          </Button>
+                        )}
+                        {(model.missingComponents.length > 0 || model.flaggedDocs > 0) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={draftingFor === model.modelLabel}
+                            onClick={() => void draftTasks(model)}
+                          >
+                            {draftingFor === model.modelLabel ? (
+                              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                            )}
+                            {draftingFor === model.modelLabel
+                              ? "Eddy is drafting…"
+                              : "Draft tasks from findings (~1¢)"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-1.5">
@@ -595,6 +713,9 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
                     </div>
 
                     {entry.error && <p className="text-xs text-destructive">{entry.error}</p>}
+                    {taskResult?.model === model.modelLabel && taskDialog === null && (
+                      <p className="text-xs text-muted-foreground">{taskResult.message}</p>
+                    )}
 
                     {entry.report && (
                       <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-2">
@@ -675,6 +796,134 @@ export function ContentAuditTool({ history }: { history?: AuditHistorySummary })
               </Button>
             </div>
           </div>
+
+          <Dialog open={taskDialog !== null} onOpenChange={(open) => !open && setTaskDialog(null)}>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  Approve tasks — {taskDialog?.model.modelLabel}
+                </DialogTitle>
+                <DialogDescription>
+                  Eddy drafted these from the audit findings. Nothing exists until you approve —
+                  uncheck what you don&apos;t want, edit titles, pick where they land.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2">
+                {taskDialog?.drafts.map((draft, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "rounded-md border p-3",
+                      draft.checked ? "border-border/60" : "border-border/30 opacity-50"
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={draft.checked}
+                        onChange={(e) =>
+                          setTaskDialog((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  drafts: prev.drafts.map((d, j) =>
+                                    j === i ? { ...d, checked: e.target.checked } : d
+                                  ),
+                                }
+                              : prev
+                          )
+                        }
+                        className="mt-2"
+                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={draft.title}
+                            onChange={(e) =>
+                              setTaskDialog((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      drafts: prev.drafts.map((d, j) =>
+                                        j === i ? { ...d, title: e.target.value } : d
+                                      ),
+                                    }
+                                  : prev
+                              )
+                            }
+                            className="h-8 text-sm"
+                          />
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "shrink-0 text-[10px] capitalize",
+                              draft.priority === "high" && "text-red-400 border-red-500/40",
+                              draft.priority === "medium" && "text-amber-400 border-amber-500/40"
+                            )}
+                          >
+                            {draft.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{draft.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Project (required)</p>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={taskProject}
+                    onChange={(e) => setTaskProject(e.target.value)}
+                  >
+                    <option value="">Choose a project…</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Assign to (optional)</p>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={taskAssignee}
+                    onChange={(e) => setTaskAssignee(e.target.value)}
+                  >
+                    <option value="">Unassigned — goes to the backlog</option>
+                    {assignees.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setTaskDialog(null)} disabled={creatingTasks}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void createApprovedTasks()}
+                  disabled={
+                    creatingTasks ||
+                    !taskProject ||
+                    !(taskDialog?.drafts.some((d) => d.checked && d.title.trim()) ?? false)
+                  }
+                >
+                  {creatingTasks && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                  Create {taskDialog?.drafts.filter((d) => d.checked && d.title.trim()).length ?? 0}{" "}
+                  task{(taskDialog?.drafts.filter((d) => d.checked).length ?? 0) === 1 ? "" : "s"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <div className="enterprise-panel divide-y divide-border/40 overflow-hidden">
             {rows.map((row) => (

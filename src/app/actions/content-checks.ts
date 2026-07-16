@@ -1,10 +1,12 @@
 "use server";
 
 import {
+  eddyDraftTasks,
   eddyModelReport,
   eddyReviewContent,
   type EddyContentReview,
   type EddyModelReport,
+  type EddyTaskDraft,
 } from "@/lib/ai/content-review";
 import { isAiEnabled, AI_DISABLED_MESSAGE } from "@/lib/ai/client";
 import { normalizeRole } from "@/lib/auth/permissions";
@@ -130,6 +132,39 @@ export async function logContentAuditRunAction(input: {
     return { ok: true };
   } catch {
     return { ok: false };
+  }
+}
+
+/**
+ * Eddy DRAFTS tasks from audit findings — nothing is created here. The
+ * drafts go back to the browser where a human unchecks, edits, picks the
+ * project, and approves; creation runs through createQuickTaskAction with
+ * its own permission checks.
+ */
+export async function draftAuditTasksAction(input: {
+  modelLabel: string;
+  coverageSummary: string;
+  docLines: string[];
+}): Promise<{ ok: true; drafts: EddyTaskDraft[] } | { ok: false; message: string }> {
+  const user = await requireUser();
+  if (!TOOL_ROLES.has(normalizeRole(user.role))) {
+    return { ok: false, message: "Task drafting is available to leads and managers" };
+  }
+  if (!isAiEnabled()) return { ok: false, message: AI_DISABLED_MESSAGE };
+  if (!input.modelLabel?.trim() || !input.docLines?.length) {
+    return { ok: false, message: "Run an audit first — there's nothing to draft from" };
+  }
+
+  try {
+    const drafts = await eddyDraftTasks({
+      modelLabel: input.modelLabel,
+      coverageSummary: input.coverageSummary,
+      docLines: input.docLines.slice(0, 120),
+      userId: user.id,
+    });
+    return { ok: true, drafts };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Eddy could not draft tasks" };
   }
 }
 
