@@ -232,7 +232,8 @@ export function WorkspaceTaskDetailSheet({
                 />
               )}
 
-              {task.forecast_mode === "active" &&
+              {task.status !== "done" &&
+                task.forecast_mode === "active" &&
                 task.active_due_date &&
                 (task.forecast_variance_days ?? 0) < 0 && (
                   <div className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm">
@@ -241,8 +242,9 @@ export function WorkspaceTaskDetailSheet({
                       {Math.abs(task.forecast_variance_days ?? 0) === 1 ? "" : "s"} behind standard
                     </span>{" "}
                     <span className="text-muted-foreground">
-                      — at the current pace this lands {task.active_due_date}. The due date stays at
-                      standard; the pace is the thing to fix.
+                      — at the current rate of progress this lands {task.active_due_date}. The due
+                      date stays at standard; close the gap with more time on task, more hands, or
+                      faster work.
                     </span>
                   </div>
                 )}
