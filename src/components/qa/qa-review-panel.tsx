@@ -26,7 +26,7 @@ import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
-import type { TaskContentReviewSummary } from "@/lib/content-checks/reviews";
+import type { ContentReviewRow, TaskContentReviewSummary } from "@/lib/content-checks/reviews";
 import { AlertTriangle, FileText, ShieldAlert, ShieldCheck } from "lucide-react";
 
 interface QaReviewPanelProps {
@@ -36,7 +36,63 @@ interface QaReviewPanelProps {
   fileMap?: Record<string, TaskFileUpload[]>;
   submissionMap?: Record<string, TaskSubmissionRecord | null>;
   contentReviews?: Record<string, TaskContentReviewSummary>;
+  contentReviewDetails?: Record<string, ContentReviewRow[]>;
   initialPackageId?: string;
+}
+
+const FLAG_SEVERITY_STYLES: Record<string, string> = {
+  fail: "border-red-500/40 bg-red-500/10 text-red-500",
+  warn: "border-amber-500/40 bg-amber-500/10 text-amber-500",
+  info: "border-border/60 bg-muted/20 text-muted-foreground",
+};
+
+/** The detailed report behind the badges: per-file findings from the auto checks. */
+function ContentCheckFindings({ reviews }: { reviews: ContentReviewRow[] }) {
+  if (reviews.length === 0) return null;
+  const withIssues = reviews.filter(
+    (r) => r.verdict !== "pass" || r.flags.some((f) => f.severity !== "info")
+  );
+
+  if (withIssues.length === 0) {
+    return (
+      <p className="mb-4 flex items-center gap-1.5 text-xs text-emerald-500">
+        <ShieldCheck className="h-3.5 w-3.5" />
+        All {reviews.length} checked file{reviews.length === 1 ? "" : "s"} passed the automatic
+        content checks.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/5">
+      <p className="px-3 py-2 text-xs font-semibold uppercase text-amber-500 flex items-center gap-1.5 border-b border-amber-500/20">
+        <ShieldAlert className="h-3.5 w-3.5" />
+        Content check findings — {withIssues.length} of {reviews.length} file
+        {reviews.length === 1 ? "" : "s"}
+      </p>
+      <ul className="divide-y divide-border/30 max-h-64 overflow-y-auto">
+        {withIssues.map((r) => (
+          <li key={r.file_id} className="px-3 py-2 text-sm">
+            <p className="font-medium truncate" title={r.file_name}>
+              {r.file_name}
+            </p>
+            <ul className="mt-1 space-y-1">
+              {r.flags.map((flag, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-xs">
+                  <span
+                    className={`rounded-full border px-1.5 py-0 font-medium shrink-0 ${FLAG_SEVERITY_STYLES[flag.severity] ?? FLAG_SEVERITY_STYLES.info}`}
+                  >
+                    {flag.severity}
+                  </span>
+                  <span className="text-muted-foreground">{flag.message}</span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 /** Auto content-check badge: amber when flags need eyes, green when clean. */
@@ -72,6 +128,7 @@ export function QaReviewPanel({
   fileMap = {},
   submissionMap = {},
   contentReviews = {},
+  contentReviewDetails = {},
   initialPackageId,
 }: QaReviewPanelProps) {
   const [selectedId, setSelectedId] = useState(
@@ -212,6 +269,8 @@ export function QaReviewPanel({
                 </div>
               </div>
             )}
+
+            <ContentCheckFindings reviews={contentReviewDetails[selected.id] ?? []} />
 
             {(fileMap[selected.id]?.length ?? 0) > 0 && (
               <div className="mb-4">

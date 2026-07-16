@@ -15,7 +15,10 @@ import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canReviewQa } from "@/lib/auth/permissions";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getBatchReviewQueue, getQaQueue, getQaReviews } from "@/lib/data/qa";
-import { getContentReviewSummaries } from "@/lib/content-checks/reviews";
+import {
+  getContentReviewSummaries,
+  listContentReviewsForTask,
+} from "@/lib/content-checks/reviews";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { getLatestSubmission, getTaskFiles } from "@/lib/data/production-tracking";
 import { BatchReviewPanel } from "@/components/qa/batch-review-panel";
@@ -78,6 +81,13 @@ export default async function QaCenterReviewPage({
   };
   queue = [...queue].sort((a, b) => flaggedWeight(b.id) - flaggedWeight(a.id));
   batchItems.sort((a, b) => flaggedWeight(b.task.id) - flaggedWeight(a.task.id));
+
+  // Per-file findings for the detail pane — the report behind the badges.
+  const contentReviewDetails = Object.fromEntries(
+    await Promise.all(
+      queue.map(async (item) => [item.id, await listContentReviewsForTask(item.id)] as const)
+    )
+  );
 
   const fileMap = Object.fromEntries(queue.map((item) => [item.id, getTaskFiles(item.id)]));
   const submissionMap = Object.fromEntries(
@@ -164,6 +174,7 @@ export default async function QaCenterReviewPage({
             fileMap={fileMap}
             submissionMap={submissionMap}
             contentReviews={contentReviews}
+            contentReviewDetails={contentReviewDetails}
             initialPackageId={packageParam?.trim() || undefined}
           />
           <div className="px-6 pb-6">
