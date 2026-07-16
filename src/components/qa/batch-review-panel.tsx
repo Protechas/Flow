@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { formatMinutes } from "@/lib/production/metrics";
+import { ContentCheckBadge } from "@/components/qa/qa-review-panel";
+import type { TaskContentReviewSummary } from "@/lib/content-checks/reviews";
 import type { TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
 import { FileText, Layers } from "lucide-react";
 
@@ -22,9 +24,11 @@ export interface BatchReviewEntry {
 export function BatchReviewPanel({
   items,
   canReview,
+  contentReviews = {},
 }: {
   items: BatchReviewEntry[];
   canReview: boolean;
+  contentReviews?: Record<string, TaskContentReviewSummary>;
 }) {
   const router = useRouter();
   const { toast } = useFlowToast();
@@ -70,9 +74,12 @@ export function BatchReviewPanel({
           <div key={submission.id} className="p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <Link href={`/qa-center/review?package=${task.id}`} className="font-medium hover:underline">
-                  {task.title}
-                </Link>
+                <span className="flex items-center gap-2">
+                  <Link href={`/qa-center/review?package=${task.id}`} className="font-medium hover:underline">
+                    {task.title}
+                  </Link>
+                  <ContentCheckBadge summary={contentReviews[task.id]} />
+                </span>
                 <p className="text-xs text-muted-foreground">
                   {analyst?.full_name ?? "Unknown analyst"} · {submission.uploaded_file_count} files ·{" "}
                   {formatMinutes(submission.total_task_minutes)} this session ·{" "}

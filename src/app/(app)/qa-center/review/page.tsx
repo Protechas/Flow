@@ -15,6 +15,7 @@ import { getScopeMemberIds } from "@/lib/auth/team-scope";
 import { canReviewQa } from "@/lib/auth/permissions";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { getBatchReviewQueue, getQaQueue, getQaReviews } from "@/lib/data/qa";
+import { getContentReviewSummaries } from "@/lib/content-checks/reviews";
 import { getWorkPackages } from "@/lib/data/work-packages";
 import { getLatestSubmission, getTaskFiles } from "@/lib/data/production-tracking";
 import { BatchReviewPanel } from "@/components/qa/batch-review-panel";
@@ -64,6 +65,19 @@ export default async function QaCenterReviewPage({
       analyst: task.assigned_to ? (usersById.get(task.assigned_to) ?? null) : null,
     };
   });
+
+  // Content-check rollups: flagged submissions sort to the front of the
+  // queue and carry a badge, so Tara opens the risky work first.
+  const contentReviews = await getContentReviewSummaries([
+    ...queue.map((q) => q.id),
+    ...batchItems.map((b) => b.task.id),
+  ]);
+  const flaggedWeight = (taskId: string) => {
+    const s = contentReviews[taskId];
+    return s ? s.flagged + s.unreadable : 0;
+  };
+  queue = [...queue].sort((a, b) => flaggedWeight(b.id) - flaggedWeight(a.id));
+  batchItems.sort((a, b) => flaggedWeight(b.task.id) - flaggedWeight(a.task.id));
 
   const fileMap = Object.fromEntries(queue.map((item) => [item.id, getTaskFiles(item.id)]));
   const submissionMap = Object.fromEntries(
@@ -136,7 +150,11 @@ export default async function QaCenterReviewPage({
           </div>
           {batchItems.length > 0 && (
             <div className="px-6 pt-4">
-              <BatchReviewPanel items={batchItems} canReview={canReviewQa(user.role)} />
+              <BatchReviewPanel
+                items={batchItems}
+                canReview={canReviewQa(user.role)}
+                contentReviews={contentReviews}
+              />
             </div>
           )}
           <QaReviewPanel
@@ -145,6 +163,7 @@ export default async function QaCenterReviewPage({
             canReview={canReviewQa(user.role)}
             fileMap={fileMap}
             submissionMap={submissionMap}
+            contentReviews={contentReviews}
             initialPackageId={packageParam?.trim() || undefined}
           />
           <div className="px-6 pb-6">

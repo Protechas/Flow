@@ -2,6 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { runAutoContentChecksForTask } from "@/lib/content-checks/reviews";
 import { requireUser } from "@/lib/auth/session";
 import { assertCanEditWorkPackage } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -223,6 +225,8 @@ export async function submitTaskForReviewAction(
     // Without this, the ready_for_qa status never reaches the DB and the
     // task neither shows as submitted nor appears in the QA queue.
     await persistPackageState(taskId);
+    // Free content checks run after the response — submit stays instant.
+    after(() => runAutoContentChecksForTask(taskId, record.file_ids ?? null));
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
@@ -254,6 +258,8 @@ export async function submitBatchForReviewAction(taskId: string, notes?: string)
       notes,
     });
     await persistTaskSubmissionSync(record);
+    // Free content checks run after the response — submit stays instant.
+    after(() => runAutoContentChecksForTask(taskId, record.file_ids ?? null));
     revalidateProduction(taskId);
     return { ok: true as const, fileCount: record.uploaded_file_count };
   } catch (e) {

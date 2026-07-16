@@ -26,7 +26,8 @@ import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
-import { AlertTriangle, FileText } from "lucide-react";
+import type { TaskContentReviewSummary } from "@/lib/content-checks/reviews";
+import { AlertTriangle, FileText, ShieldAlert, ShieldCheck } from "lucide-react";
 
 interface QaReviewPanelProps {
   queue: WorkPackage[];
@@ -34,7 +35,34 @@ interface QaReviewPanelProps {
   canReview: boolean;
   fileMap?: Record<string, TaskFileUpload[]>;
   submissionMap?: Record<string, TaskSubmissionRecord | null>;
+  contentReviews?: Record<string, TaskContentReviewSummary>;
   initialPackageId?: string;
+}
+
+/** Auto content-check badge: amber when flags need eyes, green when clean. */
+export function ContentCheckBadge({ summary }: { summary?: TaskContentReviewSummary }) {
+  if (!summary || summary.checked === 0) return null;
+  const issues = summary.flagged + summary.unreadable;
+  if (issues > 0) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500"
+        title={`${summary.flagged} flagged · ${summary.unreadable} unreadable of ${summary.checked} checked`}
+      >
+        <ShieldAlert className="h-3 w-3" />
+        {issues} content flag{issues === 1 ? "" : "s"}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-medium text-emerald-500"
+      title={`${summary.checked} file${summary.checked === 1 ? "" : "s"} passed the automatic content checks`}
+    >
+      <ShieldCheck className="h-3 w-3" />
+      checks pass
+    </span>
+  );
 }
 
 export function QaReviewPanel({
@@ -43,6 +71,7 @@ export function QaReviewPanel({
   canReview,
   fileMap = {},
   submissionMap = {},
+  contentReviews = {},
   initialPackageId,
 }: QaReviewPanelProps) {
   const [selectedId, setSelectedId] = useState(
@@ -128,8 +157,9 @@ export function QaReviewPanel({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {item.assignee?.full_name} · {item.manufacturer?.name}
               </p>
-              <div className="mt-2">
+              <div className="mt-2 flex items-center gap-1.5">
                 <StatusBadge status={item.status} />
+                <ContentCheckBadge summary={contentReviews[item.id]} />
               </div>
             </button>
           ))}
