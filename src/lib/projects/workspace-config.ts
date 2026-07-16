@@ -16,6 +16,7 @@ export const DEFAULT_WORKSPACE_COLUMNS: WorkspaceColumnDef[] = [
   { id: "files", label: "Files", type: "files", builtIn: "file_count", visible: false, width: 80 },
   { id: "qa", label: "QA", type: "status", builtIn: "qa_status", visible: false, width: 100 },
   { id: "progress", label: "Progress", type: "progress", builtIn: "progress", visible: true, width: 110 },
+  { id: "created", label: "Created", type: "date", builtIn: "created_at", visible: true, width: 110 },
 ];
 
 export function encodeWorkspaceConfig(config: ProjectWorkspaceConfig): string {

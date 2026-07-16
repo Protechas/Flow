@@ -388,6 +388,13 @@ export function EnterpriseProjectWorkspace({
       );
     }
     if (col.builtIn === "progress") return <Progress value={taskProgress(task)} className="h-2 w-20" />;
+    if (col.builtIn === "created_at") {
+      return (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {task.created_at ? task.created_at.slice(0, 10) : "—"}
+        </span>
+      );
+    }
     return custom[col.id] ?? "—";
   }
 
@@ -510,7 +517,7 @@ export function EnterpriseProjectWorkspace({
         <main className="flex-1 min-w-0 overflow-auto p-4 lg:p-6">
           {view === "forecast" && (
             <div className="max-w-3xl">
-              <ProjectForecastPanel project={project} />
+              <ProjectForecastPanel project={project} tasks={allProjectTasks} />
             </div>
           )}
 

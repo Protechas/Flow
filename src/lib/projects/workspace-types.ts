@@ -28,7 +28,8 @@ export type WorkspaceBuiltInField =
   | "file_count"
   | "qa_status"
   | "notes"
-  | "progress";
+  | "progress"
+  | "created_at";
 
 export interface WorkspaceColumnDef {
   id: string;

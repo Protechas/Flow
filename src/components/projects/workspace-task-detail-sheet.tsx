@@ -141,6 +141,11 @@ export function WorkspaceTaskDetailSheet({
               <div className="space-y-2">
                 <Label>Task</Label>
                 <Input value={title} disabled={!canEdit} onChange={(e) => setTitle(e.target.value)} />
+                {task.created_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Created {task.created_at.slice(0, 10)}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

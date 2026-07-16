@@ -1,3 +1,4 @@
+import { measureProjectPace, remainingDocumentCount } from "@/lib/forecast/engine";
 import { taskProgress } from "@/lib/projects/workspace-config";
 import type { ProjectTrackingFlags, WorkspaceKpiCard } from "@/lib/projects/workspace-types";
 import type { WorkPackage } from "@/types/flow";
@@ -13,7 +14,19 @@ export function buildWorkspaceKpis(
   const readyQa = tasks.filter((t) => t.status === "ready_for_qa" || t.status === "in_qa").length;
   const hoursLogged = tasks.reduce((s, t) => s + (t.actual_hours ?? 0), 0);
   const hoursEst = tasks.reduce((s, t) => s + (t.estimated_hours ?? 0), 0);
-  const hoursRemaining = Math.max(0, hoursEst - hoursLogged);
+  // Remaining hours from the team's real pace when we have it — planned
+  // estimates go stale the moment actuals outrun them, and "estimate minus
+  // logged" turns nonsensical once that happens.
+  const pace = measureProjectPace(tasks);
+  const docsRemaining = remainingDocumentCount(tasks);
+  const hoursRemaining =
+    pace && docsRemaining > 0
+      ? (docsRemaining * pace.minutesPerDocument) / 60
+      : Math.max(0, hoursEst - hoursLogged);
+  const hoursRemainingHint =
+    pace && docsRemaining > 0
+      ? `at measured pace (${pace.minutesPerDocument} min/doc)`
+      : undefined;
   const docsCompleted = tasks.reduce((s, t) => s + (t.current_documents_completed ?? 0), 0);
   const docsTarget = tasks.reduce((s, t) => s + (t.estimated_document_count ?? 0), 0);
   const qaPassed = tasks.filter((t) => t.qa_status === "passed").length;
@@ -63,6 +76,7 @@ export function buildWorkspaceKpis(
         id: "hours_remaining",
         label: "Hours remaining",
         value: hoursRemaining.toFixed(1),
+        hint: hoursRemainingHint,
         tone: hoursRemaining > hoursEst * 0.25 ? "warn" : "default",
       }
     );

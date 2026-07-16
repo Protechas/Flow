@@ -210,6 +210,18 @@ const ACTIVE_STATUSES = new Set([
   "stuck",
 ]);
 
+/**
+ * Fraction of a task's estimated documents still to do. Documents already
+ * completed on an in-progress task are finished work — counting them again
+ * would overstate the remaining forecast.
+ */
+function remainingDocFraction(p: WorkPackage): number {
+  const est = p.estimated_document_count ?? 0;
+  if (est <= 0) return 0;
+  const done = Math.min(p.current_documents_completed ?? 0, est);
+  return (est - done) / est;
+}
+
 export function aggregateProjectForecast(
   packages: WorkPackage[],
   projectManualDueDate?: string | null,
@@ -233,9 +245,18 @@ export function aggregateProjectForecast(
     };
   }
 
-  const totalDocs = withDocs.reduce((s, p) => s + (p.estimated_document_count ?? 0), 0);
-  const totalHours = withDocs.reduce((s, p) => s + (p.estimated_work_hours ?? 0), 0);
-  const totalDays = withDocs.reduce((s, p) => s + (p.estimated_work_days ?? 0), 0);
+  const totalDocs = withDocs.reduce(
+    (s, p) => s + Math.round((p.estimated_document_count ?? 0) * remainingDocFraction(p)),
+    0
+  );
+  const totalHours = withDocs.reduce(
+    (s, p) => s + (p.estimated_work_hours ?? 0) * remainingDocFraction(p),
+    0
+  );
+  const totalDays = withDocs.reduce(
+    (s, p) => s + (p.estimated_work_days ?? 0) * remainingDocFraction(p),
+    0
+  );
 
   const planningDates = withDocs
     .map((p) => p.planning_due_date ?? p.suggested_due_date)
@@ -292,6 +313,56 @@ function pickWorstStatus(statuses: DueDateStatus[]): DueDateStatus {
   return statuses.reduce((worst, s) =>
     STATUS_SEVERITY[s] > STATUS_SEVERITY[worst] ? s : worst
   );
+}
+
+export interface MeasuredProjectPace {
+  /** Actual minutes per document from logged time on completed documents */
+  minutesPerDocument: number;
+  docsSampled: number;
+  hoursSampled: number;
+}
+
+const MIN_PACE_SAMPLE_DOCS = 25;
+const SANE_PACE_MIN = 0.5;
+const SANE_PACE_MAX = 240;
+
+/**
+ * The team's real pace on this project: logged hours over recorded completed
+ * documents, from tasks that have both. Returns null until there's enough
+ * signal to be worth showing (and when the ratio is implausible, which means
+ * the underlying tracking data is broken rather than the team is).
+ */
+export function measureProjectPace(packages: WorkPackage[]): MeasuredProjectPace | null {
+  const sampled = packages.filter(
+    (p) => (p.actual_hours ?? 0) > 0 && (p.current_documents_completed ?? 0) > 0
+  );
+  const docs = sampled.reduce((s, p) => s + (p.current_documents_completed ?? 0), 0);
+  const hours = sampled.reduce((s, p) => s + (p.actual_hours ?? 0), 0);
+  if (docs < MIN_PACE_SAMPLE_DOCS || hours <= 0) return null;
+
+  const minutesPerDocument = Math.round(((hours * 60) / docs) * 10) / 10;
+  if (minutesPerDocument < SANE_PACE_MIN || minutesPerDocument > SANE_PACE_MAX) return null;
+
+  return {
+    minutesPerDocument,
+    docsSampled: docs,
+    hoursSampled: Math.round(hours * 10) / 10,
+  };
+}
+
+/** Documents still to do across unfinished tasks (planned minus completed). */
+export function remainingDocumentCount(packages: WorkPackage[]): number {
+  return packages
+    .filter((p) => ACTIVE_STATUSES.has(p.status))
+    .reduce(
+      (s, p) =>
+        s +
+        Math.max(
+          0,
+          (p.estimated_document_count ?? 0) - (p.current_documents_completed ?? 0)
+        ),
+      0
+    );
 }
 
 export function forecastVarianceDays(
