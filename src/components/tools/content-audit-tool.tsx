@@ -198,6 +198,9 @@ export function ContentAuditTool({
   const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  /** Batch "Ask Eddy about flagged" progress — visible on the button itself. */
+  const [batchEddy, setBatchEddy] = useState<{ done: number; total: number } | null>(null);
+  const [batchNote, setBatchNote] = useState<string | null>(null);
   const lastSavedSnapshot = useRef("");
   const autoRestored = useRef(false);
 
@@ -390,7 +393,7 @@ export function ContentAuditTool({
     });
   }
 
-  async function runEddy(target: AuditRow) {
+  async function runEddy(target: AuditRow): Promise<boolean> {
     const text = target.partFiles
       .map((f) => textByFile.current.get(f) ?? "")
       .join("\n")
@@ -410,7 +413,7 @@ export function ContentAuditTool({
             : r
         )
       );
-      return;
+      return false;
     }
     setRows((prev) =>
       prev.map((r) =>
@@ -435,17 +438,26 @@ export function ContentAuditTool({
           : r
       )
     );
+    return res.ok;
   }
 
   async function runEddyOnFlagged() {
-    const targets = rows.filter(
-      (r) =>
-        r.result.verdict === "flagged" &&
-        !r.eddy &&
-        !r.eddyPending &&
-        r.partFiles.some((f) => (textByFile.current.get(f) ?? "").trim())
+    const flagged = rows.filter(
+      (r) => r.result.verdict === "flagged" && !r.eddy && !r.eddyPending
     );
-    if (targets.length === 0) return;
+    const targets = flagged.filter((r) =>
+      r.partFiles.some((f) => (textByFile.current.get(f) ?? "").trim())
+    );
+    // Reopened run: the findings are here but the PDFs live on the user's
+    // machine — say so instead of silently doing nothing.
+    if (targets.length === 0) {
+      if (flagged.length > 0) {
+        setBatchNote(
+          "This is a reopened audit — the PDFs aren't loaded in this session, so Eddy has nothing to read. Re-drop the folder and everything (including your Eddy reviews so far) picks up from here."
+        );
+      }
+      return;
+    }
     const cents = Math.max(1, Math.round(targets.length * 1));
     if (
       !confirm(
@@ -454,10 +466,20 @@ export function ContentAuditTool({
     ) {
       return;
     }
-    for (const t of targets) {
+    setBatchNote(null);
+    setBatchEddy({ done: 0, total: targets.length });
+    let ok = 0;
+    for (let i = 0; i < targets.length; i++) {
       // Sequential on purpose: keeps costs visible and the UI readable.
-      await runEddy(t);
+      if (await runEddy(targets[i])) ok++;
+      setBatchEddy({ done: i + 1, total: targets.length });
     }
+    setBatchEddy(null);
+    setBatchNote(
+      ok === targets.length
+        ? `Eddy read ${ok} document${ok === 1 ? "" : "s"} — open a row to see his notes.`
+        : `Eddy read ${ok} of ${targets.length} — the rest show their error on the row.`
+    );
   }
 
   function coverageSummaryFor(model: ModelCoverage): string {
@@ -1048,9 +1070,20 @@ export function ContentAuditTool({
             </p>
             <div className="flex items-center gap-2">
               {summary.flagged > 0 && (
-                <Button variant="outline" size="sm" onClick={() => void runEddyOnFlagged()}>
-                  <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
-                  Ask Eddy about flagged ({summary.flagged} · ~{Math.max(1, summary.flagged)}¢)
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={batchEddy !== null}
+                  onClick={() => void runEddyOnFlagged()}
+                >
+                  {batchEddy ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1.5 h-4 w-4 text-primary" />
+                  )}
+                  {batchEddy
+                    ? `Eddy is reading ${batchEddy.done}/${batchEddy.total}…`
+                    : `Ask Eddy about flagged (${summary.flagged} · ~${Math.max(1, summary.flagged)}¢)`}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={() => void downloadExcel()}>
@@ -1063,6 +1096,8 @@ export function ContentAuditTool({
               </Button>
             </div>
           </div>
+
+          {batchNote && <p className="text-xs text-muted-foreground">{batchNote}</p>}
 
           <Dialog open={taskDialog !== null} onOpenChange={(open) => !open && setTaskDialog(null)}>
             <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -1217,6 +1252,11 @@ export function ContentAuditTool({
                   <span className="hidden sm:inline text-xs text-muted-foreground tabular-nums">
                     {row.pages}p · {row.sizeKb}KB
                   </span>
+                  {row.eddyPending ? (
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+                  ) : row.eddy ? (
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  ) : null}
                   {verdictBadge(row)}
                 </button>
                 {expanded === row.fileName && (
