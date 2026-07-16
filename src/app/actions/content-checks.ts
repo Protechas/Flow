@@ -19,7 +19,13 @@ import {
   createDocumentFolder,
   listDocumentFolders,
 } from "@/lib/files/document-folders";
-import { insertAuditRun, type AuditRunModel } from "@/lib/content-checks/audit-runs";
+import {
+  getAuditRunDetails,
+  insertAuditRun,
+  updateAuditRunDetails,
+  type AuditRunModel,
+  type AuditRunSnapshot,
+} from "@/lib/content-checks/audit-runs";
 
 /** Same crowd that can open /tools — leads and up. */
 const TOOL_ROLES = new Set(["admin", "super_admin", "senior_manager", "manager", "teamlead"]);
@@ -92,10 +98,23 @@ export async function eddyModelReportAction(input: {
 /** Runs under this many docs log as spot checks — kept out of the trend. */
 const SPOT_CHECK_THRESHOLD = 5;
 
+/** Findings snapshots stay small (names + flags, no contents) — this cap is
+ * a guardrail, not a target. ~2MB covers thousands of documents. */
+const MAX_SNAPSHOT_BYTES = 2_000_000;
+
+function fitsSnapshotCap(details: AuditRunSnapshot | undefined): details is AuditRunSnapshot {
+  if (!details || !Array.isArray(details.groups)) return false;
+  try {
+    return JSON.stringify(details).length <= MAX_SNAPSHOT_BYTES;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Log an audit run's scoreboard. Aggregates only — the library's health
- * trend, most-common violations, and open model gaps come from these rows.
- * This tool measures the LIBRARY, not people.
+ * Log an audit run: the scoreboard aggregates (trend, violations, gaps)
+ * plus the full findings snapshot so reopening the page restores the
+ * dashboard. This tool measures the LIBRARY, not people.
  */
 export async function logContentAuditRunAction(input: {
   docsChecked: number;
@@ -104,7 +123,8 @@ export async function logContentAuditRunAction(input: {
   unreadable: number;
   failCounts: Record<string, number>;
   models: AuditRunModel[];
-}): Promise<{ ok: boolean }> {
+  details?: AuditRunSnapshot;
+}): Promise<{ ok: boolean; runId?: string }> {
   const user = await requireUser();
   if (!TOOL_ROLES.has(normalizeRole(user.role))) return { ok: false };
   if (!Number.isFinite(input.docsChecked) || input.docsChecked <= 0) return { ok: false };
@@ -114,24 +134,64 @@ export async function logContentAuditRunAction(input: {
     for (const [code, count] of Object.entries(input.failCounts).slice(0, 30)) {
       if (Number.isFinite(count) && count > 0) failCounts[code.slice(0, 40)] = Math.round(count);
     }
-    await insertAuditRun({
-      run_by: user.id,
-      docs_checked: Math.round(input.docsChecked),
-      passed: Math.max(0, Math.round(input.passed)),
-      flagged: Math.max(0, Math.round(input.flagged)),
-      unreadable: Math.max(0, Math.round(input.unreadable)),
-      fail_counts: failCounts,
-      models: input.models.slice(0, 50).map((m) => ({
-        label: String(m.label).slice(0, 120),
-        missing: (m.missing ?? []).slice(0, 12).map((c) => String(c).slice(0, 12)),
-        docs: Math.round(m.docs ?? 0),
-        flagged: Math.round(m.flagged ?? 0),
-      })),
-      is_spot_check: input.docsChecked < SPOT_CHECK_THRESHOLD,
-    });
+    const runId = await insertAuditRun(
+      {
+        run_by: user.id,
+        docs_checked: Math.round(input.docsChecked),
+        passed: Math.max(0, Math.round(input.passed)),
+        flagged: Math.max(0, Math.round(input.flagged)),
+        unreadable: Math.max(0, Math.round(input.unreadable)),
+        fail_counts: failCounts,
+        models: input.models.slice(0, 50).map((m) => ({
+          label: String(m.label).slice(0, 120),
+          missing: (m.missing ?? []).slice(0, 12).map((c) => String(c).slice(0, 12)),
+          docs: Math.round(m.docs ?? 0),
+          flagged: Math.round(m.flagged ?? 0),
+        })),
+        is_spot_check: input.docsChecked < SPOT_CHECK_THRESHOLD,
+      },
+      fitsSnapshotCap(input.details) ? input.details : null
+    );
+    return { ok: true, runId: runId ?? undefined };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Eddy reviews and model reports land after the run is logged — fold them
+ * into the saved snapshot so a reopened run has them too. Owner-only. */
+export async function updateAuditRunDetailsAction(input: {
+  runId: string;
+  details: AuditRunSnapshot;
+}): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  if (!TOOL_ROLES.has(normalizeRole(user.role))) return { ok: false };
+  if (!input.runId || !fitsSnapshotCap(input.details)) return { ok: false };
+  try {
+    await updateAuditRunDetails(input.runId, user.id, input.details);
     return { ok: true };
   } catch {
     return { ok: false };
+  }
+}
+
+/** Reopen a past audit exactly as it looked. */
+export async function getAuditRunDetailsAction(
+  runId: string
+): Promise<{ ok: true; details: AuditRunSnapshot } | { ok: false; message: string }> {
+  const user = await requireUser();
+  if (!TOOL_ROLES.has(normalizeRole(user.role))) {
+    return { ok: false, message: "Audit history is available to leads and managers" };
+  }
+  if (!runId) return { ok: false, message: "No run selected" };
+  try {
+    const details = await getAuditRunDetails(runId);
+    if (!details) {
+      return { ok: false, message: "This run predates saved results — only its scoreboard exists." };
+    }
+    return { ok: true, details };
+  } catch {
+    return { ok: false, message: "Could not load that run" };
   }
 }
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   draftAuditTasksAction,
   eddyModelReportAction,
   eddyReviewContentAction,
+  getAuditRunDetailsAction,
   logContentAuditRunAction,
   saveModelReportAction,
+  updateAuditRunDetailsAction,
 } from "@/app/actions/content-checks";
 import { createQuickTaskAction } from "@/app/actions/crud";
 import {
@@ -20,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { EddyTaskDraft } from "@/lib/ai/content-review";
-import type { AuditHistorySummary } from "@/lib/content-checks/audit-runs";
+import type { AuditHistorySummary, AuditRunSnapshot } from "@/lib/content-checks/audit-runs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { EddyContentReview, EddyModelReport } from "@/lib/ai/content-review";
@@ -42,9 +44,11 @@ import {
   Download,
   EyeOff,
   FileWarning,
+  History,
   Loader2,
   Sparkles,
   Upload,
+  X,
 } from "lucide-react";
 
 interface AuditRow {
@@ -143,6 +147,25 @@ interface PickerOption {
   name: string;
 }
 
+/** Everything worth keeping from a run — names, flags, and Eddy's write-ups.
+ * The PDFs themselves never leave the user's machine and are not included. */
+function buildSnapshot(
+  groups: LogicalDocResult[],
+  rows: AuditRow[],
+  modelReports: Record<
+    string,
+    { report?: EddyModelReport; pending?: boolean; error?: string | null; savedId?: string }
+  >
+): AuditRunSnapshot {
+  const eddyByFile: Record<string, EddyContentReview> = {};
+  for (const r of rows) if (r.eddy) eddyByFile[r.fileName] = r.eddy;
+  const reports: AuditRunSnapshot["modelReports"] = {};
+  for (const [label, v] of Object.entries(modelReports)) {
+    if (v.report) reports[label] = { report: v.report, savedId: v.savedId };
+  }
+  return { v: 1, groups, eddyByFile, modelReports: reports };
+}
+
 export function ContentAuditTool({
   history,
   projects = [],
@@ -169,11 +192,45 @@ export function ContentAuditTool({
       { report?: EddyModelReport; pending?: boolean; error?: string | null; savedId?: string }
     >
   >({});
+  /** DB row of the run on screen — Eddy results fold into its snapshot. */
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  /** run_at of a reopened past run; null when the results are from this session. */
+  const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const lastSavedSnapshot = useRef("");
+  const autoRestored = useRef(false);
 
   const coverage = useMemo(
     () => analyzeModelCoverage(groups, DEFAULT_CONTENT_RULES),
     [groups]
   );
+
+  const pastRuns = useMemo(
+    () => [...(history?.runs ?? [])].reverse().filter((r) => r.hasDetails).slice(0, 12),
+    [history]
+  );
+
+  // Eddy reviews and model reports arrive after the run is logged — keep the
+  // saved snapshot current so a reopened run has them too. Debounced, and
+  // skipped when nothing new exists to save.
+  useEffect(() => {
+    if (!currentRunId || groups.length === 0) return;
+    const snap = buildSnapshot(groups, rows, modelReports);
+    if (
+      Object.keys(snap.eddyByFile).length === 0 &&
+      Object.keys(snap.modelReports).length === 0
+    ) {
+      return;
+    }
+    const json = JSON.stringify(snap);
+    if (json === lastSavedSnapshot.current) return;
+    const t = setTimeout(() => {
+      lastSavedSnapshot.current = json;
+      void updateAuditRunDetailsAction({ runId: currentRunId, details: snap });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [currentRunId, groups, rows, modelReports]);
 
   // ---- Findings → tasks (Eddy drafts, a human approves) ----
   const [taskDialog, setTaskDialog] = useState<{
@@ -197,12 +254,81 @@ export function ContentAuditTool({
     return { total: rows.length, pass, flagged, unreadable, fails };
   }, [rows]);
 
+  /** Put a saved run back on screen exactly as it looked. */
+  async function restoreRun(run: { id: string; run_at: string }) {
+    setRestoring(run.id);
+    setRestoreError(null);
+    const res = await getAuditRunDetailsAction(run.id);
+    setRestoring(null);
+    if (!res.ok) {
+      setRestoreError(res.message);
+      return;
+    }
+    const snap = res.details;
+    runId.current++; // cancel any in-flight extraction
+    textByFile.current.clear(); // the PDFs live on the user's machine, not here
+    setProgress(null);
+    setExpanded(null);
+    setGroups(snap.groups);
+    setRows(
+      snap.groups
+        .map((g) => ({
+          fileName: g.baseName,
+          partFiles: g.partFiles,
+          partCount: g.partFiles.length,
+          sizeKb: g.totalSizeKb,
+          pages: g.totalPages,
+          result: g.result,
+          eddy: snap.eddyByFile[g.baseName] ?? null,
+        }))
+        .sort((a, b) => severityRank(a.result.flags) - severityRank(b.result.flags))
+    );
+    setModelReports(
+      Object.fromEntries(
+        Object.entries(snap.modelReports).map(([label, v]) => [
+          label,
+          { report: v.report, savedId: v.savedId },
+        ])
+      )
+    );
+    setCurrentRunId(run.id);
+    lastSavedSnapshot.current = JSON.stringify(snap);
+    setRestoredFrom(run.run_at);
+  }
+
+  // Coming back to the page picks up where you left off: the most recent
+  // saved run restores itself instead of greeting you with an empty tool.
+  useEffect(() => {
+    if (autoRestored.current) return;
+    autoRestored.current = true;
+    const latest = pastRuns[0];
+    if (latest && rows.length === 0 && !progress) void restoreRun(latest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function clearResults() {
+    runId.current++;
+    textByFile.current.clear();
+    setRows([]);
+    setGroups([]);
+    setModelReports({});
+    setExpanded(null);
+    setCurrentRunId(null);
+    setRestoredFrom(null);
+    setRestoreError(null);
+    lastSavedSnapshot.current = "";
+  }
+
   async function runAudit(files: File[]) {
     const pdfs = files.filter((f) => f.name.toLowerCase().endsWith(".pdf"));
     if (pdfs.length === 0) return;
     const id = ++runId.current;
     setRows([]);
     setExpanded(null);
+    setCurrentRunId(null);
+    setRestoredFrom(null);
+    setRestoreError(null);
+    lastSavedSnapshot.current = "";
     setProgress({ done: 0, total: pdfs.length });
 
     // Extract every part first, then check as logical documents so
@@ -255,21 +381,42 @@ export function ContentAuditTool({
       unreadable: grouped.filter((g) => g.result.verdict === "unreadable").length,
       failCounts,
       models: modelStats,
+      details: buildSnapshot(grouped, [], {}),
     }).then((res) => {
-      if (res.ok) router.refresh(); // pull the new run into the history panel
+      if (res.ok) {
+        if (res.runId && runId.current === id) setCurrentRunId(res.runId);
+        router.refresh(); // pull the new run into the history panel
+      }
     });
   }
 
   async function runEddy(target: AuditRow) {
+    const text = target.partFiles
+      .map((f) => textByFile.current.get(f) ?? "")
+      .join("\n")
+      .trim();
+    // A reopened run has the findings but not the files — don't waste a
+    // paid call on empty text.
+    if (!text) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.fileName === target.fileName
+            ? {
+                ...r,
+                eddyPending: false,
+                eddyError:
+                  "The files aren't loaded in this session — re-drop the folder so Eddy can read them.",
+              }
+            : r
+        )
+      );
+      return;
+    }
     setRows((prev) =>
       prev.map((r) =>
         r.fileName === target.fileName ? { ...r, eddyPending: true, eddyError: null } : r
       )
     );
-    const text = target.partFiles
-      .map((f) => textByFile.current.get(f) ?? "")
-      .join("\n")
-      .trim();
     const res = await eddyReviewContentAction({
       fileName: target.fileName,
       claim: target.fileName,
@@ -291,7 +438,13 @@ export function ContentAuditTool({
   }
 
   async function runEddyOnFlagged() {
-    const targets = rows.filter((r) => r.result.verdict === "flagged" && !r.eddy && !r.eddyPending);
+    const targets = rows.filter(
+      (r) =>
+        r.result.verdict === "flagged" &&
+        !r.eddy &&
+        !r.eddyPending &&
+        r.partFiles.some((f) => (textByFile.current.get(f) ?? "").trim())
+    );
     if (targets.length === 0) return;
     const cents = Math.max(1, Math.round(targets.length * 1));
     if (
@@ -539,8 +692,8 @@ export function ContentAuditTool({
           Drop a whole folder of SI PDFs here (subfolders included) — or click to pick files
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Everything runs on YOUR computer. Files are never uploaded; close the tab and nothing
-          leaves this machine.
+          Everything runs on YOUR computer and files are never uploaded — only the findings are
+          saved, so your results are still here when you come back.
         </p>
         <button
           type="button"
@@ -583,7 +736,11 @@ export function ContentAuditTool({
         </div>
       )}
 
-      {rows.length === 0 && !progress && history && history.runs.length > 0 && (
+      {(rows.length === 0 || restoredFrom !== null) &&
+        !progress &&
+        history &&
+        history.runs.length > 0 && (
+        <div className="space-y-3">
         <div className="grid gap-3 lg:grid-cols-3">
           <div className="enterprise-panel p-4">
             <p className="text-xs font-medium text-muted-foreground mb-2">
@@ -649,10 +806,58 @@ export function ContentAuditTool({
             )}
           </div>
         </div>
+
+        {pastRuns.length > 0 && (
+          <div className="enterprise-panel p-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Saved audits — reopen any run with its full results and Eddy reports
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {pastRuns.map((r) => (
+                <Button
+                  key={r.id}
+                  variant={currentRunId === r.id ? "secondary" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={restoring !== null}
+                  onClick={() => void restoreRun(r)}
+                >
+                  {restoring === r.id ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <History className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {new Date(r.run_at).toLocaleDateString()} · {r.docs} docs · {r.flagRatePct}%
+                  flagged
+                </Button>
+              ))}
+            </div>
+            {restoreError && <p className="mt-2 text-xs text-destructive">{restoreError}</p>}
+          </div>
+        )}
+        </div>
       )}
 
       {rows.length > 0 && (
         <>
+          {restoredFrom && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                <History className="mr-1.5 inline h-3.5 w-3.5" />
+                Saved audit from {new Date(restoredFrom).toLocaleString()} — results and Eddy
+                reports restored. Drop files anytime to run a fresh audit.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 text-xs"
+                onClick={clearResults}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                Close
+              </Button>
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="enterprise-panel p-4">
               <p className="text-xs text-muted-foreground">Checked</p>

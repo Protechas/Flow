@@ -13,6 +13,7 @@ function run(overrides: Partial<ContentAuditRun>): ContentAuditRun {
     fail_counts: {},
     models: [],
     is_spot_check: false,
+    has_details: false,
     ...overrides,
   };
 }
