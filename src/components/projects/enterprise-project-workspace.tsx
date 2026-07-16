@@ -22,7 +22,11 @@ import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-fl
 import { buildWorkspaceKpis } from "@/lib/projects/workspace-kpis";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
-import type { ProjectWorkspaceConfig, WorkspaceColumnDef } from "@/lib/projects/workspace-types";
+import type {
+  ProjectWorkspaceConfig,
+  TaskLiveTimer,
+  WorkspaceColumnDef,
+} from "@/lib/projects/workspace-types";
 import type {
   ActivityEvent,
   Department,
@@ -96,6 +100,7 @@ export function EnterpriseProjectWorkspace({
   forecastSettings,
   validationMetrics,
   canViewValidation,
+  liveTaskTimers,
 }: {
   project: Project;
   manufacturers: Manufacturer[];
@@ -112,6 +117,7 @@ export function EnterpriseProjectWorkspace({
   forecastSettings: ForecastSettings;
   validationMetrics?: ProjectValidationMetrics | null;
   canViewValidation?: boolean;
+  liveTaskTimers?: Record<string, TaskLiveTimer[]>;
 }) {
   const router = useRouter();
   const sections = useMemo(
@@ -721,6 +727,7 @@ export function EnterpriseProjectWorkspace({
         columns={config.columns}
         forecastSettings={forecastSettings}
         showForecastFields={config.tracking.forecasting || config.tracking.fileUploads}
+        liveTimers={selectedTask ? liveTaskTimers?.[selectedTask.id] : undefined}
         onClose={() => setSelectedTaskId(null)}
         onUpdated={() => {
           startTransition(async () => {});

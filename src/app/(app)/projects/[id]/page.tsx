@@ -28,6 +28,9 @@ import {
 } from "@/lib/data/projects";
 import { hydrateForecastSettings } from "@/lib/forecast/hydrate";
 import { ensureProjectMetricsHydrated } from "@/lib/data/project-metrics-db";
+import { ensureProductionTrackingHydrated } from "@/lib/data/production-tracking-db";
+import { getTaskTimerSnapshotsForTasks } from "@/lib/data/production-tracking";
+import type { TaskLiveTimer } from "@/lib/projects/workspace-types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
 import { getProjectValidationMetricsForProject } from "@/lib/validation-center/runs";
@@ -113,6 +116,20 @@ export default async function ProjectDetailPage({
     : allAnalysts;
 
   const workPackages = enrichPackages(scopedPackages);
+
+  await ensureProductionTrackingHydrated();
+  const timerSnapshots = getTaskTimerSnapshotsForTasks(scopedPackages.map((p) => p.id));
+  const liveTaskTimers: Record<string, TaskLiveTimer[]> = Object.fromEntries(
+    Object.entries(timerSnapshots).map(([taskId, snaps]) => [
+      taskId,
+      snaps.map((s) => ({
+        user_name: store.users.find((u) => u.id === s.user_id)?.full_name ?? "Someone",
+        status: s.status,
+        minutes: s.minutes,
+        captured_at: s.captured_at,
+      })),
+    ])
+  );
   const isBranchScoped = Boolean(branchIds?.length);
   const projectOwners = isBranchScoped
     ? projectOwnerCandidates(managers, user).filter(
@@ -220,6 +237,7 @@ export default async function ProjectDetailPage({
             forecastSettings={store.forecastSettings}
             validationMetrics={validationMetrics}
             canViewValidation={canViewValidation}
+            liveTaskTimers={liveTaskTimers}
           />
         </WorkspaceContainer>
       }

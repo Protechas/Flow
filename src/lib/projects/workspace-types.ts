@@ -69,6 +69,15 @@ export interface WorkspaceTemplate {
   columns: WorkspaceColumnDef[];
 }
 
+/** Live/paused task-timer session snapshot, taken server-side at render time. */
+export interface TaskLiveTimer {
+  user_name: string;
+  status: "active" | "paused";
+  /** Minutes on the task as of captured_at (includes the in-flight run). */
+  minutes: number;
+  captured_at: string;
+}
+
 export interface WorkspaceKpiCard {
   id: string;
   label: string;

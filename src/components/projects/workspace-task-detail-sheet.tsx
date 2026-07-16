@@ -18,7 +18,7 @@ import {
   parseCustomFields,
   taskProgress,
 } from "@/lib/projects/workspace-config";
-import type { WorkspaceColumnDef } from "@/lib/projects/workspace-types";
+import type { TaskLiveTimer, WorkspaceColumnDef } from "@/lib/projects/workspace-types";
 import type { ForecastComplexityLevel, ForecastSettings, User, WorkPackage } from "@/types/flow";
 import { Progress } from "@/components/ui/progress";
 
@@ -31,6 +31,7 @@ export function WorkspaceTaskDetailSheet({
   columns,
   forecastSettings,
   showForecastFields = true,
+  liveTimers,
   onClose,
   onUpdated,
   onDeleted,
@@ -44,6 +45,8 @@ export function WorkspaceTaskDetailSheet({
   forecastSettings: ForecastSettings;
   /** When true, show estimated documents/files for due-date forecasting. */
   showForecastFields?: boolean;
+  /** Live/paused timer sessions on this task, captured server-side. */
+  liveTimers?: TaskLiveTimer[];
   onClose: () => void;
   onUpdated: () => void;
   onDeleted?: () => void;
@@ -234,6 +237,8 @@ export function WorkspaceTaskDetailSheet({
                 <Progress value={taskProgress(task)} />
               </div>
 
+              <TimeOnTask task={task} liveTimers={liveTimers} />
+
               {customColumns.map((col) => (
                 <div key={col.id} className="space-y-2">
                   <Label>{col.label}</Label>
@@ -286,5 +291,64 @@ export function WorkspaceTaskDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function formatMinutes(total: number): string {
+  const m = Math.max(0, Math.round(total));
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+function TimeOnTask({ task, liveTimers }: { task: WorkPackage; liveTimers?: TaskLiveTimer[] }) {
+  // Re-render every 30s so a running timer visibly ticks
+  const [, setTick] = useState(0);
+  const hasRunning = (liveTimers ?? []).some((t) => t.status === "active");
+  useEffect(() => {
+    if (!hasRunning) return;
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [hasRunning]);
+
+  const banked = task.actual_hours ?? 0;
+  const sessions = liveTimers ?? [];
+
+  return (
+    <div className="space-y-2">
+      <Label>Time on task</Label>
+      <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1.5">
+        <p className="text-xs text-muted-foreground">
+          Banked: <span className="font-medium text-foreground tabular-nums">{banked.toFixed(1)}h</span>
+          <span className="ml-1">(saved when timers pause or finish)</span>
+        </p>
+        {sessions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No timer running on this task right now.</p>
+        ) : (
+          sessions.map((s, i) => {
+            const drift =
+              s.status === "active"
+                ? Math.max(0, (Date.now() - new Date(s.captured_at).getTime()) / 60000)
+                : 0;
+            return (
+              <p key={i} className="flex items-center gap-2 text-sm">
+                <span
+                  className={
+                    s.status === "active"
+                      ? "h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"
+                      : "h-2 w-2 rounded-full bg-amber-500/70 shrink-0"
+                  }
+                />
+                <span className="font-medium">{s.user_name}</span>
+                <span className="text-muted-foreground">
+                  {s.status === "active" ? "on it now —" : "paused at"}
+                </span>
+                <span className="font-semibold tabular-nums">{formatMinutes(s.minutes + drift)}</span>
+                <span className="text-muted-foreground text-xs">this session</span>
+              </p>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }

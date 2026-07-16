@@ -530,6 +530,33 @@ export function getTaskMinutesToday(userId: string): number {
 
 // ——— Task timer ———
 
+/**
+ * Live/paused timer sessions per task, minutes computed as of now — so a
+ * lead can see time on a task before the analyst pauses and banks it.
+ */
+export function getTaskTimerSnapshotsForTasks(
+  taskIds: string[]
+): Record<string, { user_id: string; status: "active" | "paused"; minutes: number; captured_at: string }[]> {
+  initProductionTracking();
+  const now = ts();
+  const ids = new Set(taskIds);
+  const out: Record<
+    string,
+    { user_id: string; status: "active" | "paused"; minutes: number; captured_at: string }[]
+  > = {};
+  for (const entry of state.taskTimeEntries) {
+    if (!ids.has(entry.task_id)) continue;
+    if (entry.status !== "active" && entry.status !== "paused") continue;
+    (out[entry.task_id] ??= []).push({
+      user_id: entry.user_id,
+      status: entry.status,
+      minutes: Math.round(calcActiveMinutes(entry, now)),
+      captured_at: now,
+    });
+  }
+  return out;
+}
+
 export function getActiveTaskTimeEntry(userId: string): TaskTimeEntry | null {
   initProductionTracking();
   return (
