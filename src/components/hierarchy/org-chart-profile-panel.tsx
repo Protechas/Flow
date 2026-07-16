@@ -128,7 +128,7 @@ export function OrgChartProfilePanel({
   }
 
   const inScope = canActOnUser(user.id, viewerId, visibleUserIds);
-  const validSupervisors = filterValidSupervisors(user.role, allUsers);
+  const validSupervisors = filterValidSupervisors(user.role, allUsers, user.id);
   const isEmployee = user.role === "employee";
 
   function saveSupervisor() {

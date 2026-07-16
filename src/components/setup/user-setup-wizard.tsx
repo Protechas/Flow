@@ -27,12 +27,13 @@ import {
 import type { Department, OrgPosition, PayType, Team, User, UserRole } from "@/types/flow";
 import { UserPlus, Briefcase } from "lucide-react";
 
+// Role comes first: department, team, and supervisor options all depend on it.
 const BASE_STEPS = [
   "Basic info",
+  "Role",
   "Department",
   "Team",
   "Supervisor",
-  "Role",
   "Org position",
   "Review & activate",
 ];
@@ -82,9 +83,20 @@ export function UserSetupWizard({
     [teams, departmentId]
   );
   const supervisors = useMemo(
-    () => filterValidSupervisors(role, users),
-    [role, users]
+    () => filterValidSupervisors(role, users, initialUser?.id),
+    [role, users, initialUser?.id]
   );
+
+  function changeRole(next: UserRole) {
+    setRole(next);
+    // A supervisor picked under the old role may not be valid for the new one.
+    if (
+      managerId &&
+      !filterValidSupervisors(next, users, initialUser?.id).some((s) => s.id === managerId)
+    ) {
+      setManagerId("");
+    }
+  }
 
   const preview = useMemo(
     () =>
@@ -301,7 +313,7 @@ export function UserSetupWizard({
         <div className="space-y-3 max-w-md">
           <div className="space-y-2">
             <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => v && setRole(v as UserRole)}>
+            <Select value={role} onValueChange={(v) => v && changeRole(v as UserRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {USER_ROLES.map((r) => (

@@ -54,7 +54,7 @@ const ROLE_CONFIG: Record<UserRole, RoleFieldConfig> = {
     requiresDepartment: true,
     requiresTeam: false,
     requiresSeniorManager: false,
-    helper: "Leads a team. Must report to a manager.",
+    helper: "Leads a team. Reports to a manager or above.",
   },
   employee: {
     fields: ["department", "team", "reports_to"],
@@ -78,17 +78,21 @@ export function getRoleFieldConfig(role: UserRole): RoleFieldConfig {
   return ROLE_CONFIG[role] ?? ROLE_CONFIG.employee;
 }
 
-/** Valid supervisor roles for each role's "Reports To" field */
+/**
+ * Valid supervisor roles for each role's "Reports To" field.
+ * Equal-or-higher rank, so small orgs without every rung still work
+ * (e.g. a manager reporting to another manager or straight to an admin).
+ */
 export function getValidSupervisorRoles(role: UserRole): UserRole[] {
   switch (role) {
     case "employee":
-      return ["teamlead", "manager"];
+      return ["teamlead", "manager", "senior_manager", "admin", "super_admin"];
     case "teamlead":
-      return ["manager"];
+      return ["manager", "senior_manager", "admin", "super_admin"];
     case "manager":
-      return ["senior_manager"];
+      return ["manager", "senior_manager", "admin", "super_admin"];
     case "senior_manager":
-      return ["admin", "super_admin"];
+      return ["senior_manager", "admin", "super_admin"];
     default:
       return [];
   }
@@ -96,11 +100,14 @@ export function getValidSupervisorRoles(role: UserRole): UserRole[] {
 
 export function filterValidSupervisors(
   role: UserRole,
-  users: User[]
+  users: User[],
+  selfId?: string | null
 ): User[] {
   const allowedRoles = new Set(getValidSupervisorRoles(role));
   if (!allowedRoles.size) return [];
-  return users.filter((u) => u.is_active && allowedRoles.has(u.role));
+  return users.filter(
+    (u) => u.is_active && allowedRoles.has(u.role) && u.id !== selfId
+  );
 }
 
 export function teamsForDepartment(teams: Team[], departmentId: string): Team[] {
