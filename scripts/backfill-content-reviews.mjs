@@ -81,37 +81,43 @@ for (const u of pending) byTask.set(u.task_id, [...(byTask.get(u.task_id) ?? [])
 let processed = 0, failed = 0, taskN = 0;
 for (const [taskId, files] of byTask) {
   taskN++;
-  const extracted = [];
-  const byName = new Map();
+  // Re-uploaded duplicates share a file_name: extract each name once (latest
+  // upload wins), then stamp the verdict on EVERY upload with that name.
+  const uploadsByName = new Map();
   for (const f of files) {
-    const { data: blob, error } = await sb.storage.from("task-files").download(f.storage_path);
-    if (error || !blob) { failed++; continue; }
-    byName.set(f.file_name, f);
-    extracted.push(await extract(f.file_name, Buffer.from(await blob.arrayBuffer())));
+    uploadsByName.set(f.file_name, [...(uploadsByName.get(f.file_name) ?? []), f]);
+  }
+  const extracted = [];
+  for (const [name, dupes] of uploadsByName) {
+    const newest = dupes[0]; // uploads query is newest-first
+    const { data: blob, error } = await sb.storage.from("task-files").download(newest.storage_path);
+    if (error || !blob) { failed += dupes.length; uploadsByName.delete(name); continue; }
+    extracted.push(await extract(name, Buffer.from(await blob.arrayBuffer())));
   }
   if (extracted.length === 0) continue;
 
   const results = runContentChecksOnSet(extracted, DEFAULT_CONTENT_RULES);
   const now = new Date().toISOString();
-  const rows = [];
+  const rowsById = new Map();
   for (const logical of results) {
     for (const partName of logical.partFiles) {
-      const u = byName.get(partName);
-      if (!u) continue;
-      rows.push({
-        file_id: u.id,
-        task_id: taskId,
-        project_id: u.project_id ?? null,
-        uploader_id: u.user_id ?? null,
-        file_name: u.file_name,
-        verdict: logical.result.verdict,
-        flags: logical.result.flags,
-        is_placeholder: logical.result.isPlaceholder,
-        source: "backfill",
-        checked_at: now,
-      });
+      for (const u of uploadsByName.get(partName) ?? []) {
+        rowsById.set(u.id, {
+          file_id: u.id,
+          task_id: taskId,
+          project_id: u.project_id ?? null,
+          uploader_id: u.user_id ?? null,
+          file_name: u.file_name,
+          verdict: logical.result.verdict,
+          flags: logical.result.flags,
+          is_placeholder: logical.result.isPlaceholder,
+          source: "backfill",
+          checked_at: now,
+        });
+      }
     }
   }
+  const rows = [...rowsById.values()];
   if (rows.length) {
     const { error } = await sb.from("document_content_reviews").upsert(rows, { onConflict: "file_id" });
     if (error) { console.error(`upsert failed task ${taskId}: ${error.message}`); failed += rows.length; }
