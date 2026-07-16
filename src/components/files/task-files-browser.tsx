@@ -31,6 +31,11 @@ export interface TaskFileEntry {
   hasContent: boolean;
 }
 
+/** Local calendar day (YYYY-MM-DD) for an ISO timestamp — matches <input type="date">. */
+function localDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA");
+}
+
 export interface TaskFileGroup {
   taskId: string;
   taskTitle: string;
@@ -50,6 +55,8 @@ export function TaskFilesBrowser({
 }) {
   const [query, setQuery] = useState("");
   const [project, setProject] = useState<string>("all");
+  const [uploader, setUploader] = useState<string>("all");
+  const [day, setDay] = useState<string>("");
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(initialTaskId ? [initialTaskId] : [])
   );
@@ -59,30 +66,58 @@ export function TaskFilesBrowser({
     [groups]
   );
 
+  const uploaders = useMemo(
+    () => [...new Set(groups.flatMap((g) => g.files.map((f) => f.uploader)))].sort(),
+    [groups]
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return groups
       .filter((g) => project === "all" || g.projectName === project)
       .map((g) => {
-        if (!q) return g;
-        const groupHit =
-          g.taskTitle.toLowerCase().includes(q) ||
-          g.projectName.toLowerCase().includes(q) ||
-          g.analystName.toLowerCase().includes(q);
-        const files = groupHit
-          ? g.files
-          : g.files.filter(
+        let files = g.files;
+        if (uploader !== "all") files = files.filter((f) => f.uploader === uploader);
+        if (day) files = files.filter((f) => localDay(f.uploadedAt) === day);
+        if (q) {
+          const groupHit =
+            g.taskTitle.toLowerCase().includes(q) ||
+            g.projectName.toLowerCase().includes(q) ||
+            g.analystName.toLowerCase().includes(q);
+          if (!groupHit) {
+            files = files.filter(
               (f) =>
                 f.name.toLowerCase().includes(q) ||
                 f.uploader.toLowerCase().includes(q)
             );
-        return { ...g, files };
+          }
+        }
+        return files === g.files ? g : { ...g, files };
       })
       .filter((g) => g.files.length > 0)
       .sort((a, b) => b.latestUploadAt.localeCompare(a.latestUploadAt));
-  }, [groups, project, query]);
+  }, [groups, project, query, uploader, day]);
+
+  // Uploads per day for the current filter — answers "how many is she
+  // uploading per day" without scrolling the whole list.
+  const dailyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const g of filtered) {
+      for (const f of g.files) {
+        const d = localDay(f.uploadedAt);
+        counts.set(d, (counts.get(d) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 21);
+  }, [filtered]);
+
+  const totalShown = useMemo(
+    () => filtered.reduce((s, g) => s + g.files.length, 0),
+    [filtered]
+  );
 
   const searching = query.trim().length > 0;
+  const filtersActive = searching || uploader !== "all" || day !== "";
 
   function toggle(taskId: string) {
     setExpanded((prev) => {
@@ -106,7 +141,7 @@ export function TaskFilesBrowser({
           />
         </div>
         <Select value={project} onValueChange={(v) => v && setProject(v)}>
-          <SelectTrigger className="sm:w-56">
+          <SelectTrigger className="sm:w-48">
             <SelectValue placeholder="All projects" />
           </SelectTrigger>
           <SelectContent>
@@ -118,7 +153,72 @@ export function TaskFilesBrowser({
             ))}
           </SelectContent>
         </Select>
+        <Select value={uploader} onValueChange={(v) => v && setUploader(v)}>
+          <SelectTrigger className="sm:w-48">
+            <SelectValue placeholder="All uploaders" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All uploaders</SelectItem>
+            {uploaders.map((u) => (
+              <SelectItem key={u} value={u}>
+                {u}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1">
+          <Input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            className="sm:w-40"
+            aria-label="Filter by upload day"
+          />
+          {day && (
+            <Button size="sm" variant="ghost" onClick={() => setDay("")}>
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
+
+      {filtersActive && (
+        <p className="text-xs text-muted-foreground px-1">
+          {totalShown} file{totalShown === 1 ? "" : "s"} match
+          {uploader !== "all" ? ` · ${uploader}` : ""}
+          {day ? ` · ${day}` : ""}
+        </p>
+      )}
+
+      {uploader !== "all" && dailyCounts.length > 0 && (
+        <div className="enterprise-panel px-4 py-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            {uploader} — uploads per day{day ? " (clear the day filter to see all days)" : ""}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {dailyCounts.map(([d, count]) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDay(day === d ? "" : d)}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs tabular-nums transition-colors",
+                  day === d
+                    ? "border-primary bg-primary/10 text-primary font-semibold"
+                    : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                )}
+                title={`Show only ${d}`}
+              >
+                {new Date(`${d}T12:00:00`).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}{" "}
+                · <span className="font-semibold">{count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
@@ -127,7 +227,7 @@ export function TaskFilesBrowser({
       ) : (
         <div className="space-y-2">
           {filtered.map((g) => {
-            const open = searching || expanded.has(g.taskId);
+            const open = filtersActive || expanded.has(g.taskId);
             return (
               <div
                 key={g.taskId}

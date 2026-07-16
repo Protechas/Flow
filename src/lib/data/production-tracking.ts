@@ -566,11 +566,22 @@ export function getActiveTaskTimeEntry(userId: string): TaskTimeEntry | null {
   );
 }
 
+/**
+ * No single uninterrupted run can bank more than a full 8h shift. A timer
+ * left running overnight otherwise poisons actual_hours, measured pace, and
+ * every forecast built on them (July 16 cleanup removed 52.7 phantom hours).
+ */
+const MAX_CONTINUOUS_RUN_MINUTES = 480;
+
+function cappedRunMinutes(from: string, to: string): number {
+  return Math.min(minutesBetween(from, to), MAX_CONTINUOUS_RUN_MINUTES);
+}
+
 function calcActiveMinutes(entry: TaskTimeEntry, now = ts()): number {
   let total = entry.total_active_minutes;
   if (entry.status === "active") {
     const resumeFrom = entry.resumed_at ?? entry.started_at;
-    total += minutesBetween(resumeFrom, now);
+    total += cappedRunMinutes(resumeFrom, now);
   }
   return total;
 }
@@ -620,7 +631,7 @@ export function pauseTaskTimer(userId: string): TaskTimeEntry {
 
   const now = ts();
   const resumeFrom = entry.resumed_at ?? entry.started_at;
-  const added = minutesBetween(resumeFrom, now);
+  const added = cappedRunMinutes(resumeFrom, now);
   const pauseEvent: TaskTimePauseEvent = { paused_at: now, resumed_at: null };
 
   const updated: TaskTimeEntry = {
@@ -668,7 +679,7 @@ export function stopTaskTimer(userId: string): TaskTimeEntry {
   let total = entry.total_active_minutes;
   if (entry.status === "active") {
     const resumeFrom = entry.resumed_at ?? entry.started_at;
-    total += minutesBetween(resumeFrom, now);
+    total += cappedRunMinutes(resumeFrom, now);
   }
 
   const updated: TaskTimeEntry = {
