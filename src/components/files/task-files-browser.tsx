@@ -227,7 +227,10 @@ export function TaskFilesBrowser({
       ) : (
         <div className="space-y-2">
           {filtered.map((g) => {
-            const open = filtersActive || expanded.has(g.taskId);
+            // Only a text search forces groups open (you need to see the hits).
+            // Uploader/day filters keep groups closed and collapsible — the
+            // per-day counts already answer the question without expanding.
+            const open = searching || expanded.has(g.taskId);
             return (
               <div
                 key={g.taskId}
