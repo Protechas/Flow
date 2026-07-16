@@ -185,7 +185,7 @@ describe("analyzeModelCoverage — the 8-docs-per-model rule", () => {
     expect(Object.keys(model.componentsPresent).sort()).toEqual(
       ["BUC", "FRS", "PDS", "RRS", "SVC", "WSC"]
     );
-    expect(model.missingComponents).toEqual(["NV"]);
+    expect(model.missingComponents.sort()).toEqual(["NV", "WSR"]);
   });
 
   it("Honda models additionally require LW", () => {
@@ -279,7 +279,50 @@ describe("analyzeModelCoverage — the 8-docs-per-model rule", () => {
     );
     const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
     expect(model.extraDocs).toHaveLength(1);
-    expect(model.missingComponents).toHaveLength(7);
+    expect(model.missingComponents).toHaveLength(8);
+  });
+
+  it("BSW 1 is a known acronym and maps to the RRS slot", () => {
+    const grouped = runContentChecksOnSet(
+      [mk("2017 Acura ILX (BSW 1).pdf")],
+      DEFAULT_CONTENT_RULES
+    );
+    expect(
+      grouped[0].result.flags.some((f) => f.code === "unknown_component")
+    ).toBe(false);
+    const [model] = analyzeModelCoverage(grouped, DEFAULT_CONTENT_RULES);
+    expect(Object.keys(model.componentsPresent)).toContain("RRS");
+  });
+
+  it("a doc that never names the vehicle is informational, not flagged", () => {
+    const grouped = runContentChecksOnSet(
+      [
+        doc({
+          fileName: "2017 Acura ILX (WSC).pdf",
+          text: "Forward recognition camera removal and installation. Please ensure the fuel tank is full. Calibration is required after windshield replacement.",
+        }),
+      ],
+      DEFAULT_CONTENT_RULES
+    );
+    const flags = grouped[0].result.flags;
+    expect(flags.some((f) => f.code === "identity_mismatch")).toBe(false);
+    expect(flags.some((f) => f.code === "identity_unverified" && f.severity === "info")).toBe(true);
+    expect(grouped[0].result.verdict).toBe("pass");
+  });
+
+  it("sibling OEM brands never count as wrong-vehicle", () => {
+    const grouped = runContentChecksOnSet(
+      [
+        doc({
+          fileName: "2025 Lexus RC300 (WSC).pdf",
+          text: "Toyota service information: forward recognition camera. Fuel tank full. Calibration is required after replacement.",
+        }),
+      ],
+      DEFAULT_CONTENT_RULES
+    );
+    expect(
+      grouped[0].result.flags.some((f) => f.code === "identity_mismatch")
+    ).toBe(false);
   });
 });
 

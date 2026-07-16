@@ -606,14 +606,14 @@ export function CompanyDocumentsPanel({
                 </p>
                 <p className="flow-helper mt-1">
                   Multiple files supported · Max {formatUploadLimitLabel(clientCompanyDocumentMaxBytes)} each ·
-                  PDF, DOCX, XLSX, TXT, PNG, JPG
+                  PDF, DOCX, XLSX/XLSM, CSV, TXT, PNG, JPG
                 </p>
               </>
             )}
             <input
               type="file"
               multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.webp,application/pdf"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.txt,.png,.jpg,.jpeg,.webp,application/pdf"
               disabled={pending}
               className="absolute inset-0 opacity-0 cursor-pointer"
               onChange={(e) => {

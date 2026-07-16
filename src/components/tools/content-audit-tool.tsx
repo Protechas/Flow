@@ -427,6 +427,64 @@ export function ContentAuditTool({
     });
   }
 
+  async function downloadExcel() {
+    // SheetJS loads on demand — nobody pays for it until they click.
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+
+    const docsSheet = XLSX.utils.json_to_sheet(
+      rows.map((r) => ({
+        File: r.fileName,
+        Parts: r.partCount,
+        Verdict: r.result.verdict,
+        Pages: r.pages,
+        "Size KB": r.sizeKb,
+        Flags: r.result.flags.map((f) => `[${f.severity}] ${f.message}`).join(" | "),
+        "Eddy verdict": r.eddy?.verdict ?? "",
+        "Eddy summary": r.eddy?.summary ?? "",
+        "Eddy findings": r.eddy?.findings.map((f) => `[${f.severity}] ${f.issue}`).join(" | ") ?? "",
+      }))
+    );
+    XLSX.utils.book_append_sheet(wb, docsSheet, "Documents");
+
+    if (coverage.length > 0) {
+      const modelsSheet = XLSX.utils.json_to_sheet(
+        coverage.map((m) => ({
+          Model: m.modelLabel,
+          Documents: m.docs.length,
+          "Covered (docs)": Object.keys(m.componentsPresent).join(", "),
+          "Covered (placeholders)": Object.keys(m.componentsViaPlaceholder).join(", "),
+          Missing: m.missingComponents.join(", "),
+          Flagged: m.flaggedDocs,
+          Extras: m.extraDocs.length,
+        }))
+      );
+      XLSX.utils.book_append_sheet(wb, modelsSheet, "Models");
+    }
+
+    const reports = Object.entries(modelReports).filter(([, v]) => v.report);
+    if (reports.length > 0) {
+      const reportSheet = XLSX.utils.json_to_sheet(
+        reports.flatMap(([model, v]) => [
+          { Model: model, Section: "Overview", Detail: v.report!.overview },
+          ...v.report!.risks.map((r) => ({
+            Model: model,
+            Section: `Risk (${r.severity})`,
+            Detail: r.issue,
+          })),
+          ...v.report!.actions.map((a, i) => ({
+            Model: model,
+            Section: `Action ${i + 1}`,
+            Detail: a,
+          })),
+        ])
+      );
+      XLSX.utils.book_append_sheet(wb, reportSheet, "Eddy reports");
+    }
+
+    XLSX.writeFile(wb, `content-audit-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   function downloadCsv() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const lines = [
@@ -790,9 +848,13 @@ export function ContentAuditTool({
                   Ask Eddy about flagged ({summary.flagged} · ~{Math.max(1, summary.flagged)}¢)
                 </Button>
               )}
+              <Button variant="outline" size="sm" onClick={() => void downloadExcel()}>
+                <Download className="mr-1.5 h-4 w-4" />
+                Excel report
+              </Button>
               <Button variant="outline" size="sm" onClick={downloadCsv}>
                 <Download className="mr-1.5 h-4 w-4" />
-                Download report (CSV)
+                CSV
               </Button>
             </div>
           </div>

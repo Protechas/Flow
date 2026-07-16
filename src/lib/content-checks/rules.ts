@@ -31,6 +31,9 @@ export interface ContentCheckRules {
   conditionKeywords: string[];
   /** Earliest valid model year (SI Library covers 2012–current). */
   minYear: number;
+  /** Spelled-out makes — used to detect wrong-vehicle content (a doc claiming
+   * Acura whose text talks about Toyota). */
+  knownMakes: string[];
   /** Component SOP: every model needs a variant of each of these (SI or
    * placeholder). Honda adds LW. */
   requiredComponentSet: string[];
@@ -44,13 +47,19 @@ export interface ContentCheckRules {
 export const DEFAULT_CONTENT_RULES: ContentCheckRules = {
   maxFileKb: 1400,
   requireLandscape: true,
-  components: ["FRS", "WSC", "PDS", "BUC", "SVC", "RRS", "NV", "LW"],
+  components: ["FRS", "WSC", "PDS", "BUC", "SVC", "RRS", "NV", "WSR", "LW", "WAMC"],
   legacyFeatures: [
-    "ACC", "ACC 1", "ACC 2", "ACC 3",
-    "AEB", "AEB 1", "AEB 2", "AEB 3",
+    // From the "Acronyms Comp. & Feat." sheet of the Combined ID³ workbook —
+    // base acronyms cover any numbered variant via the base-token fallback.
+    "ACC", "ACC 1", "ACC 2", "ACC 3", "ACC 4",
+    "AEB", "AEB 1", "AEB 2", "AEB 3", "AEB 4",
+    "BSW", "BSW 1", "BSW 2", "BSW 3", "BSW 4",
     "BSW/RCTW", "BSW-RCTW", "BSW/RCTW 1", "BSW/RCTW 2", "BSW/RCTW 3",
     "LKA", "LKA 1", "LKA 2",
-    "APA", "AHL", "HUD", "NV", "SVC", "BUC",
+    "APA", "APA 1", "APA 2",
+    "NV 1", "NV 2",
+    "SVC 1", "SVC 2", "SVC 3", "SVC 4",
+    "WAMC", "AHL", "HUD", "NV", "SVC", "BUC",
   ],
   specialFunctions: [
     "SAS", "YAW", "G-FORCE", "OCS", "SWS", "ESC", "SRS D&E", "SCI", "SRR",
@@ -89,8 +98,10 @@ export const DEFAULT_CONTENT_RULES: ContentCheckRules = {
     "dtc",
   ],
   minYear: 2012,
-  requiredComponentSet: ["FRS", "WSC", "PDS", "BUC", "SVC", "RRS", "NV"],
-  requiredExtrasByMake: { honda: ["LW"] },
+  // Component SOP: "8 rows per Year, Make, Model (9 for Honda & 2023+
+  // Subaru)" — the 8th is WSR (windshield radar/lidar) per the ID³ workbook.
+  requiredComponentSet: ["FRS", "WSC", "PDS", "BUC", "SVC", "RRS", "NV", "WSR"],
+  requiredExtrasByMake: { honda: ["LW"], subaru: ["WAMC"] },
   featureToComponent: {
     // Component SOP 06-2026: "ACC (1) & AEB (1) are now both covered by (FRS)";
     // dominant-component rule for multi-hardware features.
@@ -112,12 +123,30 @@ export const DEFAULT_CONTENT_RULES: ContentCheckRules = {
     "BSW 1": "RRS",
     "BSW 2": "RRS",
     "BSW 3": "BUC",
+    "ACC 4": "WSR",
+    "AEB 4": "WSR",
+    "BSW 4": "SVC",
     APA: "PDS",
     "APA 1": "PDS",
+    "APA 2": "PDS",
     BUC: "BUC",
     SVC: "SVC",
     "SVC 1": "SVC",
+    "SVC 2": "SVC",
+    "SVC 3": "SVC",
+    "SVC 4": "SVC",
     NV: "NV",
+    "NV 1": "NV",
+    "NV 2": "NV",
     WSC: "WSC",
+    WAMC: "WAMC",
+    LW: "LW",
   },
+  knownMakes: [
+    "Acura", "Alfa Romeo", "Audi", "BMW", "Buick", "Cadillac", "Chevrolet",
+    "Chrysler", "Dodge", "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai",
+    "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover", "Lexus", "Lincoln",
+    "Mazda", "Mercedes-Benz", "Mini", "Mitsubishi", "Nissan", "Porsche",
+    "Ram", "Rivian", "Subaru", "Tesla", "Toyota", "Volkswagen", "Volvo",
+  ],
 };

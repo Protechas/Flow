@@ -57,6 +57,11 @@ const SYSTEM_PROMPT =
   "at a size cap). When the file name has a Part number or the text is marked partial, do " +
   "NOT flag truncation or missing sections — other parts carry them. Judge only what this " +
   "slice claims to be.\n" +
+  "- OEM documents frequently never name the make or model in body text — the ABSENCE of the " +
+  "vehicle name is normal and is NEVER a finding. Only content that indicates a DIFFERENT " +
+  "vehicle (another make/model named as the subject) or a different system than claimed is a " +
+  "mismatch. Corporate siblings share documents (Lexus docs read Toyota, Acura docs read " +
+  "Honda, GMC/Chevrolet overlap) — the sibling brand appearing is NOT a mismatch.\n" +
   "Judge ONLY from the provided text. Wrong-vehicle prose, a different system than claimed " +
   "(per the hardware mappings above), or contradictory content are HIGH severity. Missing " +
   "supporting sections are MEDIUM for complete single-file documents only. Style is never a " +
@@ -96,8 +101,10 @@ const MODEL_REPORT_PROMPT =
   "coverage (present/missing), each document's automated check verdict and flags, and any " +
   "per-document Eddy reads already run. Write for the team's manager: concrete, plain " +
   "English, no fluff. Missing required components and wrong-content documents are the " +
-  "highest-priority risks. Do not invent findings not present in the input. Respond with " +
-  "ONLY a JSON object:\n" +
+  "highest-priority risks. Slots covered by placeholders are complete — never a risk. " +
+  "'identity_unverified' / content-doesn't-name-the-vehicle notes are informational — OEM " +
+  "docs usually don't name the model; never escalate them into risks. Do not invent " +
+  "findings not present in the input. Respond with ONLY a JSON object:\n" +
   "{\n" +
   '  "overview": "3-5 sentences: overall state of this model\'s document set",\n' +
   '  "strengths": ["what is in good shape"],\n' +

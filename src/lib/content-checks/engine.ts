@@ -224,8 +224,10 @@ export function runContentChecks(
   }
 
   // ---- Identity: does the inside match the outside? ----
-  // Split continuations (-Part-2..N) carry procedure body only — the header
-  // that names the vehicle lives in Part-1, so identity applies at the
+  // OEM documents frequently never name the make/model in body text — the
+  // team's rule: absence of the name alone is NOT a problem. The dangerous
+  // case is content that names a DIFFERENT make. Split continuations
+  // (-Part-2..N) carry procedure body only, so identity applies at the
   // logical-document level (see runContentChecksOnSet), never to lone parts.
   const isContinuationPart = (parsed?.partNumber ?? 1) > 1;
   if (parsed && doc.hasTextLayer && !isPlaceholder && !isContinuationPart) {
@@ -234,14 +236,38 @@ export function runContentChecks(
     const tokenHit = tokens.some((t) => text.includes(t.toLowerCase()));
     const phraseHit = phrase.length >= 2 && text.includes(phrase);
     if (tokens.length + (phrase ? 1 : 0) > 0 && !tokenHit && !phraseHit) {
-      // Short model codes ("RC F") give the matcher little to grab — flag
-      // softer when the name itself is weak evidence.
-      const strongName = tokens.length >= 2;
-      flags.push({
-        code: "identity_mismatch",
-        severity: strongName ? "fail" : "warn",
-        message: `Content never mentions "${parsed.makeModel}" — this may be the wrong document under the right name.`,
-      });
+      const claimedMake = parsed.makeModel.split(/\s+/)[0]?.toLowerCase() ?? "";
+      // Lexus docs come from Toyota's system (same OEM family) — never treat
+      // the corporate sibling as "wrong vehicle".
+      const OEM_FAMILY: Record<string, string[]> = {
+        lexus: ["toyota"], toyota: ["lexus"],
+        acura: ["honda"], honda: ["acura"],
+        infiniti: ["nissan"], nissan: ["infiniti"],
+        genesis: ["hyundai", "kia"], hyundai: ["genesis", "kia"], kia: ["genesis", "hyundai"],
+        chevrolet: ["gmc", "buick", "cadillac"], gmc: ["chevrolet", "buick", "cadillac"],
+        buick: ["chevrolet", "gmc", "cadillac"], cadillac: ["chevrolet", "gmc", "buick"],
+        ford: ["lincoln"], lincoln: ["ford"],
+        dodge: ["ram", "chrysler", "jeep"], ram: ["dodge", "chrysler", "jeep"],
+        chrysler: ["dodge", "ram", "jeep"], jeep: ["dodge", "ram", "chrysler"],
+        audi: ["volkswagen", "porsche"], volkswagen: ["audi", "porsche"], porsche: ["audi", "volkswagen"],
+      };
+      const family = new Set([claimedMake, ...(OEM_FAMILY[claimedMake] ?? [])]);
+      const otherMake = rules.knownMakes.find(
+        (m) => !family.has(m.toLowerCase()) && text.includes(m.toLowerCase())
+      );
+      if (otherMake) {
+        flags.push({
+          code: "identity_mismatch",
+          severity: "fail",
+          message: `Label claims ${parsed.makeModel}, but the content mentions ${otherMake} — this may be the wrong document under the right name.`,
+        });
+      } else {
+        flags.push({
+          code: "identity_unverified",
+          severity: "info",
+          message: `Content doesn't name "${parsed.makeModel}" — normal for OEM docs; run Eddy or spot-check if unsure.`,
+        });
+      }
     }
     const yearInText =
       text.includes(String(parsed.year)) ||
@@ -251,8 +277,8 @@ export function runContentChecks(
     if (!yearInText) {
       flags.push({
         code: "year_not_in_content",
-        severity: "warn",
-        message: `Content never mentions ${parsed.year} (or a model-year line) — verify the year is right.`,
+        severity: "info",
+        message: `Content never mentions ${parsed.year} (or a model-year line) — normal for OEM docs; noted for reference.`,
       });
     }
   }
@@ -454,10 +480,10 @@ function componentSlot(component: string, rules: ContentCheckRules): string | nu
   const c = component.toUpperCase();
   const direct = rules.featureToComponent[c];
   if (direct) return direct;
-  if (rules.requiredComponentSet.includes(c)) return c;
+  if (rules.components.includes(c)) return c;
   const base = c.split(/[\s[]/)[0];
   if (rules.featureToComponent[base]) return rules.featureToComponent[base];
-  if (rules.requiredComponentSet.includes(base)) return base;
+  if (rules.components.includes(base)) return base;
   return null;
 }
 
@@ -489,7 +515,11 @@ export function analyzeModelCoverage(
     const makeWord = parsed.makeModel.split(/\s+/)[0]?.toLowerCase() ?? "";
     const required = [
       ...rules.requiredComponentSet,
-      ...(rules.requiredExtrasByMake[makeWord] ?? []),
+      ...(rules.requiredExtrasByMake[makeWord] ?? []).filter(
+        // WAMC is a 2023+ Subaru requirement (Component SOP) — older Subarus
+        // don't owe one.
+        (c) => !(makeWord === "subaru" && c === "WAMC" && parsed.year < 2023)
+      ),
     ];
 
     const present: Record<string, string[]> = {};

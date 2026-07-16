@@ -25,6 +25,7 @@ import {
   listDocumentFolders,
   renameDocumentFolder,
 } from "@/lib/files/document-folders";
+import { inferDocumentMime } from "@/lib/files/mime";
 import { requireUser } from "@/lib/auth/session";
 import type { CompanyDocumentCategory } from "@/types/flow";
 
@@ -96,7 +97,9 @@ export async function uploadCompanyDocumentAction(formData: FormData) {
       folder_id: folderId,
       tags,
       file_name: file.name,
-      mime_type: file.type || "application/octet-stream",
+      // Browsers often report Office files with an empty type — the bucket
+      // allowlist then rejected octet-stream. The extension knows better.
+      mime_type: inferDocumentMime(file.name, file.type),
       file_size: buffer.length,
       buffer,
       uploaded_by: user.id,
