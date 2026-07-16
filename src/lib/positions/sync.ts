@@ -43,7 +43,12 @@ export function getSupervisorUserIdFromPosition(
 export interface PositionDerivedUserFields {
   assigned_position_id: string;
   team_id: string | null;
-  manager_id: string | null;
+  /**
+   * Present only when the seat's parent resolves to a real person. A seat
+   * whose parent is archived or vacant must not wipe the user's existing
+   * supervisor — that link is data the org chart can't reconstruct.
+   */
+  manager_id?: string;
   organizational_position: OrganizationalPosition;
   role: UserRole;
 }
@@ -57,13 +62,14 @@ export function deriveUserFieldsFromPosition(
   const orgPosition = position.position_level;
   const role = organizationalRoleFromLevel(orgPosition);
 
-  return {
+  const fields: PositionDerivedUserFields = {
     assigned_position_id: position.id,
     team_id: position.team_id ?? null,
-    manager_id: managerId,
     organizational_position: orgPosition,
     role,
   };
+  if (managerId) fields.manager_id = managerId;
+  return fields;
 }
 
 export function applyPositionAssignmentToStore(
@@ -77,13 +83,7 @@ export function applyPositionAssignmentToStore(
 
   const positions = listOrgPositions();
   const derived = deriveUserFieldsFromPosition(position, positions, users);
-  const updated = updateUserFn(userId, {
-    assigned_position_id: derived.assigned_position_id,
-    team_id: derived.team_id,
-    manager_id: derived.manager_id,
-    organizational_position: derived.organizational_position,
-    role: derived.role,
-  });
+  const updated = updateUserFn(userId, { ...derived });
 
   if (position.department_id) {
     setUserDepartmentMembership(userId, position.department_id, {
@@ -131,10 +131,5 @@ export function syncUserFromAssignedPosition(
 
   const positions = listOrgPositions();
   const derived = deriveUserFieldsFromPosition(position, positions, users);
-  return updateUserFn(userId, {
-    team_id: derived.team_id,
-    manager_id: derived.manager_id,
-    organizational_position: derived.organizational_position,
-    role: derived.role,
-  });
+  return updateUserFn(userId, { ...derived });
 }

@@ -322,7 +322,23 @@ export function buildDepartmentGroupedSections(
         .map((p) => tree.nodesByPositionId.get(p.id))
         .filter((n): n is OrgChartNode => n !== null);
 
-      return { team, roots: managerRoots };
+      // Safety net: a seat whose parent was archived floats to the top of the
+      // tree. It must still render under its team — dropping it makes people
+      // silently disappear from the chart.
+      const shownIds = collectPositionIdsFromNodes(managerRoots);
+      const strandedRoots = roots
+        .filter((node) => {
+          const pos = node.position;
+          return (
+            pos &&
+            pos.team_id === team.id &&
+            pos.position_level !== "senior_manager" &&
+            !shownIds.has(pos.id)
+          );
+        })
+        .sort((a, b) => comparePositions(a.position!, b.position!));
+
+      return { team, roots: [...managerRoots, ...strandedRoots] };
     });
 
     return { department, departmentRoots, teams: teamSections };

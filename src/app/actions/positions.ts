@@ -236,6 +236,35 @@ export async function moveOrgPositionAction(
   return moved;
 }
 
+/**
+ * Move a retired seat's children up to its parent. Without this, child seats
+ * keep reporting to an invisible seat: the org chart filters archived seats
+ * out, the children become orphaned roots, and whole subtrees vanish from
+ * the chart even though every person and seat still exists.
+ */
+async function reparentChildrenOfRetiredSeat(
+  positionId: string,
+  newParentId: string | null
+): Promise<number> {
+  const children = listOrgPositions().filter(
+    (p) => p.reports_to_position_id === positionId && p.status !== "inactive"
+  );
+  const users = getFlowStore().users;
+  for (const child of children) {
+    moveOrgPosition(child.id, newParentId);
+    await persistPosition(child.id, { reports_to_position_id: newParentId });
+    if (child.assigned_user_id) {
+      const moved = getOrgPositionById(child.id);
+      if (moved) {
+        const derived = deriveUserFieldsFromPosition(moved, listOrgPositions(), users);
+        updateUser(child.assigned_user_id, { ...derived });
+        await updateUserProfile(child.assigned_user_id, derived);
+      }
+    }
+  }
+  return children.length;
+}
+
 export async function archiveOrgPositionAction(positionId: string) {
   const actor = await requirePositionManage();
   initFlowStore();
@@ -255,11 +284,19 @@ export async function archiveOrgPositionAction(positionId: string) {
     assigned_user_id: null,
   });
 
+  const reparented = await reparentChildrenOfRetiredSeat(
+    positionId,
+    position.reports_to_position_id ?? null
+  );
+
   await writeAuditLog({
     action: "status_changed",
     entityType: "org_position",
     entityId: positionId,
-    summary: `Archived position: ${position.title}`,
+    summary:
+      reparented > 0
+        ? `Archived position: ${position.title} (${reparented} child seat${reparented === 1 ? "" : "s"} moved up to its parent)`
+        : `Archived position: ${position.title}`,
     actorId: actor.id,
     actorEmail: actor.email,
   });
@@ -288,6 +325,10 @@ export async function markPositionStatusAction(
 
   const updated = await persistPosition(positionId, { status });
   if (!updated) throw new Error("Position not found.");
+
+  if (status === "inactive") {
+    await reparentChildrenOfRetiredSeat(positionId, position.reports_to_position_id ?? null);
+  }
 
   await writeAuditLog({
     action: "status_changed",
