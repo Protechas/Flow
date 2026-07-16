@@ -15,6 +15,7 @@ import { listCompanyDocuments } from "@/lib/files/company-documents";
 import { listDocumentFolders } from "@/lib/files/document-folders";
 import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
 import { getAllTaskFileUploads, initProductionTracking } from "@/lib/data/production-tracking";
+import { getContentReviewVerdictMap } from "@/lib/content-checks/reviews";
 import { taskFileHasContent } from "@/lib/files/download";
 import { BookOpen, FileStack } from "lucide-react";
 
@@ -42,6 +43,8 @@ export default async function FilesPage({
   const uploads = getAllTaskFileUploads().sort(
     (a, b) => b.uploaded_at.localeCompare(a.uploaded_at)
   );
+  // Automatic content-check verdicts, shown as per-file badges in the browser.
+  const reviewVerdicts = showTaskUploads ? await getContentReviewVerdictMap() : {};
 
   // Group per task; the browser component handles search, project filters,
   // and expand/collapse so a thousand uploads never render as one flat list.
@@ -73,6 +76,7 @@ export default async function FilesPage({
       uploadedAt: f.uploaded_at,
       uploader: store.users.find((u) => u.id === f.user_id)?.full_name ?? "Unknown",
       hasContent,
+      checkVerdict: reviewVerdicts[f.id] ?? null,
     });
   }
   const taskGroups = [...groupMap.values()];

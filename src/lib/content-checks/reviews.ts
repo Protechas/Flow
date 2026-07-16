@@ -126,6 +126,30 @@ export async function getContentReviewSummaries(
   }
 }
 
+/**
+ * file_id → verdict for every checked upload. The whole table is small
+ * (one row per submitted file), so one read serves the Files browser.
+ */
+export async function getContentReviewVerdictMap(): Promise<
+  Record<string, "pass" | "flagged" | "unreadable">
+> {
+  const out: Record<string, "pass" | "flagged" | "unreadable"> = {};
+  try {
+    if (!isSupabaseConfigured()) return out;
+    const client = await dbClient();
+    const { data, error } = await client
+      .from("document_content_reviews")
+      .select("file_id, verdict");
+    if (error || !data) return out;
+    for (const row of data) {
+      out[row.file_id] = row.verdict as "pass" | "flagged" | "unreadable";
+    }
+    return out;
+  } catch {
+    return out;
+  }
+}
+
 /** File-level detail for one task (per-file badges in the review panels). */
 export async function listContentReviewsForTask(
   taskId: string

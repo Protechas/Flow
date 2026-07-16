@@ -21,6 +21,8 @@ import {
   ChevronRight,
   FileText,
   Search,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 export interface TaskFileEntry {
@@ -29,6 +31,35 @@ export interface TaskFileEntry {
   uploadedAt: string;
   uploader: string;
   hasContent: boolean;
+  /** Automatic content-check verdict; null when the file hasn't been checked. */
+  checkVerdict?: "pass" | "flagged" | "unreadable" | null;
+}
+
+function CheckVerdictBadge({ verdict }: { verdict?: TaskFileEntry["checkVerdict"] }) {
+  if (!verdict) return null;
+  if (verdict === "pass") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500 shrink-0"
+        title="Passed the automatic content checks"
+      >
+        <ShieldCheck className="h-3 w-3" /> pass
+      </span>
+    );
+  }
+  const label = verdict === "flagged" ? "flagged" : "unreadable";
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500 shrink-0"
+      title={
+        verdict === "flagged"
+          ? "The automatic content checks raised flags — see the QA Center review queue"
+          : "The file could not be read as a PDF"
+      }
+    >
+      <ShieldAlert className="h-3 w-3" /> {label}
+    </span>
+  );
 }
 
 /** Local calendar day (YYYY-MM-DD) for an ISO timestamp — matches <input type="date">. */
@@ -252,6 +283,20 @@ export function TaskFilesBrowser({
                     {g.projectName} · {g.analystName}
                   </span>
                   <span className="ml-auto flex items-center gap-2">
+                    {(() => {
+                      const flagged = g.files.filter(
+                        (f) => f.checkVerdict === "flagged" || f.checkVerdict === "unreadable"
+                      ).length;
+                      return flagged > 0 ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 border-amber-500/40 text-amber-500 text-[10px]"
+                        >
+                          <ShieldAlert className="h-3 w-3" />
+                          {flagged} check flag{flagged === 1 ? "" : "s"}
+                        </Badge>
+                      ) : null;
+                    })()}
                     {g.missingContent > 0 && (
                       <Badge
                         variant="outline"
@@ -294,6 +339,7 @@ export function TaskFilesBrowser({
                               {f.name}
                             </span>
                           )}
+                          <CheckVerdictBadge verdict={f.checkVerdict} />
                           <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
                             <span>{f.uploader}</span>
                             <span className="tabular-nums">
