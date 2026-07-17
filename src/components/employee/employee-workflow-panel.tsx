@@ -132,7 +132,17 @@ export function EmployeeWorkflowPanel({
     setError(null);
     startTransition(async () => {
       try {
-        await clockOutAction("out");
+        const res = await clockOutAction("out");
+        if (res && !res.ok) {
+          if (res.code === "WRAP_UP_REQUIRED") {
+            setWrapUpGateOpen(true);
+            setPendingClockOut(true);
+          } else {
+            setConfirmClockOutOpen(false);
+            setError(res.message);
+          }
+          return;
+        }
         setConfirmClockOutOpen(false);
         setPendingClockOut(false);
         router.refresh();

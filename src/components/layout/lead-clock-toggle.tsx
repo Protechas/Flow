@@ -21,7 +21,11 @@ export function LeadClockToggle({ initialClockedIn }: { initialClockedIn: boolea
     startTransition(async () => {
       try {
         if (clockedIn) {
-          await clockOutAction("out");
+          const res = await clockOutAction("out");
+          if (res && !res.ok) {
+            toast({ variant: "error", title: "Could not clock out", description: res.message });
+            return;
+          }
           setClockedIn(false);
         } else {
           await clockInAction();

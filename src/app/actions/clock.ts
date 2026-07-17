@@ -11,7 +11,7 @@ import { getFlowStore, listDepartmentUsers, listTeamsStore } from "@/lib/data/fl
 import { isUserProductionReady } from "@/lib/setup/account";
 import { requiresShiftClock } from "@/lib/users/pay-type";
 import { canClockOutForDay } from "@/lib/wrap-up/compliance";
-import { findUploadGateViolations } from "@/lib/time-clock/upload-gate";
+import { listUploadGateViolationsFresh } from "@/lib/time-clock/upload-gate-server";
 import { recordWrapUpBlockAttempt } from "@/lib/data/flow-store";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
@@ -27,8 +27,6 @@ import {
   getAllClockEntries,
   getClockEntriesForUser,
   getSideSessionMinutesToday,
-  getTodayTaskFileUploads,
-  getTodayTimedTaskIds,
   forceStopTaskTimer,
   startSideSession,
 } from "@/lib/data/production-tracking";
@@ -108,6 +106,9 @@ export async function clockOutAction(outType: "lunch" | "out") {
     throw new Error("FORBIDDEN");
   }
 
+  // Gate failures RETURN a typed result instead of throwing: production
+  // masks thrown server-action errors, which turned the gate messages into
+  // a useless "Something went wrong" for the analyst.
   if (outType === "out" && isEmployeeRole(user.role) && requiresShiftClock(user)) {
     const today = appTodayDate();
     if (!canClockOutForDay(user.id, today)) {
@@ -121,17 +122,17 @@ export async function clockOutAction(outType: "lunch" | "out") {
         actorId: user.id,
         actorEmail: user.email,
       });
-      throw new Error("WRAP_UP_REQUIRED");
+      return {
+        ok: false as const,
+        code: "WRAP_UP_REQUIRED" as const,
+        message: "Submit your end-of-day wrap-up before clocking out.",
+      };
     }
 
     // Tasks flagged "files required" must show at least one upload from this
-    // analyst on any day they put timer work into them.
-    const violations = findUploadGateViolations({
-      userId: user.id,
-      timedTaskIds: getTodayTimedTaskIds(user.id),
-      tasks: getFlowStore().workPackages,
-      uploadsToday: getTodayTaskFileUploads(),
-    });
+    // analyst on any day they put timer work into them. Fresh DB read — an
+    // upload made seconds ago must count.
+    const violations = await listUploadGateViolationsFresh(user.id);
     if (violations.length > 0) {
       const titles = violations.map((v) => v.taskTitle).join(", ");
       await writeAuditLog({
@@ -143,7 +144,11 @@ export async function clockOutAction(outType: "lunch" | "out") {
         actorId: user.id,
         actorEmail: user.email,
       });
-      throw new Error(`UPLOADS_REQUIRED:${titles}`);
+      return {
+        ok: false as const,
+        code: "UPLOADS_REQUIRED" as const,
+        message: `Upload today's completed files before clocking out — still needed on: ${titles}. If a task truly has nothing to upload today, ask your lead.`,
+      };
     }
   }
 
@@ -170,6 +175,7 @@ export async function clockOutAction(outType: "lunch" | "out") {
     metadata: { entryId: entry.id, outType },
   });
   revalidateClockPaths();
+  return { ok: true as const };
 }
 
 export async function getClockStatusAction() {
