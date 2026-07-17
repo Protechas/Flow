@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
+import { TeamTabs } from "@/components/projects/team-tabs";
 import { ProjectSetupWizard } from "@/components/projects/project-setup-wizard";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
 import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
@@ -36,12 +38,19 @@ import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ department?: string; projectId?: string; highlight?: string; view?: string }>;
+  searchParams: Promise<{
+    department?: string;
+    team?: string;
+    projectId?: string;
+    highlight?: string;
+    view?: string;
+  }>;
 }) {
   await requirePageAccess("/projects");
   const user = await getCurrentUser();
   if (!user) return null;
-  const { department: deptParam, projectId, highlight, view: viewParam } = await searchParams;
+  const { department: deptParam, team: teamParam, projectId, highlight, view: viewParam } =
+    await searchParams;
   const canonicalId = (projectId ?? highlight)?.trim();
   if (canonicalId) {
     const qs = deptParam ? `?department=${encodeURIComponent(deptParam)}` : "";
@@ -91,6 +100,26 @@ export default async function ProjectsPage({
 
   if (departmentFilter) {
     scopedProjects = scopedProjects.filter((p) => p.department_id === departmentFilter);
+  }
+
+  // Team lanes: tabs for org-wide viewers; "All teams" (no param) is exactly
+  // the pre-tabs portfolio. Only teams that actually have visible projects
+  // get a tab. Validated against visible teams so a stale URL can't confuse.
+  const allTeams = listTeamsStore();
+  const teamTabEntries = allTeams
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      count: scopedProjects.filter((p) => p.team_id === t.id && isActiveProject(p)).length,
+    }))
+    .filter((t) => t.count > 0)
+    .sort((a, b) =>
+      a.id === user.team_id ? -1 : b.id === user.team_id ? 1 : a.name.localeCompare(b.name)
+    );
+  const teamFilter =
+    teamParam && teamTabEntries.some((t) => t.id === teamParam) ? teamParam : null;
+  if (teamFilter) {
+    scopedProjects = scopedProjects.filter((p) => p.team_id === teamFilter);
   }
 
   const projects = scopedProjects.filter(isActiveProject);
@@ -144,6 +173,7 @@ export default async function ProjectsPage({
                   departments={departments}
                   teams={listTeamsStore()}
                   managers={projectOwners}
+                  initialTeamId={teamFilter ?? undefined}
                 />
               )}
               {managerWorkHub && (
@@ -183,6 +213,11 @@ export default async function ProjectsPage({
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
+          <Suspense fallback={null}>
+            <div className="px-4 pt-4 lg:px-6">
+              <TeamTabs teams={teamTabEntries} />
+            </div>
+          </Suspense>
           <ProjectWorkspace
             projects={projects}
             archivedProjects={archivedProjects}

@@ -31,11 +31,14 @@ export function ProjectSetupWizard({
   departments,
   teams,
   managers,
+  initialTeamId,
 }: {
   user: User;
   departments: Department[];
   teams: Team[];
   managers: User[];
+  /** Pre-selects the team when creating from a team lane on /projects. */
+  initialTeamId?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -45,7 +48,7 @@ export function ProjectSetupWizard({
 
   const [name, setName] = useState("");
   const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? "");
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] = useState(initialTeamId ?? "");
   const [ownerId, setOwnerId] = useState(user.id);
   const [priority, setPriority] = useState<WorkPriority>("medium");
   const [dueDate, setDueDate] = useState("");
