@@ -67,6 +67,7 @@ export function WorkspaceTaskDetailSheet({
   const [minutesPerFile, setMinutesPerFile] = useState(
     formatTaskMinutesPerFile(task?.estimated_minutes_per_document)
   );
+  const [forecastUnit, setForecastUnit] = useState(task?.forecast_unit ?? "files");
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
 
   const people = [...managers, ...analysts];
@@ -85,6 +86,7 @@ export function WorkspaceTaskDetailSheet({
     );
     setComplexity(task.complexity_level ?? "standard");
     setMinutesPerFile(formatTaskMinutesPerFile(task.estimated_minutes_per_document));
+    setForecastUnit(task.forecast_unit ?? "files");
     setCustomFields(parseCustomFields(task.description));
   }, [task]);
 
@@ -106,6 +108,7 @@ export function WorkspaceTaskDetailSheet({
         estimated_document_count: docCount,
         complexity_level: complexity,
         estimated_minutes_per_document: minutes,
+        forecast_unit: forecastUnit === "files" ? null : forecastUnit,
         description: mergeTaskCustomFields(task.description, customFields),
       });
       onUpdated();
@@ -227,6 +230,8 @@ export function WorkspaceTaskDetailSheet({
                   onComplexityChange={setComplexity}
                   minutesPerFile={minutesPerFile}
                   onMinutesPerFileChange={setMinutesPerFile}
+                  unit={forecastUnit}
+                  onUnitChange={setForecastUnit}
                   manualDueDate={dueDate || undefined}
                   startDate={task.start_date ?? task.forecast_start_date}
                 />

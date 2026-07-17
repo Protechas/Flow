@@ -13,6 +13,26 @@ import {
 import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
 import type { ForecastComplexityLevel, ForecastSettings } from "@/types/flow";
 
+/**
+ * What a "unit" of work is for a task. SI tracks files; ID³ tracks lines in
+ * sheets; other teams count VINs or ROs. Label only — math is unchanged.
+ */
+export const FORECAST_UNITS: { value: string; plural: string; singular: string }[] = [
+  { value: "files", plural: "files", singular: "file" },
+  { value: "documents", plural: "documents", singular: "document" },
+  { value: "lines", plural: "lines", singular: "line" },
+  { value: "VINs", plural: "VINs", singular: "VIN" },
+  { value: "ROs", plural: "ROs", singular: "RO" },
+  { value: "batches", plural: "batches", singular: "batch" },
+  { value: "models", plural: "models", singular: "model" },
+  { value: "rules", plural: "rules", singular: "rule" },
+];
+
+export function forecastUnitLabels(unit?: string | null): { plural: string; singular: string } {
+  const found = FORECAST_UNITS.find((u) => u.value === (unit ?? "files"));
+  return found ?? { plural: unit ?? "files", singular: unit ?? "file" };
+}
+
 export function TaskForecastMetricsEditor({
   forecastSettings: initialSettings,
   canEdit,
@@ -22,6 +42,8 @@ export function TaskForecastMetricsEditor({
   onComplexityChange,
   minutesPerFile,
   onMinutesPerFileChange,
+  unit,
+  onUnitChange,
   manualDueDate,
   startDate,
 }: {
@@ -34,6 +56,9 @@ export function TaskForecastMetricsEditor({
   /** Empty string = use org default minutes per file. */
   minutesPerFile: string;
   onMinutesPerFileChange: (value: string) => void;
+  /** Tracking unit label; undefined/null = "files". */
+  unit?: string | null;
+  onUnitChange?: (value: string) => void;
   manualDueDate?: string;
   startDate?: string | null;
 }) {
@@ -62,6 +87,7 @@ export function TaskForecastMetricsEditor({
 
   const effectiveMinutes = minutesOverride ?? settings.minutes_per_document;
   const usingOrgMinutes = minutesOverride == null;
+  const labels = forecastUnitLabels(unit);
 
   return (
     <div className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
@@ -75,7 +101,7 @@ export function TaskForecastMetricsEditor({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Est. files</Label>
+          <Label className="text-xs">Est. {labels.plural}</Label>
           <Input
             type="number"
             min={0}
@@ -101,8 +127,25 @@ export function TaskForecastMetricsEditor({
             ))}
           </select>
         </div>
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Minutes per file</Label>
+        {onUnitChange && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Counting</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+              value={unit ?? "files"}
+              disabled={!canEdit}
+              onChange={(e) => onUnitChange(e.target.value)}
+            >
+              {FORECAST_UNITS.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.plural}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className={onUnitChange ? "space-y-1.5" : "space-y-1.5 col-span-2"}>
+          <Label className="text-xs">Minutes per {labels.singular}</Label>
           <Input
             type="number"
             min={0.5}
@@ -115,7 +158,7 @@ export function TaskForecastMetricsEditor({
           <p className="text-[11px] text-muted-foreground">
             {usingOrgMinutes
               ? "Leave blank to use Settings default."
-              : `Using ${effectiveMinutes} min/file for this task only.`}
+              : `Using ${effectiveMinutes} min/${labels.singular} for this task only.`}
           </p>
         </div>
       </div>
@@ -123,7 +166,9 @@ export function TaskForecastMetricsEditor({
       {docs > 0 ? (
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-md border bg-background/60 px-2.5 py-2">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Min / file</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              Min / {labels.singular}
+            </p>
             <p className="font-medium tabular-nums">{effectiveMinutes}m</p>
           </div>
           <div className="rounded-md border bg-background/60 px-2.5 py-2">
@@ -144,7 +189,9 @@ export function TaskForecastMetricsEditor({
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Add estimated files to preview a due date.</p>
+        <p className="text-xs text-muted-foreground">
+          Add estimated {labels.plural} to preview a due date.
+        </p>
       )}
 
       {docs > 0 && (

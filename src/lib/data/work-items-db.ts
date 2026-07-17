@@ -120,6 +120,7 @@ function mapWorkPackage(row: Record<string, unknown>): WorkPackage {
       row.estimated_minutes_per_document != null
         ? Number(row.estimated_minutes_per_document)
         : null,
+    forecast_unit: str(row.forecast_unit),
     estimated_work_minutes:
       row.estimated_work_minutes != null ? Number(row.estimated_work_minutes) : null,
     estimated_work_hours:
@@ -218,6 +219,7 @@ function packageToRow(pkg: WorkPackage, extended = true): Record<string, unknown
     complexity_level: pkg.complexity_level ?? null,
     complexity_multiplier: pkg.complexity_multiplier ?? null,
     estimated_minutes_per_document: pkg.estimated_minutes_per_document ?? null,
+    forecast_unit: pkg.forecast_unit ?? null,
     estimated_work_minutes: pkg.estimated_work_minutes ?? null,
     estimated_work_hours: pkg.estimated_work_hours ?? null,
     estimated_work_days: pkg.estimated_work_days ?? null,

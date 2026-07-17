@@ -481,6 +481,8 @@ export interface WorkPackage {
   estimated_hours: number;
   actual_hours: number;
   estimated_document_count?: number | null;
+  /** What a "unit" of this task is: files (default), lines, VINs, ROs, batches… Label only — the math is count × minutes-per-unit. */
+  forecast_unit?: string | null;
   complexity_level?: ForecastComplexityLevel | null;
   complexity_multiplier?: number | null;
   estimated_minutes_per_document?: number | null;

@@ -72,6 +72,30 @@ describe("runContentChecks", () => {
     expect(r.flags.some((f) => f.code === "identity_mismatch" && f.severity === "fail")).toBe(true);
   });
 
+  it("never fires identity off a substring — 'programmed' is not 'Ram'", () => {
+    // Live false positive July 17: an Acura doc was flagged as mentioning RAM
+    // because "ram" appeared inside ordinary words.
+    const r = runContentChecks(
+      doc({
+        fileName: "2019 Acura MDX (FRS).pdf",
+        text: "The camera must be programmed after replacement. Check aiming parameters and frame alignment before calibration. fuel tank full.",
+      }),
+      DEFAULT_CONTENT_RULES
+    );
+    expect(r.flags.some((f) => f.code === "identity_mismatch")).toBe(false);
+  });
+
+  it("still catches a genuinely wrong make, word-boundary and all", () => {
+    const r = runContentChecks(
+      doc({
+        fileName: "2019 Acura MDX (FRS).pdf",
+        text: "Ram 1500 forward camera procedure. The Ram uses a windshield-mounted camera.",
+      }),
+      DEFAULT_CONTENT_RULES
+    );
+    expect(r.flags.some((f) => f.code === "identity_mismatch" && f.severity === "fail")).toBe(true);
+  });
+
   it("flags missing yellow highlight harder when pre-quals are mentioned", () => {
     const r = runContentChecks(doc({ highlights: [] }), DEFAULT_CONTENT_RULES);
     const yellow = r.flags.find((f) => f.code === "no_yellow_highlight");

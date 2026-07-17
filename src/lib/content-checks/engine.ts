@@ -252,9 +252,19 @@ export function runContentChecks(
         audi: ["volkswagen", "porsche"], volkswagen: ["audi", "porsche"], porsche: ["audi", "volkswagen"],
       };
       const family = new Set([claimedMake, ...(OEM_FAMILY[claimedMake] ?? [])]);
-      const otherMake = rules.knownMakes.find(
-        (m) => !family.has(m.toLowerCase()) && text.includes(m.toLowerCase())
-      );
+      // Whole-word matches only — "ram" must never fire inside "programmed"
+      // or "parameters" (live false positive, July 17). Makes that are also
+      // ordinary English words need two independent mentions to count.
+      const AMBIGUOUS_MAKES = new Set(["ram"]);
+      const wordMentions = (make: string): number => {
+        const escaped = make.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return (text.match(new RegExp(`\\b${escaped}\\b`, "g")) ?? []).length;
+      };
+      const otherMake = rules.knownMakes.find((m) => {
+        if (family.has(m.toLowerCase())) return false;
+        const mentions = wordMentions(m);
+        return AMBIGUOUS_MAKES.has(m.toLowerCase()) ? mentions >= 2 : mentions >= 1;
+      });
       if (otherMake) {
         flags.push({
           code: "identity_mismatch",
