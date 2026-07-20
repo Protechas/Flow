@@ -143,6 +143,11 @@ export async function createBulkMatrixProjectAction(input: {
     seedMetricsForProject(project.id, tplId);
   }
 
+  // The project row must exist in the DB before any manufacturer/year/task
+  // references it — otherwise the per-row persists below trip the
+  // manufacturers_project_id_fkey foreign key. (No-op in demo mode.)
+  await persistNewProject(project);
+
   const mfrCache = new Map<string, string>();
   const yearCache = new Map<string, string>();
 
@@ -224,7 +229,6 @@ export async function createBulkMatrixProjectAction(input: {
     await persistWorkPackageDb(wp);
   }
 
-  await persistNewProject(project);
   await persistWorkStructureForProject(project.id);
 
   await writeAuditLog({
