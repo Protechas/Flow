@@ -19,7 +19,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import type { QaValidationRule } from "@/lib/qa-center/types";
-import { Scale } from "lucide-react";
+import { RuleConfigEditor } from "@/components/qa-center/rule-config-editor";
+import { getRuleConfigSchema } from "@/lib/qa-center/rules/rule-config-form";
+import type { SopFreshnessNudge } from "@/lib/qa-center/rules/sop-freshness";
+import { Scale, AlertTriangle } from "lucide-react";
 
 const LAYER_LABELS: Record<string, string> = {
   file: "Layer 1 · File",
@@ -30,11 +33,20 @@ const LAYER_LABELS: Record<string, string> = {
   scoring: "Scoring",
 };
 
-export function RuleEngineView({ rules }: { rules: QaValidationRule[] }) {
+export function RuleEngineView({
+  rules,
+  sopNudge,
+}: {
+  rules: QaValidationRule[];
+  sopNudge?: SopFreshnessNudge;
+}) {
   const { toast } = useFlowToast();
   const [pending, startTransition] = useTransition();
   const [editingRule, setEditingRule] = useState<QaValidationRule | null>(null);
   const [configDraft, setConfigDraft] = useState("");
+  const [advanced, setAdvanced] = useState(false);
+
+  const editingSchema = editingRule ? getRuleConfigSchema(editingRule.rule_key) : null;
 
   function toggleRule(rule: QaValidationRule, enabled: boolean) {
     startTransition(async () => {
@@ -51,10 +63,24 @@ export function RuleEngineView({ rules }: { rules: QaValidationRule[] }) {
   function openConfigEditor(rule: QaValidationRule) {
     setEditingRule(rule);
     setConfigDraft(JSON.stringify(rule.config, null, 2));
+    // Rules with no structured schema go straight to the raw JSON editor.
+    setAdvanced(!getRuleConfigSchema(rule.rule_key));
   }
 
-  function saveConfig() {
+  function persistConfig(config: Record<string, unknown>) {
     if (!editingRule) return;
+    startTransition(async () => {
+      try {
+        await updateQaRuleAction(editingRule.rule_key, { config });
+        toast({ variant: "success", title: "Rule updated", description: editingRule.label });
+        setEditingRule(null);
+      } catch {
+        toast({ variant: "error", title: "Save failed", description: "Could not update rule." });
+      }
+    });
+  }
+
+  function saveRawConfig() {
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(configDraft) as Record<string, unknown>;
@@ -66,16 +92,7 @@ export function RuleEngineView({ rules }: { rules: QaValidationRule[] }) {
       });
       return;
     }
-
-    startTransition(async () => {
-      try {
-        await updateQaRuleAction(editingRule.rule_key, { config: parsed });
-        toast({ variant: "success", title: "Rule updated", description: editingRule.label });
-        setEditingRule(null);
-      } catch {
-        toast({ variant: "error", title: "Save failed", description: "Could not update rule." });
-      }
-    });
+    persistConfig(parsed);
   }
 
   const grouped = rules.reduce<Record<string, QaValidationRule[]>>((acc, rule) => {
@@ -98,6 +115,16 @@ export function RuleEngineView({ rules }: { rules: QaValidationRule[] }) {
           skipped during validation.
         </p>
       </div>
+
+      {sopNudge?.stale && sopNudge.message && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium">SOP changed since these rules were reviewed</p>
+            <p className="text-sm text-muted-foreground">{sopNudge.message}</p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {Object.entries(grouped).map(([layer, layerRules]) => (
@@ -161,25 +188,61 @@ export function RuleEngineView({ rules }: { rules: QaValidationRule[] }) {
       <Dialog open={editingRule != null} onOpenChange={(open) => !open && setEditingRule(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit rule config</DialogTitle>
-            <DialogDescription>
-              {editingRule?.label} ({editingRule?.rule_key})
+            <DialogTitle>Edit {editingRule?.label}</DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {editingRule?.rule_key}
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            value={configDraft}
-            onChange={(e) => setConfigDraft(e.target.value)}
-            className="font-mono text-xs min-h-[240px]"
-            spellCheck={false}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingRule(null)} disabled={pending}>
-              Cancel
-            </Button>
-            <Button onClick={saveConfig} disabled={pending}>
-              Save config
-            </Button>
-          </DialogFooter>
+
+          {editingSchema && !advanced ? (
+            <>
+              <RuleConfigEditor
+                key={editingRule?.rule_key}
+                schema={editingSchema}
+                config={editingRule?.config ?? {}}
+                pending={pending}
+                onSave={persistConfig}
+                onCancel={() => setEditingRule(null)}
+              />
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 self-start"
+                onClick={() => setAdvanced(true)}
+              >
+                Edit as JSON
+              </button>
+            </>
+          ) : (
+            <>
+              <Textarea
+                value={configDraft}
+                onChange={(e) => setConfigDraft(e.target.value)}
+                className="font-mono text-xs min-h-[240px]"
+                spellCheck={false}
+              />
+              <DialogFooter className="sm:justify-between">
+                {editingSchema ? (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline underline-offset-2"
+                    onClick={() => setAdvanced(false)}
+                  >
+                    Back to form
+                  </button>
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setEditingRule(null)} disabled={pending}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveRawConfig} disabled={pending}>
+                    Save config
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
