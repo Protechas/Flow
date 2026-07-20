@@ -29,6 +29,13 @@ Tools-hub performance rule: a feature that can't satisfy all six rules doesn't s
 3. **Advisory output only.** Model output is displayed for human review. It never
    triggers writes, queries, or actions on its own. A malicious string inside analyzed
    content must only ever be able to produce a bad *suggestion*, never a bad *action*.
+   **Sanctioned exception (Eddy Phase 2 scoped tools):** Eddy may execute a small,
+   enumerated set of tool calls confined to the asking user's OWN data — today that is
+   exactly the personal to-do list (`todo_add` / `todo_list` / `todo_complete` in
+   `src/app/actions/eddy.ts`, backed by `src/lib/eddy/todos.ts`). Every tool is
+   owner-scoped by `userId` at the lib layer and by RLS below it; the blast radius of
+   a bad call is one user's own to-do list. Any new tool, or any tool that touches
+   shared/company data, is a reviewed policy decision — not a pattern to copy freely.
 4. **Explicit user action only.** No AI calls on page load, in background jobs, polling,
    or cron. The user clicks; the call runs; it ends. (Reading *stored* AI results on
    page load is fine — that's a normal scoped DB query.)
@@ -45,6 +52,10 @@ Tools-hub performance rule: a feature that can't satisfy all six rules doesn't s
 | Feature | Entry point | Model tier | Sends to API | Gate |
 | --- | --- | --- | --- | --- |
 | Ask Eddy (assistant chat) | `src/app/actions/eddy.ts` | `fast` (Haiku) | User's own messages + manual excerpts + allowlisted page-context summaries (`src/lib/eddy/page-context.ts`, built only after the same route-permission check the page enforces) | `requireUser`; conversations stored per-user with ownership checks + RLS |
+| Eddy to-do tools (todo_add/list/complete) | `src/app/actions/eddy.ts` (tool loop inside Ask Eddy) | `fast` (Haiku) | Nothing extra — tools receive Eddy's own arguments; results are the user's own to-do rows | Rule 3 sanctioned exception: owner-scoped writes to the asking user's own list only (`src/lib/eddy/todos.ts` + RLS); bounded to 4 tool rounds |
+| Meeting Notes digest | `src/app/actions/meeting-notes.ts` | `standard` (Sonnet) | Pasted transcript (capped 80k chars, never stored) + title/date | Leads+ (`TOOL_ROLES`); action items become tasks only through human approval |
+| Eddy Task Builder | `src/app/actions/eddy-task-builder.ts` | `standard` (Sonnet) | User's interview messages + allowlisted catalog (project/analyst/team/template ids+names, forecast units) | Creation-mode permission gate; drafts execute only through existing wizard actions after human approval |
+| QA submission Eddy review | `src/app/actions/content-checks.ts` (`eddyReviewSubmissionAction`) | `fast` (Haiku) | File name/claim + server-extracted PDF text + auto-check flags | Leads+ (`TOOL_ROLES`); manual button only; results stored for review, never drive QA verdicts |
 | Findings Triage | `src/app/actions/ai-triage.ts` | `standard` (Sonnet) | Allowlisted finding fields (`TRIAGE_FINDING_FIELDS` in `src/lib/ai/triage.ts`) + capped evidence | `validation:run` to spend, `validation:view` to read |
 | Document Review (Eddy on SOPs) | `src/app/actions/ai-sop-review.ts` | `standard` (Sonnet) | Allowlisted doc fields (`REVIEW_DOC_FIELDS` in `src/lib/ai/sop-review.ts`) + document text, capped | `company_documents:manage` |
 

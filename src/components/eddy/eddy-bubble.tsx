@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/eddy";
 import type { EddyMessage } from "@/lib/eddy/conversations";
 import { AI_NAME } from "@/lib/ai/brand";
+import { TodoPanel } from "@/components/eddy/todo-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,6 +38,7 @@ const SUGGESTIONS = [
 export function AskEddyBubble() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"chat" | "list">("chat");
   const [loaded, setLoaded] = useState(false);
   const [messages, setMessages] = useState<EddyMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -158,7 +160,28 @@ export function AskEddyBubble() {
             </div>
           </DialogHeader>
 
-          {messages.length > 0 && (
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={tab === "chat" ? "secondary" : "ghost"}
+              onClick={() => setTab("chat")}
+            >
+              Chat
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={tab === "list" ? "secondary" : "ghost"}
+              onClick={() => setTab("list")}
+            >
+              My List
+            </Button>
+          </div>
+
+          {tab === "list" && <TodoPanel />}
+
+          {tab === "chat" && messages.length > 0 && (
             <div ref={scrollRef} className="max-h-80 space-y-2 overflow-y-auto pr-1">
               {messages.map((m) => (
                 <div
@@ -182,9 +205,9 @@ export function AskEddyBubble() {
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {tab === "chat" && error && <p className="text-sm text-destructive">{error}</p>}
 
-          {messages.length === 0 && !pending && (
+          {tab === "chat" && messages.length === 0 && !pending && (
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button
@@ -199,6 +222,7 @@ export function AskEddyBubble() {
             </div>
           )}
 
+          {tab === "chat" && (
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -212,7 +236,12 @@ export function AskEddyBubble() {
               placeholder={messages.length === 0 ? "How do I…?" : "Reply…"}
               autoFocus
             />
-            <Button type="submit" size="icon" disabled={pending || !draft.trim()}>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label={`Send to ${AI_NAME}`}
+              disabled={pending || !draft.trim()}
+            >
               {pending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -220,8 +249,9 @@ export function AskEddyBubble() {
               )}
             </Button>
           </form>
+          )}
 
-          {lastSources && lastSources.length > 0 && (
+          {tab === "chat" && lastSources && lastSources.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {lastSources.map((source, i) => (
                 <Link
