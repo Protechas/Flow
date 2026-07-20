@@ -26,6 +26,7 @@ export type OperatingModelInput = {
   taskFilesRequired?: boolean;
   showWorkstreamPicker?: boolean;
   showYearPicker?: boolean;
+  contentChecksEnabled?: boolean;
   is_active?: boolean;
 };
 
@@ -56,6 +57,7 @@ export const EMPTY_OPERATING_MODEL_INPUT: OperatingModelInput = {
   taskFilesRequired: false,
   showWorkstreamPicker: true,
   showYearPicker: true,
+  contentChecksEnabled: true,
   is_active: true,
 };
 
@@ -80,6 +82,7 @@ export function modelToFormInput(model: TeamOperatingModel): OperatingModelInput
     taskFilesRequired: model.taskDefaults?.filesRequired,
     showWorkstreamPicker: model.taskDefaults?.showWorkstreamPicker,
     showYearPicker: model.taskDefaults?.showYearPicker,
+    contentChecksEnabled: model.contentChecksEnabled !== false,
     is_active: true,
   };
 }
@@ -110,5 +113,6 @@ export function inputToModel(input: OperatingModelInput): TeamOperatingModel {
       showWorkstreamPicker: input.showWorkstreamPicker,
       showYearPicker: input.showYearPicker,
     },
+    contentChecksEnabled: input.contentChecksEnabled !== false,
   };
 }

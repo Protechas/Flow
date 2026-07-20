@@ -435,6 +435,13 @@ export function OperatingModelBuilder({
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
+                  checked={form.contentChecksEnabled !== false}
+                  onCheckedChange={(c) => update("contentChecksEnabled", Boolean(c))}
+                />
+                Auto content checks on submissions (SI document standards)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
                   checked={form.showWorkstreamPicker}
                   onCheckedChange={(c) => update("showWorkstreamPicker", Boolean(c))}
                 />

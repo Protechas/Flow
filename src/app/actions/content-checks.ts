@@ -67,6 +67,56 @@ export async function eddyReviewContentAction(input: {
   }
 }
 
+/**
+ * Manual per-submission Eddy review from the QA Review Queue — downloads the
+ * task's PDFs server-side (unlike the Tools door, no browser extraction here),
+ * reviews each readable file, and stores results on the content-review rows.
+ */
+export async function eddyReviewSubmissionAction(input: {
+  taskId: string;
+}): Promise<
+  | { ok: true; reviewed: number; skipped: number; issues: number }
+  | { ok: false; message: string }
+> {
+  const user = await requireUser();
+  if (!TOOL_ROLES.has(normalizeRole(user.role))) {
+    return { ok: false, message: "Eddy reviews are available to leads and managers" };
+  }
+  if (!isAiEnabled()) {
+    return { ok: false, message: AI_DISABLED_MESSAGE };
+  }
+  const taskId = input.taskId?.trim();
+  if (!taskId) return { ok: false, message: "No task selected" };
+
+  try {
+    const { ensureAppDataLoaded } = await import("@/lib/data/app-hydrate");
+    const { getFlowStore } = await import("@/lib/data/flow-store");
+    const { runEddyReviewForTask } = await import("@/lib/content-checks/reviews");
+    await ensureAppDataLoaded();
+    const store = getFlowStore();
+    const task = store.workPackages.find((p) => p.id === taskId);
+    if (!task) return { ok: false, message: "Task not found" };
+    const project = store.projects.find((p) => p.id === task.project_id);
+
+    const result = await runEddyReviewForTask(taskId, {
+      userId: user.id,
+      taskTitle: task.title,
+      projectName: project?.name ?? null,
+    });
+    if (result.reviewed === 0 && result.skipped === 0) {
+      return { ok: false, message: "No PDF files on this submission" };
+    }
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/qa-center/review");
+    return { ok: true, ...result };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : "Eddy could not review this submission",
+    };
+  }
+}
+
 /** Eddy writes the model-level audit report from check results. */
 export async function eddyModelReportAction(input: {
   modelLabel: string;

@@ -2,7 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { requestFileReuploadAction, submitQaReviewAction } from "@/app/actions/qa";
+import { eddyReviewSubmissionAction } from "@/app/actions/content-checks";
+import { AI_NAME } from "@/lib/ai/brand";
+import { useFlowToast } from "@/components/ui/flow-toast";
 import { StatusBadge } from "@/components/work-tracker/status-badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,7 +31,7 @@ import { operationsHref } from "@/lib/navigation/deep-links";
 import { formatMinutes } from "@/lib/production/metrics";
 import type { QaResult, TaskFileUpload, TaskSubmissionRecord, User, WorkPackage } from "@/types/flow";
 import type { ContentReviewRow, TaskContentReviewSummary } from "@/lib/content-checks/reviews";
-import { AlertTriangle, FileText, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FileText, Loader2, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
 
 interface QaReviewPanelProps {
   queue: WorkPackage[];
@@ -91,6 +95,139 @@ function ContentCheckFindings({ reviews }: { reviews: ContentReviewRow[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+const EDDY_VERDICT_STYLES: Record<string, string> = {
+  looks_right: "border-emerald-500/30 bg-emerald-500/5 text-emerald-500",
+  issues_found: "border-amber-500/40 bg-amber-500/10 text-amber-500",
+  cannot_assess: "border-border/60 bg-muted/20 text-muted-foreground",
+};
+
+const EDDY_VERDICT_LABELS: Record<string, string> = {
+  looks_right: "looks right",
+  issues_found: "issues found",
+  cannot_assess: "couldn't assess",
+};
+
+/**
+ * Manual paid layer: "Run Eddy review" per submission (owner's rule — free
+ * checks run themselves, anything that costs money is a button with a price).
+ * Results persist on the content-review rows, so a finished read renders for
+ * every reviewer without paying again.
+ */
+function EddyReviewSection({
+  taskId,
+  reviews,
+  canReview,
+}: {
+  taskId: string;
+  reviews: ContentReviewRow[];
+  canReview: boolean;
+}) {
+  const router = useRouter();
+  const { toast } = useFlowToast();
+  const [running, setRunning] = useState(false);
+
+  const reviewable = reviews.filter((r) => !r.is_placeholder && r.verdict !== "unreadable");
+  const withEddy = reviews.filter((r) => r.eddy);
+
+  if (!canReview && withEddy.length === 0) return null;
+  if (reviews.length === 0) return null;
+
+  async function run() {
+    setRunning(true);
+    try {
+      const res = await eddyReviewSubmissionAction({ taskId });
+      if (!res.ok) {
+        toast({ variant: "error", title: `${AI_NAME} review failed`, description: res.message });
+        return;
+      }
+      toast({
+        variant: res.issues > 0 ? "error" : "success",
+        title:
+          res.issues > 0
+            ? `${AI_NAME} found issues in ${res.issues} of ${res.reviewed} file${res.reviewed === 1 ? "" : "s"}`
+            : `${AI_NAME} read ${res.reviewed} file${res.reviewed === 1 ? "" : "s"} — no issues`,
+        description: res.skipped > 0 ? `${res.skipped} skipped (placeholder/unreadable)` : undefined,
+      });
+      router.refresh();
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 space-y-2">
+      {canReview && reviewable.length > 0 && (
+        <Button size="sm" variant="outline" onClick={run} disabled={running}>
+          {running ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              {AI_NAME} is reading…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              {withEddy.length > 0 ? `Re-run ${AI_NAME} review` : `Run ${AI_NAME} review`} (~
+              {reviewable.length}¢)
+            </>
+          )}
+        </Button>
+      )}
+      {withEddy.length > 0 && (
+        <div className="rounded-md border border-primary/20 bg-primary/5">
+          <p className="px-3 py-2 text-xs font-semibold uppercase text-primary flex items-center gap-1.5 border-b border-primary/15">
+            <Sparkles className="h-3.5 w-3.5" />
+            {AI_NAME}&apos;s read — {withEddy.length} file{withEddy.length === 1 ? "" : "s"}
+          </p>
+          <ul className="divide-y divide-border/30 max-h-72 overflow-y-auto">
+            {withEddy.map((r) => (
+              <li key={r.file_id} className="px-3 py-2 text-sm">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium truncate" title={r.file_name}>
+                    {r.file_name}
+                  </span>
+                  <span
+                    className={`rounded-full border px-1.5 py-0 text-[10px] font-medium shrink-0 ${EDDY_VERDICT_STYLES[r.eddy!.verdict] ?? EDDY_VERDICT_STYLES.cannot_assess}`}
+                  >
+                    {EDDY_VERDICT_LABELS[r.eddy!.verdict] ?? r.eddy!.verdict}
+                  </span>
+                </p>
+                {r.eddy!.summary && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{r.eddy!.summary}</p>
+                )}
+                {r.eddy!.findings.length > 0 && (
+                  <ul className="mt-1 space-y-1">
+                    {r.eddy!.findings.map((f, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-xs">
+                        <span
+                          className={`rounded-full border px-1.5 py-0 font-medium shrink-0 ${
+                            f.severity === "high"
+                              ? FLAG_SEVERITY_STYLES.fail
+                              : f.severity === "medium"
+                                ? FLAG_SEVERITY_STYLES.warn
+                                : FLAG_SEVERITY_STYLES.info
+                          }`}
+                        >
+                          {f.severity}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {f.issue}
+                          {f.quote ? (
+                            <em className="block text-[11px] opacity-80">“{f.quote}”</em>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -271,6 +408,11 @@ export function QaReviewPanel({
             )}
 
             <ContentCheckFindings reviews={contentReviewDetails[selected.id] ?? []} />
+            <EddyReviewSection
+              taskId={selected.id}
+              reviews={contentReviewDetails[selected.id] ?? []}
+              canReview={canReview}
+            />
 
             {(fileMap[selected.id]?.length ?? 0) > 0 && (
               <div className="mb-4">

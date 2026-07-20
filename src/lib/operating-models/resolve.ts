@@ -58,6 +58,21 @@ export function resolveOperatingModelForProject(
   return getGeneralOperatingModel();
 }
 
+/**
+ * Whether SI-standard automatic content checks apply to this project's team.
+ * Default ON (matches today's behavior); a team's operating model opts out.
+ */
+export function contentChecksEnabledForProject(
+  project: {
+    project_type?: string | null;
+    team_id?: string | null;
+    department_id?: string | null;
+  },
+  teams: Team[] = []
+): boolean {
+  return resolveOperatingModelForProject(project, teams).contentChecksEnabled !== false;
+}
+
 export function buildOperatingContext(
   opts: {
     teamId?: string | null;

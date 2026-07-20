@@ -91,6 +91,12 @@ export interface TeamOperatingModel {
   kpis: OperatingModelKpiConfig[];
   forecastRules?: OperatingModelForecastRules;
   taskDefaults?: OperatingModelTaskDefaults;
+  /**
+   * Automatic SI-standard content checks on PDF submissions. Default ON;
+   * teams whose documents don't follow the SI Library format (naming grammar,
+   * landscape, highlights) turn this off so they aren't false-flagged.
+   */
+  contentChecksEnabled?: boolean;
   /** Fallback model — used when no team/dept match exists. */
   isGeneral?: boolean;
 }
