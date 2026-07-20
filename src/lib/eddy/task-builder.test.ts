@@ -89,21 +89,36 @@ describe("validateTaskBuilderDraft", () => {
     expect(res.draft && "tasks" in res.draft ? res.draft.tasks.length : 0).toBe(2);
   });
 
-  it("caps oversized matrices", () => {
+  it("accepts a 35-make × 6-year matrix (210 tasks, well under the row cap)", () => {
+    const res = validateTaskBuilderDraft(
+      {
+        mode: "bulk_matrix",
+        name: "SI Refresh",
+        departmentId: "dept-1",
+        teamId: "team-1",
+        makes: Array.from({ length: 35 }, (_, i) => `Make${i}`),
+        years: [2021, 2022, 2023, 2024, 2025, 2026],
+      },
+      catalog
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it("caps oversized matrices on total generated tasks", () => {
     const res = validateTaskBuilderDraft(
       {
         mode: "bulk_matrix",
         name: "Everything",
         departmentId: "dept-1",
         teamId: "team-1",
-        makes: Array.from({ length: 20 }, (_, i) => `Make${i}`),
+        makes: Array.from({ length: 40 }, (_, i) => `Make${i}`),
         years: [2020, 2021, 2022, 2023, 2024, 2025],
         modelCountPerGroup: 10,
       },
       catalog
     );
     expect(res.ok).toBe(false);
-    expect(res.errors.join(" ")).toMatch(/limit is 600/);
+    expect(res.errors.join(" ")).toMatch(/limit is 1000/);
   });
 
   it("accepts a template draft with valid ids", () => {

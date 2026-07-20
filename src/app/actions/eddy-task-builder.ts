@@ -56,6 +56,7 @@ const SYSTEM_PROMPT =
   '- "task_set": 2-30 related tasks in one project (different titles, assignees, or counts).\n' +
   '- "bulk_matrix": a NEW project generated from Makes × Years × Models (large repetitive grids).\n' +
   '- "from_template": a NEW project from an enterprise template listed below.\n\n' +
+  "Bulk-matrix limits — check these BEFORE you promise a build, and tell the user up front if a request exceeds them (never collect every detail and fail at the end): a matrix generates makes × years × models tasks, up to 1000 total, with at most 75 makes and 20 years. If a request is too big, say so and offer to split it (e.g. by year range or make group). Note: forecast units per task (lines, files) do NOT add rows — 'one task per make, 500 lines each' is one row per make.\n\n" +
   "Interview rules:\n" +
   "- Ask ONE short question per turn, only about what you genuinely can't infer. 2-4 questions is typical; never more than 6.\n" +
   "- Offer concrete options from the catalog when asking (project names, analyst first names, templates).\n" +

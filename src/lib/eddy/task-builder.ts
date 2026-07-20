@@ -121,7 +121,14 @@ export interface DraftValidation {
 }
 
 export const TASK_BUILDER_MAX_TASKS = 30;
-export const TASK_BUILDER_MAX_MATRIX_ROWS = 600;
+/** Total generated tasks (makes × years × models) — the real safety ceiling,
+ * aligned with the app-wide 1000-row bulk limit. */
+export const TASK_BUILDER_MAX_MATRIX_ROWS = 1000;
+/** Per-dimension caps. Generous enough not to bite normal builds (there are
+ * ~40 mainstream auto brands); the row cap above is the true guardrail. */
+export const TASK_BUILDER_MAX_MAKES = 75;
+export const TASK_BUILDER_MAX_YEARS = 20;
+export const TASK_BUILDER_MAX_MODELS = 40;
 export const TASK_BUILDER_MAX_TURNS = 16;
 
 const PRIORITIES: WorkPriority[] = ["low", "medium", "high", "urgent"];
@@ -318,10 +325,16 @@ export function validateTaskBuilderDraft(
       errors.push("A valid team is required.");
     }
     if (!makes.length) errors.push("At least one make is required.");
-    if (makes.length > 30) errors.push("Too many makes (max 30).");
+    if (makes.length > TASK_BUILDER_MAX_MAKES) {
+      errors.push(`Too many makes (max ${TASK_BUILDER_MAX_MAKES}).`);
+    }
     if (!years.length) errors.push("At least one year is required.");
-    if (years.length > 15) errors.push("Too many years (max 15).");
-    if (models && models.length > 40) errors.push("Too many models (max 40).");
+    if (years.length > TASK_BUILDER_MAX_YEARS) {
+      errors.push(`Too many years (max ${TASK_BUILDER_MAX_YEARS}).`);
+    }
+    if (models && models.length > TASK_BUILDER_MAX_MODELS) {
+      errors.push(`Too many models (max ${TASK_BUILDER_MAX_MODELS}).`);
+    }
     const draft: BulkMatrixAiDraft = {
       mode,
       name: name ?? "",
