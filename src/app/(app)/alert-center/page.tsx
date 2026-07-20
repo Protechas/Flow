@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { HelpFlagsPanel } from "@/components/help-flags/help-flags-panel";
-import { WorkloadAlertsPanel } from "@/components/workload-alerts/workload-alerts-panel";
+import { AlertCenterPanels } from "@/components/alerts/alert-center-panels";
 import {
   FlowPageShell,
   GlobalAlertBar,
@@ -24,7 +23,6 @@ import { hydrateWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import { listWorkloadAlertsForViewer } from "@/lib/workload-alerts/engine";
 import { hydrateWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 import { listActivityGapsForViewer, syncActivityGaps } from "@/lib/work-visibility/engine";
-import { ActivityGapsPanel } from "@/components/work-visibility/activity-gaps-panel";
 import { getWrapUpDashboardStats } from "@/lib/wrap-up/review";
 import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/resolver";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
@@ -56,6 +54,24 @@ export default async function AlertCenterPage() {
 
   const overdueCount = scopedPackages.filter(isOverdue).length;
   const wrapUpStats = getWrapUpDashboardStats(user);
+
+  const visibleUsers = store.users.filter(
+    (u) => u.is_active && (!visibleIds || visibleIds.has(u.id))
+  );
+  const people = visibleUsers
+    .map((u) => ({
+      id: u.id,
+      name: u.full_name,
+      teamId: u.team_id ?? null,
+      teamName: teams.find((t) => t.id === u.team_id)?.name ?? null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const visibleTeamIds = new Set(
+    people.map((p) => p.teamId).filter((id): id is string => !!id)
+  );
+  const teamOptions = teams
+    .filter((t) => visibleTeamIds.has(t.id))
+    .map((t) => ({ id: t.id, name: t.name }));
 
   const hasAlerts = helpFlags.length > 0 || workloadAlerts.length > 0 || activityGaps.length > 0;
   const hasCritical =
@@ -186,20 +202,15 @@ export default async function AlertCenterPage() {
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="space-y-8 p-0">
-          {helpFlags.length > 0 && (
-            <div id="help-flags" className="scroll-mt-24">
-              <HelpFlagsPanel flags={helpFlags} role={user.role} />
-            </div>
-          )}
-          {workloadAlerts.length > 0 && (
-            <div id="workload-alerts" className="scroll-mt-24">
-              <WorkloadAlertsPanel alerts={workloadAlerts} role={user.role} />
-            </div>
-          )}
-          {activityGaps.length > 0 && (
-            <div id="activity-gaps" className="scroll-mt-24">
-              <ActivityGapsPanel gaps={activityGaps} />
-            </div>
+          {hasAlerts && (
+            <AlertCenterPanels
+              helpFlags={helpFlags}
+              workloadAlerts={workloadAlerts}
+              activityGaps={activityGaps}
+              role={user.role}
+              people={people}
+              teams={teamOptions}
+            />
           )}
           <LiveActivityStream
             events={recentActivity}

@@ -30,6 +30,7 @@ export function updateWorkloadAlertSettings(
       | "snooze_duration_hours"
       | "department_ids"
       | "team_ids"
+      | "excluded_user_ids"
     >
   >,
   updatedBy: string
@@ -41,6 +42,9 @@ export function updateWorkloadAlertSettings(
       ? [...patch.department_ids]
       : workloadAlertSettings.department_ids,
     team_ids: patch.team_ids ? [...patch.team_ids] : workloadAlertSettings.team_ids,
+    excluded_user_ids: patch.excluded_user_ids
+      ? [...patch.excluded_user_ids]
+      : workloadAlertSettings.excluded_user_ids ?? [],
     updated_at: new Date().toISOString(),
     updated_by: updatedBy,
   };

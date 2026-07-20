@@ -16,10 +16,12 @@ export function WorkloadAlertSettingsAdmin({
   settings,
   departments,
   teams,
+  people = [],
 }: {
   settings: WorkloadAlertSettings;
   departments: Department[];
   teams: Team[];
+  people?: { id: string; name: string; teamName: string | null }[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -27,11 +29,15 @@ export function WorkloadAlertSettingsAdmin({
   const [live, setLive] = useState(settings);
   const [deptIds, setDeptIds] = useState<string[]>(settings.department_ids);
   const [teamIds, setTeamIds] = useState<string[]>(settings.team_ids);
+  const [excludedIds, setExcludedIds] = useState<string[]>(
+    settings.excluded_user_ids ?? []
+  );
 
   useEffect(() => {
     setLive(settings);
     setDeptIds(settings.department_ids);
     setTeamIds(settings.team_ids);
+    setExcludedIds(settings.excluded_user_ids ?? []);
   }, [settings]);
 
   function toggleId(list: string[], id: string, setter: (v: string[]) => void) {
@@ -55,6 +61,7 @@ export function WorkloadAlertSettingsAdmin({
           snooze_duration_hours: Number(fd.get("snooze_duration_hours")),
           department_ids: deptIds,
           team_ids: teamIds,
+          excluded_user_ids: excludedIds,
         })
           .then((next) => {
             setLive(next);
@@ -139,6 +146,33 @@ export function WorkloadAlertSettingsAdmin({
           ))}
         </div>
       </div>
+
+      {people.length > 0 && (
+        <div className="space-y-2">
+          <Label>Excluded people (never trip alerts)</Label>
+          <p className="text-xs text-muted-foreground">
+            Checked people are exempt from capacity and activity-gap alerts —
+            existing alerts for them disappear too.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {people.map((p) => (
+              <label
+                key={p.id}
+                className="flex items-center gap-1.5 text-sm border border-border/60 rounded-md px-2 py-1"
+              >
+                <Checkbox
+                  checked={excludedIds.includes(p.id)}
+                  onCheckedChange={() => toggleId(excludedIds, p.id, setExcludedIds)}
+                />
+                {p.name}
+                {p.teamName && (
+                  <span className="text-xs text-muted-foreground">({p.teamName})</span>
+                )}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

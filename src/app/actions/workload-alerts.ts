@@ -34,6 +34,7 @@ export async function updateWorkloadAlertSettingsAction(input: {
   snooze_duration_hours: number;
   department_ids: string[];
   team_ids: string[];
+  excluded_user_ids?: string[];
 }) {
   const user = await requirePermission("settings:manage");
   await hydrateWorkloadAlertSettings();
@@ -45,6 +46,7 @@ export async function updateWorkloadAlertSettingsAction(input: {
       snooze_duration_hours: input.snooze_duration_hours,
       department_ids: input.department_ids,
       team_ids: input.team_ids,
+      excluded_user_ids: input.excluded_user_ids ?? [],
     },
     user.id
   );

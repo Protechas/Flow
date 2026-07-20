@@ -13,6 +13,7 @@ type WorkloadAlertSettingsSnapshot = Pick<
   | "snooze_duration_hours"
   | "department_ids"
   | "team_ids"
+  | "excluded_user_ids"
   | "updated_at"
   | "updated_by"
 >;
@@ -39,6 +40,7 @@ export function defaultWorkloadAlertSettings(): WorkloadAlertSettings {
     snooze_duration_hours: 24,
     department_ids: [],
     team_ids: [],
+    excluded_user_ids: [],
     updated_at: new Date().toISOString(),
     updated_by: null,
   };
@@ -67,6 +69,7 @@ export async function writeWorkloadAlertSettingsCookie(
     snooze_duration_hours: settings.snooze_duration_hours,
     department_ids: [...settings.department_ids],
     team_ids: [...settings.team_ids],
+    excluded_user_ids: [...settings.excluded_user_ids],
     updated_at: settings.updated_at,
     updated_by: settings.updated_by ?? null,
   };
@@ -90,6 +93,7 @@ export function mergeWorkloadAlertSettings(
     snooze_duration_hours: snapshot.snooze_duration_hours,
     department_ids: [...snapshot.department_ids],
     team_ids: [...snapshot.team_ids],
+    excluded_user_ids: [...(snapshot.excluded_user_ids ?? [])],
     updated_at: snapshot.updated_at,
     updated_by: snapshot.updated_by ?? null,
   };

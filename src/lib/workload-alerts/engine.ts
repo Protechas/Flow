@@ -17,6 +17,7 @@ import {
   SEVERITY_ORDER,
 } from "@/lib/workload-alerts/calculator";
 import { getWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
+import { passesAlertScope } from "@/lib/workload-alerts/scope";
 import { getWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
 import {
   listWorkloadAlertRecords,
@@ -42,18 +43,11 @@ function employeeInScope(
 }
 
 function passesSettingsFilter(employee: User, settings: ReturnType<typeof getWorkloadAlertSettings>): boolean {
-  const deptId = getUserPrimaryDepartmentId(employee.id);
-  if (settings.department_ids.length > 0) {
-    if (!deptId || !settings.department_ids.includes(deptId)) {
-      return false;
-    }
-  }
-  if (settings.team_ids.length > 0) {
-    if (!employee.team_id || !settings.team_ids.includes(employee.team_id)) {
-      return false;
-    }
-  }
-  return true;
+  return passesAlertScope(settings, {
+    userId: employee.id,
+    departmentId: getUserPrimaryDepartmentId(employee.id),
+    teamId: employee.team_id ?? null,
+  });
 }
 
 function getNotificationRecipients(

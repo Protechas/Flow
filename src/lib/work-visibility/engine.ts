@@ -16,6 +16,7 @@ import {
   buildWorkVisibilitySummary,
 } from "@/lib/work-visibility/calculator";
 import { getWorkVisibilitySettings } from "@/lib/work-visibility/hydrate";
+import { getWorkloadAlertSettings } from "@/lib/workload-alerts/hydrate";
 import {
   getGapTracking,
   getOpenActivityGapsForEmployee,
@@ -63,11 +64,17 @@ export function syncActivityGaps(users: User[]): void {
   if (!settings.enabled || !settings.alerts_enabled) return;
 
   const threshold = settings.activity_gap_threshold_minutes;
+  const excluded = new Set(getWorkloadAlertSettings().excluded_user_ids ?? []);
   const employees = users.filter(
     (u) => u.is_active && requiresShiftClock(u) && (u.role === "employee" || u.role === "teamlead")
   );
 
   for (const employee of employees) {
+    if (excluded.has(employee.id)) {
+      resolveActivityGapsForEmployee(employee.id);
+      setGapTracking(employee.id, null);
+      continue;
+    }
     const clocked = getActiveClockEntry(employee.id);
     const hasTaskTimer = !!getActiveTaskTimeEntry(employee.id);
 
@@ -110,8 +117,11 @@ export function listActivityGapsForViewer(
 ): ActivityGapView[] {
   const store = getFlowStore();
   const now = new Date().toISOString();
+  // Records created before a person was excluded in settings must not keep
+  // rendering — re-check the exclusion on display too.
+  const excluded = new Set(getWorkloadAlertSettings().excluded_user_ids ?? []);
   return listActivityGapRecords()
-    .filter((g) => g.status === "open")
+    .filter((g) => g.status === "open" && !excluded.has(g.employee_id))
     .filter((g) => {
       const employee = users.find((u) => u.id === g.employee_id);
       return employee && canViewerSeeUser(viewer, employee.id, users, store.teams);

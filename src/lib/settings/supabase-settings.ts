@@ -86,7 +86,7 @@ export async function hydrateWorkloadAlertSettingsFromSupabase(): Promise<Worklo
   const { data, error } = await supabase
     .from("workload_alert_settings")
     .select(
-      "id, enabled, work_remaining_threshold_hours, snooze_duration_hours, department_ids, team_ids, updated_at, updated_by"
+      "id, enabled, work_remaining_threshold_hours, snooze_duration_hours, department_ids, team_ids, excluded_user_ids, updated_at, updated_by"
     )
     .limit(1)
     .maybeSingle();
@@ -100,6 +100,7 @@ export async function hydrateWorkloadAlertSettingsFromSupabase(): Promise<Worklo
     snooze_duration_hours: Number(data.snooze_duration_hours),
     department_ids: (data.department_ids as string[]) ?? [],
     team_ids: (data.team_ids as string[]) ?? [],
+    excluded_user_ids: (data.excluded_user_ids as string[]) ?? [],
     updated_at: data.updated_at ?? new Date().toISOString(),
     updated_by: data.updated_by ?? null,
   };
@@ -127,6 +128,7 @@ export async function persistWorkloadAlertSettingsToSupabase(
     snooze_duration_hours: settings.snooze_duration_hours,
     department_ids: settings.department_ids,
     team_ids: settings.team_ids,
+    excluded_user_ids: settings.excluded_user_ids,
     updated_at: new Date().toISOString(),
     updated_by: userId,
   };

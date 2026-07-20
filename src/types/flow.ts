@@ -1119,6 +1119,8 @@ export interface WorkloadAlertSettings {
   snooze_duration_hours: number;
   department_ids: string[];
   team_ids: string[];
+  /** Users who never trip workload or activity-gap alerts. */
+  excluded_user_ids: string[];
   updated_at: string;
   updated_by?: string | null;
 }
