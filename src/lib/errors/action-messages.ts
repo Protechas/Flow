@@ -22,6 +22,10 @@ export function formatActionError(error: unknown): string {
     "At least one file is required before submission":
       "Upload at least one completed file before submitting for QA.",
     "Task and file are required": "Select a file to upload.",
+    "Bad Request":
+      "The upload didn't go through — refresh the page and drop the file again. " +
+      "Check the uploaded list first so you don't re-add files that already landed. " +
+      "If it keeps happening, tell your lead.",
     "Task not found": "This task could not be found. Refresh and try again.",
     "Already clocked in": "You are already clocked in for this shift.",
     "Not clocked in": "You are not clocked in. Clock in before performing this action.",

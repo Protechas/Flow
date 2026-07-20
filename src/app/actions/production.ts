@@ -185,6 +185,18 @@ export async function uploadTaskFileAction(formData: FormData) {
     revalidateProduction(taskId);
     return { ok: true as const };
   } catch (e) {
+    // Surface the real cause in server logs — a swallowed error here left a
+    // real user staring at a bare "Bad Request" with nothing to debug from.
+    console.error(
+      "[task-upload] failed:",
+      JSON.stringify({
+        user: user.id,
+        task: taskId,
+        file: file?.name,
+        size: file?.size,
+        error: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+      })
+    );
     return { ok: false as const, message: e instanceof Error ? e.message : "Upload failed" };
   }
 }

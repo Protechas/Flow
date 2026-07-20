@@ -13,7 +13,10 @@ const vercelUploadCapBytes = 4 * 1024 * 1024;
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: process.env.VERCEL ? "4mb" : "50mb",
+      // Must exceed the largest per-file cap (4mb) plus multipart overhead —
+      // when they're equal, an oversized file dies at the framework with a
+      // raw "Bad Request" before the action's friendly size error can run.
+      bodySizeLimit: process.env.VERCEL ? "5mb" : "50mb",
     },
   },
   env: {

@@ -20,6 +20,12 @@ describe("formatActionError", () => {
     );
   });
 
+  it("maps transient 'Bad Request' to retry guidance", () => {
+    const msg = formatActionError(new Error("Bad Request"));
+    expect(msg).toMatch(/refresh the page and drop the file again/i);
+    expect(msg).toMatch(/don't re-add files that already landed/i);
+  });
+
   it("maps account setup incomplete message", () => {
     expect(
       formatActionError(

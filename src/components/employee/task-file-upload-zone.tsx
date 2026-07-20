@@ -5,6 +5,10 @@ import Link from "next/link";
 import { uploadTaskFileAction } from "@/app/actions/production";
 import { useFlowToast } from "@/components/ui/flow-toast";
 import { formatActionError } from "@/lib/errors/action-messages";
+import {
+  clientTaskFileMaxBytes,
+  formatUploadLimitLabel,
+} from "@/lib/files/upload-limits-client";
 import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { cn } from "@/lib/utils";
 import type { TaskFileUpload } from "@/types/flow";
@@ -40,6 +44,18 @@ export function TaskFileUploadZone({
       const list = Array.from(fileList);
       if (list.length === 0) return;
       setError(null);
+      // Size gate BEFORE sending: an oversized request never reaches the
+      // server action, so without this the user sees a raw "Bad Request".
+      const oversized = list.find((f) => f.size > clientTaskFileMaxBytes);
+      if (oversized) {
+        const description =
+          `"${oversized.name}" is ${formatFileSize(oversized.size)} — the upload limit is ` +
+          `${formatUploadLimitLabel(clientTaskFileMaxBytes)} per file. Split the document ` +
+          `into "-Part-N" files per the SOP and drop the parts instead.`;
+        setError(description);
+        toast({ variant: "error", title: "File too large", description });
+        return;
+      }
       startTransition(async () => {
         for (const file of list) {
           const fd = new FormData();
@@ -57,7 +73,7 @@ export function TaskFileUploadZone({
         onUploaded?.();
       });
     },
-    [taskId, onUploaded]
+    [taskId, onUploaded, toast]
   );
 
   return (
@@ -87,7 +103,10 @@ export function TaskFileUploadZone({
           <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
         )}
         <p className="text-sm font-medium">Drop completed files here</p>
-        <p className="flow-helper mt-1">Required before submitting for QA review</p>
+        <p className="flow-helper mt-1">
+          Required before submitting for QA review · Max{" "}
+          {formatUploadLimitLabel(clientTaskFileMaxBytes)} per file
+        </p>
         <input
           type="file"
           multiple
