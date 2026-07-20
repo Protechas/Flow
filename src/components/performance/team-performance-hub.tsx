@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AccountabilityDashboardView } from "@/components/accountability/accountability-dashboard-view";
-import { GamificationPanel } from "@/components/accountability/gamification-panel";
+import { ScopedLeaderboard } from "@/components/performance/scoped-leaderboard";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { AccountabilityReportView } from "@/components/performance/accountability-report-view";
 import { CoachingReportView } from "@/components/performance/coaching-report-view";
@@ -19,11 +19,15 @@ export function TeamPerformanceHub({
   scorecards,
   badgesByUser = {},
   leads = [],
+  viewerTeamId = null,
+  teams = [],
 }: {
   dashboard: TeamPerformanceDashboard;
   scorecards: EmployeeScorecard[];
   badgesByUser?: Record<string, BadgeState[]>;
   leads?: { user: User; badges: BadgeState[] }[];
+  viewerTeamId?: string | null;
+  teams?: { id: string; name: string }[];
 }) {
   return (
     <Tabs defaultValue="accountability">
@@ -43,7 +47,13 @@ export function TeamPerformanceHub({
       </TabsContent>
 
       <TabsContent value="leaderboard">
-        <GamificationPanel scorecards={scorecards} badgesByUser={badgesByUser} leads={leads} />
+        <ScopedLeaderboard
+          scorecards={scorecards}
+          badgesByUser={badgesByUser}
+          leads={leads}
+          viewerTeamId={viewerTeamId}
+          teams={teams}
+        />
       </TabsContent>
 
       <TabsContent value="overview">

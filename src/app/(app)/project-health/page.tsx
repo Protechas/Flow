@@ -8,6 +8,8 @@ import {
   WorkspaceContainer,
 } from "@/components/platform";
 import { requirePageAccess } from "@/lib/auth/guard";
+import { getVisibleProjectIds } from "@/lib/auth/project-scope";
+import { getFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import { getProjectEarlyWarningMap, getProjectHealthIntelligenceMap, getProjectHealthList } from "@/lib/data/project-health";
 import { buildProjectMetricExportRows } from "@/lib/metrics/project-metrics-reporting";
 import { projectHealthHref, projectsHref } from "@/lib/navigation/deep-links";
@@ -18,14 +20,22 @@ export default async function ProjectHealthPage({
 }: {
   searchParams: Promise<{ search?: string; risk?: string; projectId?: string }>;
 }) {
-  await requirePageAccess("/project-health");
+  const user = await requirePageAccess("/project-health");
   const { search, risk, projectId } = await searchParams;
   const [projects, intelligenceByProject, earlyWarningByProject] = await Promise.all([
     getProjectHealthList(),
     getProjectHealthIntelligenceMap(),
     getProjectEarlyWarningMap(),
   ]);
-  let filtered = projects;
+  // P1 visibility contract: branch viewers see their projects' health only.
+  const store = getFlowStore();
+  const visibleProjectIds = getVisibleProjectIds(user, {
+    projects: store.projects,
+    workPackages: store.workPackages,
+    users: store.users,
+    teams: listTeamsStore(),
+  });
+  let filtered = projects.filter((p) => visibleProjectIds.has(p.project.id));
 
   if (search?.trim()) {
     const q = search.trim().toLowerCase();

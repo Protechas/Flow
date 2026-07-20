@@ -16,11 +16,19 @@ import type {
   TeamPerformanceDashboard,
 } from "@/types/flow";
 
-async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
+async function getPerformanceStore(
+  visibleUserIds?: Set<string>
+): Promise<PerformanceStoreSlice> {
   await ensureAppDataLoaded();
   const store = getFlowStore();
+  // P1 visibility contract: when a viewer scope is provided, every derived
+  // number (rankings, dashboards, scorecards) is computed over those users
+  // only — branch viewers never see company-wide aggregates.
+  const users = visibleUserIds
+    ? store.users.filter((u) => visibleUserIds.has(u.id))
+    : store.users;
   return {
-    users: store.users,
+    users,
     teams: listTeamsStore(),
     workPackages: store.workPackages,
     timeLogs: store.timeLogs,
@@ -30,12 +38,16 @@ async function getPerformanceStore(): Promise<PerformanceStoreSlice> {
   };
 }
 
-export async function getTeamPerformanceDashboard(): Promise<TeamPerformanceDashboard> {
-  return buildTeamPerformanceDashboard(await getPerformanceStore());
+export async function getTeamPerformanceDashboard(
+  visibleUserIds?: Set<string>
+): Promise<TeamPerformanceDashboard> {
+  return buildTeamPerformanceDashboard(await getPerformanceStore(visibleUserIds));
 }
 
-export async function getEmployeeScorecards(): Promise<EmployeeScorecard[]> {
-  const store = await getPerformanceStore();
+export async function getEmployeeScorecards(
+  visibleUserIds?: Set<string>
+): Promise<EmployeeScorecard[]> {
+  const store = await getPerformanceStore(visibleUserIds);
   const employees = store.users.filter(isProductionRosterMember);
   return rankScorecards(employees.map((u) => buildEmployeeScorecard(u, store)));
 }

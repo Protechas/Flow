@@ -4,6 +4,7 @@ import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { TeamTabs } from "@/components/projects/team-tabs";
 import { ProjectSetupWizard } from "@/components/projects/project-setup-wizard";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
+import { EddyTaskBuilderDialog } from "@/components/work-creation/eddy-task-builder-dialog";
 import { CreateTaskComposer } from "@/components/work-creation/create-task-composer";
 import { CreateBoardWizard } from "@/components/work-creation/create-board-wizard";
 import { DepartmentFilterBar } from "@/components/departments/department-filter-bar";
@@ -19,7 +20,8 @@ import { canDeleteProjects, hasPermission } from "@/lib/auth/permissions";
 import { enrichPackages, getFlowStore, listDepartments, listTeamsStore } from "@/lib/data/flow-store";
 import { isActiveProject } from "@/lib/data/entity-filters";
 import { parseDepartmentFilter } from "@/lib/departments/filters";
-import { filterDepartmentsForViewer, getViewerDepartmentIds } from "@/lib/departments/scope";
+import { filterDepartmentsForViewer } from "@/lib/departments/scope";
+import { getVisibleProjectIds } from "@/lib/auth/project-scope";
 import { getActiveDepartments } from "@/lib/departments/filters";
 import {
   getAnalysts,
@@ -65,7 +67,6 @@ export default async function ProjectsPage({
     filterDepartmentsForViewer(listDepartments(), user)
   );
   const branchIds = getScopeMemberIds(user, store.users, store.teams);
-  const viewerDeptIds = getViewerDepartmentIds(user);
 
   const [allProjects, manufacturers, yearItems, managers, allAnalysts] = await Promise.all([
     getProjectsWithStats(true),
@@ -75,28 +76,14 @@ export default async function ProjectsPage({
     getAnalysts(),
   ]);
 
-  let scopedProjects = allProjects;
-  if (branchIds?.length) {
-    const branchProjectIds = new Set(
-      store.workPackages
-        .filter((p) => p.assigned_to && branchIds.includes(p.assigned_to))
-        .map((p) => p.project_id)
-    );
-    if (user.team_id) {
-      allProjects
-        .filter((p) => p.team_id === user.team_id)
-        .forEach((p) => branchProjectIds.add(p.id));
-    }
-    scopedProjects = allProjects.filter(
-      (p) =>
-        branchProjectIds.has(p.id) ||
-        p.project_owner_id === user.id ||
-        p.created_by === user.id ||
-        (viewerDeptIds != null &&
-          p.department_id != null &&
-          viewerDeptIds.includes(p.department_id))
-    );
-  }
+  // P1 visibility contract — single scoping path, no department fallback.
+  const visibleProjectIds = getVisibleProjectIds(user, {
+    projects: allProjects,
+    workPackages: store.workPackages,
+    users: store.users,
+    teams: store.teams,
+  });
+  let scopedProjects = allProjects.filter((p) => visibleProjectIds.has(p.id));
 
   if (departmentFilter) {
     scopedProjects = scopedProjects.filter((p) => p.department_id === departmentFilter);
@@ -167,6 +154,7 @@ export default async function ProjectsPage({
         <FilterToolbar>
           {allowedModes.length > 0 && (
             <>
+              <EddyTaskBuilderDialog />
               {allowedModes.includes("project") && (
                 <ProjectSetupWizard
                   user={user}

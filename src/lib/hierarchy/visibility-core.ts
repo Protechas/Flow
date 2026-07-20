@@ -109,6 +109,50 @@ export function getVisibleUserIds(
   return [viewer.id];
 }
 
+/**
+ * The viewer's ACTUAL team, independent of how wide their view access is:
+ * seat-based descendants (positions reporting to their seat), hierarchy/
+ * manager descendants, and same-team members. Org-wide viewers (QA leads,
+ * admins) use this for "my team" surfaces so those views don't degrade into
+ * the whole company. Always includes the viewer.
+ */
+export function getActualTeamMemberIds(viewer: User, users: User[]): string[] {
+  const active = users.filter((u) => u.is_active);
+  const activeIds = new Set(active.map((u) => u.id));
+  const ids = new Set<string>([viewer.id]);
+
+  for (const id of getAllDescendantIds(viewer.id, active)) ids.add(id);
+
+  if (hasOrgPositions()) {
+    const positions = listOrgPositions().filter((p) => p.status !== "inactive");
+    const viewerSeat = viewer.assigned_position_id
+      ? positions.find((p) => p.id === viewer.assigned_position_id)
+      : positions.find((p) => p.assigned_user_id === viewer.id);
+    if (viewerSeat) {
+      const queue = [viewerSeat.id];
+      const seen = new Set<string>(queue);
+      while (queue.length) {
+        const parentId = queue.shift()!;
+        for (const p of positions) {
+          if (p.reports_to_position_id === parentId && !seen.has(p.id)) {
+            seen.add(p.id);
+            if (p.assigned_user_id) ids.add(p.assigned_user_id);
+            queue.push(p.id);
+          }
+        }
+      }
+    }
+  }
+
+  if (viewer.team_id) {
+    for (const u of active) {
+      if (u.team_id === viewer.team_id) ids.add(u.id);
+    }
+  }
+
+  return [...ids].filter((id) => id === viewer.id || activeIds.has(id));
+}
+
 export function canViewerSeeUser(
   viewer: User,
   targetUserId: string,

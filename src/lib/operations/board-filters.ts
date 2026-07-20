@@ -1,5 +1,6 @@
 import { isOverdue, isStuck } from "@/lib/scoring/flow-score";
 import { getAssignableUserIdsClient } from "@/lib/hierarchy/scope-client";
+import { getActualTeamMemberIds } from "@/lib/hierarchy/visibility-core";
 import type {
   OperationsTree,
   Project,
@@ -277,6 +278,13 @@ export function collectPackageIds(tree: OperationsTree, selectedKeys: Set<string
 }
 
 export function getTeamUserIds(currentUser: User, analysts: User[], allUsers: User[], teams: Team[] = []): string[] {
+  // "My Team" means the viewer's actual team (seat/hierarchy descendants +
+  // same-team members) — NOT the assignable pool, which for org-wide viewers
+  // (QA leads, admins) is the entire company. Fall back to the assignable
+  // pool only for viewers with no team of their own.
+  const own = new Set(getActualTeamMemberIds(currentUser, allUsers));
+  const ownTeam = analysts.filter((a) => own.has(a.id)).map((a) => a.id);
+  if (ownTeam.length) return ownTeam;
   const assignable = new Set(getAssignableUserIdsClient(currentUser, allUsers, teams));
   return analysts.filter((a) => assignable.has(a.id)).map((a) => a.id);
 }

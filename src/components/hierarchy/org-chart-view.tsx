@@ -70,13 +70,21 @@ function findNodeByUserId(nodes: OrgChartNode[], userId: string): OrgChartNode |
   return null;
 }
 
+/** A node's own team, or the nearest ancestor's team when the seat/user has
+ * none set — otherwise reports under a lead with unset team ids silently
+ * vanish from the team filter. */
+function effectiveTeamId(node: OrgChartNode, inheritedTeamId: string | null): string | null {
+  return node.position?.team_id ?? node.user?.team_id ?? inheritedTeamId;
+}
+
 function nodeMatchesFilters(
   node: OrgChartNode,
   search: string,
   departmentId: string,
   teamId: string,
   roleFilter: string,
-  departments: { id: string; name: string }[]
+  departments: { id: string; name: string }[],
+  inheritedTeamId: string | null = null
 ): boolean {
   const q = search.trim().toLowerCase();
   const deptName = departmentId
@@ -86,7 +94,7 @@ function nodeMatchesFilters(
   const position = node.position;
   const user = node.user;
   const level = position?.position_level ?? (user ? getOrganizationalPosition(user) : null);
-  const teamMatchId = position?.team_id ?? user?.team_id ?? null;
+  const teamMatchId = effectiveTeamId(node, inheritedTeamId);
 
   const selfMatch =
     (!q ||
@@ -101,7 +109,15 @@ function nodeMatchesFilters(
   return (
     selfMatch ||
     node.children.some((c) =>
-      nodeMatchesFilters(c, search, departmentId, teamId, roleFilter, departments)
+      nodeMatchesFilters(
+        c,
+        search,
+        departmentId,
+        teamId,
+        roleFilter,
+        departments,
+        teamMatchId
+      )
     )
   );
 }
@@ -112,13 +128,19 @@ function filterTree(
   departmentId: string,
   teamId: string,
   roleFilter: string,
-  departments: { id: string; name: string }[]
+  departments: { id: string; name: string }[],
+  inheritedTeamId: string | null = null
 ): OrgChartNode | null {
-  if (!nodeMatchesFilters(node, search, departmentId, teamId, roleFilter, departments)) {
+  if (
+    !nodeMatchesFilters(node, search, departmentId, teamId, roleFilter, departments, inheritedTeamId)
+  ) {
     return null;
   }
+  const childInheritedTeam = effectiveTeamId(node, inheritedTeamId);
   const children = node.children
-    .map((c) => filterTree(c, search, departmentId, teamId, roleFilter, departments))
+    .map((c) =>
+      filterTree(c, search, departmentId, teamId, roleFilter, departments, childInheritedTeam)
+    )
     .filter((n): n is OrgChartNode => n !== null);
   return { ...node, children };
 }
@@ -142,8 +164,12 @@ function filterGroupedSections(
         .filter((t) => !teamId || t.team.id === teamId)
         .map((t) => ({
           ...t,
+          // Roots grouped under a team section belong to that team — seed the
+          // inherited team so members with unset team ids stay visible.
           roots: t.roots
-            .map((r) => filterTree(r, search, departmentId, teamId, roleFilter, departments))
+            .map((r) =>
+              filterTree(r, search, departmentId, teamId, roleFilter, departments, t.team.id)
+            )
             .filter((n): n is OrgChartNode => n !== null),
         }))
         .filter((t) => t.roots.length > 0 || (!search && !roleFilter)),

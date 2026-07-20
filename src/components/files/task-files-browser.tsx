@@ -71,6 +71,7 @@ export interface TaskFileGroup {
   taskId: string;
   taskTitle: string;
   projectName: string;
+  teamName?: string | null;
   analystName: string;
   latestUploadAt: string;
   missingContent: number;
@@ -85,6 +86,7 @@ export function TaskFilesBrowser({
   initialTaskId?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [team, setTeam] = useState<string>("all");
   const [project, setProject] = useState<string>("all");
   const [uploader, setUploader] = useState<string>("all");
   const [day, setDay] = useState<string>("");
@@ -92,9 +94,22 @@ export function TaskFilesBrowser({
     () => new Set(initialTaskId ? [initialTaskId] : [])
   );
 
-  const projects = useMemo(
-    () => [...new Set(groups.map((g) => g.projectName))].sort(),
+  const teamNames = useMemo(
+    () =>
+      [...new Set(groups.map((g) => g.teamName).filter((t): t is string => Boolean(t)))].sort(),
     [groups]
+  );
+
+  const projects = useMemo(
+    () =>
+      [
+        ...new Set(
+          groups
+            .filter((g) => team === "all" || g.teamName === team)
+            .map((g) => g.projectName)
+        ),
+      ].sort(),
+    [groups, team]
   );
 
   const uploaders = useMemo(
@@ -105,6 +120,7 @@ export function TaskFilesBrowser({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return groups
+      .filter((g) => team === "all" || g.teamName === team)
       .filter((g) => project === "all" || g.projectName === project)
       .map((g) => {
         let files = g.files;
@@ -171,6 +187,28 @@ export function TaskFilesBrowser({
             className="pl-9"
           />
         </div>
+        {teamNames.length > 1 && (
+          <Select
+            value={team}
+            onValueChange={(v) => {
+              if (!v) return;
+              setTeam(v);
+              setProject("all");
+            }}
+          >
+            <SelectTrigger className="sm:w-44">
+              <SelectValue placeholder="All teams" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All teams</SelectItem>
+              {teamNames.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={project} onValueChange={(v) => v && setProject(v)}>
           <SelectTrigger className="sm:w-48">
             <SelectValue placeholder="All projects" />

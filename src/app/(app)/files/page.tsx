@@ -13,8 +13,9 @@ import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
 import { listCompanyDocuments } from "@/lib/files/company-documents";
 import { listDocumentFolders } from "@/lib/files/document-folders";
-import { getFlowStore, initFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore, initFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 import { getAllTaskFileUploads, initProductionTracking } from "@/lib/data/production-tracking";
+import { getVisibleProjectIds } from "@/lib/auth/project-scope";
 import { getContentReviewVerdictMap } from "@/lib/content-checks/reviews";
 import { taskFileHasContent } from "@/lib/files/download";
 import { BookOpen, FileStack } from "lucide-react";
@@ -40,9 +41,17 @@ export default async function FilesPage({
   initFlowStore();
   initProductionTracking();
   const store = getFlowStore();
-  const uploads = getAllTaskFileUploads().sort(
-    (a, b) => b.uploaded_at.localeCompare(a.uploaded_at)
-  );
+  const teams = listTeamsStore();
+  // P1 visibility contract: uploads only from projects the viewer can see.
+  const visibleProjectIds = getVisibleProjectIds(user, {
+    projects: store.projects,
+    workPackages: store.workPackages,
+    users: store.users,
+    teams,
+  });
+  const uploads = getAllTaskFileUploads()
+    .filter((f) => visibleProjectIds.has(f.project_id))
+    .sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at));
   // Automatic content-check verdicts, shown as per-file badges in the browser.
   const reviewVerdicts = showTaskUploads ? await getContentReviewVerdictMap() : {};
 
@@ -61,6 +70,9 @@ export default async function FilesPage({
         taskId: f.task_id,
         taskTitle: task?.title ?? "Unknown task",
         projectName: project?.name ?? "Unknown project",
+        teamName: project?.team_id
+          ? teams.find((t) => t.id === project.team_id)?.name ?? null
+          : null,
         analystName: analyst?.full_name ?? "Unassigned",
         latestUploadAt: f.uploaded_at,
         missingContent: 0,

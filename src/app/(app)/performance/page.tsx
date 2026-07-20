@@ -4,18 +4,30 @@ import { requirePageAccess } from "@/lib/auth/guard";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { getEmployeeScorecards, getTeamPerformanceDashboard } from "@/lib/data/performance";
 import { computeBadgesForUsers } from "@/lib/badges/badges";
-import { getFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore, listTeamsStore } from "@/lib/data/flow-store";
+import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
+import { getVisibleUserIds, isHierarchyOrgWide } from "@/lib/hierarchy/visibility-core";
 
 const LEAD_ROLES = new Set(["teamlead", "manager", "senior_manager", "admin", "super_admin"]);
 
 export default async function PerformancePage() {
-  await requirePageAccess("/performance");
+  const user = await requirePageAccess("/performance");
+  await ensureAppDataLoaded();
+  const store = getFlowStore();
+  // P1 visibility contract: branch viewers get dashboards computed over
+  // their own people only; org-wide viewers keep the company view.
+  const visibleUserIds = isHierarchyOrgWide(user)
+    ? undefined
+    : new Set(getVisibleUserIds(user, store.users, listTeamsStore()));
   const [dashboard, scorecards] = await Promise.all([
-    getTeamPerformanceDashboard(),
-    getEmployeeScorecards(),
+    getTeamPerformanceDashboard(visibleUserIds),
+    getEmployeeScorecards(visibleUserIds),
   ]);
-  const leadUsers = getFlowStore().users.filter(
-    (u) => u.is_active && LEAD_ROLES.has(u.role)
+  const leadUsers = store.users.filter(
+    (u) =>
+      u.is_active &&
+      LEAD_ROLES.has(u.role) &&
+      (!visibleUserIds || visibleUserIds.has(u.id))
   );
   const badgesByUser = await computeBadgesForUsers([
     ...scorecards.map((s) => s.user.id),
@@ -34,6 +46,8 @@ export default async function PerformancePage() {
         scorecards={scorecards}
         badgesByUser={badgesByUser}
         leads={leads}
+        viewerTeamId={user.team_id ?? null}
+        teams={listTeamsStore().map((t) => ({ id: t.id, name: t.name }))}
       />
     </>
   );

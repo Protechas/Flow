@@ -1,15 +1,15 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { GamificationPanel } from "@/components/accountability/gamification-panel";
+import { ScopedLeaderboard } from "@/components/performance/scoped-leaderboard";
 import { requirePageAccess } from "@/lib/auth/guard";
 import { getEmployeeScorecards } from "@/lib/data/performance";
 import { computeBadgesForUsers } from "@/lib/badges/badges";
-import { getFlowStore } from "@/lib/data/flow-store";
+import { getFlowStore, listTeamsStore } from "@/lib/data/flow-store";
 
 const LEAD_ROLES = new Set(["teamlead", "manager", "senior_manager", "admin", "super_admin"]);
 
-/** Read-only leaderboard for the whole team — same board the managers see. */
+/** Read-only leaderboard — own team by default, whole company on toggle. */
 export default async function EmployeeLeaderboardPage() {
-  await requirePageAccess("/work/leaderboard");
+  const user = await requirePageAccess("/work/leaderboard");
   const scorecards = await getEmployeeScorecards();
   const leadUsers = getFlowStore().users.filter(
     (u) => u.is_active && LEAD_ROLES.has(u.role)
@@ -26,7 +26,13 @@ export default async function EmployeeLeaderboardPage() {
         title="Leaderboard"
         description="Flow Scores, badges, and bragging rights — updated live from real work"
       />
-      <GamificationPanel scorecards={scorecards} badgesByUser={badgesByUser} leads={leads} />
+      <ScopedLeaderboard
+        scorecards={scorecards}
+        badgesByUser={badgesByUser}
+        leads={leads}
+        viewerTeamId={user.team_id ?? null}
+        teams={listTeamsStore().map((t) => ({ id: t.id, name: t.name }))}
+      />
     </>
   );
 }
