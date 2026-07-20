@@ -124,12 +124,15 @@ export const TASK_BUILDER_MAX_TASKS = 30;
 /** Total generated tasks (makes × years × models) — the real safety ceiling,
  * aligned with the app-wide 1000-row bulk limit. */
 export const TASK_BUILDER_MAX_MATRIX_ROWS = 1000;
-/** Per-dimension caps. Generous enough not to bite normal builds (there are
- * ~40 mainstream auto brands); the row cap above is the true guardrail. */
-export const TASK_BUILDER_MAX_MAKES = 75;
+/** Per-dimension caps. Covers the full set of mainstream auto brands; the row
+ * cap above is the true guardrail. */
+export const TASK_BUILDER_MAX_MAKES = 40;
 export const TASK_BUILDER_MAX_YEARS = 20;
 export const TASK_BUILDER_MAX_MODELS = 40;
-export const TASK_BUILDER_MAX_TURNS = 16;
+/** Messages (user + assistant) before the interview forces a fresh start.
+ * Counts both sides, so this is ~20 back-and-forth exchanges — generous enough
+ * that a normal build never hits it. */
+export const TASK_BUILDER_MAX_TURNS = 40;
 
 const PRIORITIES: WorkPriority[] = ["low", "medium", "high", "urgent"];
 const COMPLEXITIES: ForecastComplexityLevel[] = [
