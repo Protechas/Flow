@@ -39,6 +39,7 @@ function revalidateNotificationPaths() {
 }
 
 export async function runWorkflowChecksAction() {
+  await requireUser();
   initFlowStore();
   const store = getFlowStore();
   const ctx = buildWorkflowContext(store);

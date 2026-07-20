@@ -437,9 +437,9 @@ export function getFeatureModuleForPathname(pathname: string): FeatureModuleDefi
     .filter((m): m is FeatureModuleDefinition & { href: string } => Boolean(m.href))
     .sort((a, b) => b.href.length - a.href.length);
 
-  for (const module of sorted) {
-    if (path === module.href || path.startsWith(`${module.href}/`)) {
-      return module;
+  for (const mod of sorted) {
+    if (path === mod.href || path.startsWith(`${mod.href}/`)) {
+      return mod;
     }
   }
 

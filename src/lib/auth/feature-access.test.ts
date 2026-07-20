@@ -27,20 +27,20 @@ const ROLES: UserRole[] = [
 describe("feature-access backward compatibility", () => {
   it("registers all major modules with at least one permission", () => {
     expect(FEATURE_MODULE_REGISTRY.length).toBeGreaterThan(15);
-    for (const module of FEATURE_MODULE_REGISTRY) {
-      expect(module.permissions.length).toBeGreaterThan(0);
+    for (const mod of FEATURE_MODULE_REGISTRY) {
+      expect(mod.permissions.length).toBeGreaterThan(0);
     }
   });
 
   it("role templates preserve legacy permission outcomes when no overrides", () => {
     for (const role of ROLES) {
       const snapshot = resolveFeatureAccessForRole(role);
-      for (const module of snapshot.modules) {
-        const def = FEATURE_MODULE_REGISTRY.find((m) => m.id === module.moduleId);
+      for (const mod of snapshot.modules) {
+        const def = FEATURE_MODULE_REGISTRY.find((m) => m.id === mod.moduleId);
         if (!def) continue;
         for (const perm of def.permissions) {
           const legacy = perm.legacyPermissions.some((p) => hasPermission(role, p));
-          expect(module.permissions[perm.key]).toBe(legacy);
+          expect(mod.permissions[perm.key]).toBe(legacy);
         }
       }
     }
@@ -51,9 +51,9 @@ describe("feature-access backward compatibility", () => {
       const navItems = getNavItemsForRole(role);
       const snapshot = resolveFeatureAccessForRole(role);
       for (const item of navItems) {
-        const module = snapshot.modules.find((m) => m.navItemId === item.id);
-        if (module) {
-          expect(module.visibility).toBe("visible");
+        const mod = snapshot.modules.find((m) => m.navItemId === item.id);
+        if (mod) {
+          expect(mod.visibility).toBe("visible");
         }
       }
     }

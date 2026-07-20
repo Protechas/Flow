@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { createClient } from "@/lib/supabase/server";
 
-let memoryGoldCount = 0;
+const memoryGoldCount = 0;
 
 export async function countGoldStandards(): Promise<number> {
   if (!isSupabaseConfigured()) {

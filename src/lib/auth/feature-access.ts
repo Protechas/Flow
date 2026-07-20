@@ -190,17 +190,17 @@ export function resolveUserFeatureAccess(
 
 export function getHiddenNavItemIds(snapshot: UserFeatureAccessSnapshot): NavItemId[] {
   const hidden: NavItemId[] = [];
-  for (const module of snapshot.modules) {
-    if (module.visibility === "hidden" && module.navItemId) {
-      hidden.push(module.navItemId);
+  for (const mod of snapshot.modules) {
+    if (mod.visibility === "hidden" && mod.navItemId) {
+      hidden.push(mod.navItemId);
     }
   }
   return hidden;
 }
 
 export function isModuleVisible(snapshot: UserFeatureAccessSnapshot, moduleId: string): boolean {
-  const module = snapshot.modules.find((m) => m.moduleId === moduleId);
-  return module?.visibility === "visible";
+  const mod = snapshot.modules.find((m) => m.moduleId === moduleId);
+  return mod?.visibility === "visible";
 }
 
 /** True when pathname is allowed by enterprise module visibility (unmapped paths pass). */
@@ -208,9 +208,9 @@ export function canAccessPathWithFeatureAccess(
   snapshot: UserFeatureAccessSnapshot,
   pathname: string
 ): boolean {
-  const module = getFeatureModuleForPathname(pathname);
-  if (!module) return true;
-  return isModuleVisible(snapshot, module.id);
+  const mod = getFeatureModuleForPathname(pathname);
+  if (!mod) return true;
+  return isModuleVisible(snapshot, mod.id);
 }
 
 export function getHiddenEmployeeNavHrefs(snapshot: UserFeatureAccessSnapshot): string[] {

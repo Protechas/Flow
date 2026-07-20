@@ -7,7 +7,7 @@ import {
   qaCenterTablesMissingMessage,
 } from "@/lib/qa-center/supabase-errors";
 
-let memoryValidations: QaDocumentValidation[] = [];
+const memoryValidations: QaDocumentValidation[] = [];
 
 function ts() {
   return new Date().toISOString();
