@@ -8,10 +8,18 @@ export interface ToolEntry {
   description: string;
   href: string;
   /** lucide icon name resolved by the hub page */
-  icon: "FileSearch" | "Calculator" | "Wrench" | "ShieldCheck";
+  icon: "FileSearch" | "Calculator" | "Wrench" | "ShieldCheck" | "NotebookPen";
 }
 
 export const TOOLS: ToolEntry[] = [
+  {
+    id: "meeting-notes",
+    name: "Meeting Notes",
+    description:
+      "Paste a meeting transcript — Eddy writes the summary, pulls decisions and action items, and you approve which ones become real tasks. Notes save to Files.",
+    href: "/tools/meeting-notes",
+    icon: "NotebookPen",
+  },
   {
     id: "content-audit",
     name: "Content Audit",
