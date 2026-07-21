@@ -80,7 +80,7 @@ export function ProjectNextActionBadge({
 
   if (action.href) {
     return (
-      <Link href={action.href} className={chipClass}>
+      <Link href={action.href} prefetch={false} className={chipClass}>
         {prefix}
         {action.label}
       </Link>

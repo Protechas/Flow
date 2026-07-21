@@ -40,6 +40,7 @@ export function ProjectPortfolioQuickActions({
     <div className={`flex items-center gap-2 ${compact ? "" : "flex-wrap"}`}>
       <Link
         href={opsHref}
+        prefetch={false}
         className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
       >
         <Activity className="h-3 w-3" />
@@ -48,6 +49,7 @@ export function ProjectPortfolioQuickActions({
       </Link>
       <Link
         href={healthHref}
+        prefetch={false}
         className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
       >
         <HeartPulse className="h-3 w-3" />

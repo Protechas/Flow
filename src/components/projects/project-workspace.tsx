@@ -410,6 +410,7 @@ export function ProjectWorkspace({
                           ) : (
                             <Link
                               href={`/projects/${project.id}`}
+                              prefetch={false}
                               className="hover:text-primary"
                               onClick={(e) => e.stopPropagation()}
                             >

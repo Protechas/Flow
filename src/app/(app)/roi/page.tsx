@@ -9,10 +9,8 @@ import { requirePageAccess } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/permissions";
 import { getEffectivePermissionRole } from "@/lib/auth/access-level";
 import { ensureAppDataLoaded } from "@/lib/data/app-hydrate";
-import {
-  getAllTaskFileUploads,
-  getAllTaskSubmissions,
-} from "@/lib/data/production-tracking";
+import { getAllTaskSubmissions } from "@/lib/data/production-tracking";
+import { listUploadEventsSince } from "@/lib/data/upload-events-db";
 import { listLegacyMetrics } from "@/lib/legacy/monday-baseline";
 import { buildThenVsNow } from "@/lib/legacy/then-vs-now";
 import { computeFlowRoiSummary } from "@/lib/validation-center/roi";
@@ -29,7 +27,7 @@ export default async function FlowRoiPage() {
   const aiUsage = await summarizeAiUsage();
   const thenVsNow = buildThenVsNow({
     legacy: await listLegacyMetrics(),
-    uploads: getAllTaskFileUploads(),
+    uploads: await listUploadEventsSince(FLOW_ERA_START),
     submissions: getAllTaskSubmissions(),
     wagePerHour: roi.settings.labor_rate || 22,
     flowStartDate: FLOW_ERA_START,

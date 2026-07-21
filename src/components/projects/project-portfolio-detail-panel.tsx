@@ -233,7 +233,7 @@ export function ProjectPortfolioDetailPanel({
                 size="sm"
                 variant="outline"
                 className="w-full"
-                render={<Link href={operationsHref({ package: task.id })} />}
+                render={<Link href={operationsHref({ package: task.id })} prefetch={false} />}
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-2" />
                 Open in Operations

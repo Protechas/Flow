@@ -194,9 +194,12 @@ const hydrateProduction = cache(async (): Promise<void> => {
   const [clocks, tasks, files, subs, qa, sides] = await Promise.all([
     fetchAllRows(supabase, "time_clock_entries", "clock_in_at", since),
     fetchAllRows(supabase, "task_time_entries", "started_at", since),
-    // Uploads keep full history: the files browser and ROI baselines read
-    // beyond the 90-day production window.
-    fetchAllRows(supabase, "task_file_uploads", "uploaded_at"),
+    // Uploads are windowed like everything else: at ~5k uploads/week a
+    // full-history fetch was multi-MB on every 45s rehydration (the July 21
+    // "Flow is slow" report). ROI's full flow-era history comes from the
+    // skinny listUploadEventsSince fetch instead; the Files/Operations
+    // browsers only surface recent uploads. P5 scoped queries replace this.
+    fetchAllRows(supabase, "task_file_uploads", "uploaded_at", since),
     fetchAllRows(supabase, "task_submission_records", "submitted_at", since),
     fetchAllRows(supabase, "qa_review_records", "reviewed_at", since),
     fetchAllRows(supabase, "side_sessions", "started_at", since),

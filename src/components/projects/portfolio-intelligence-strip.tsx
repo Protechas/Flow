@@ -171,6 +171,7 @@ export function PortfolioIntelligenceStrip({
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link
                       href={`/projects/${intel.projectId}`}
+                      prefetch={false}
                       className="text-sm font-medium hover:text-primary truncate"
                     >
                       {project.name}
@@ -184,6 +185,7 @@ export function PortfolioIntelligenceStrip({
                 <div className="flex items-center gap-2 shrink-0">
                   <Link
                     href={operationsHref({ grouping: "by_program", projectId: intel.projectId })}
+                    prefetch={false}
                     className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                   >
                     <Activity className="h-3 w-3" />

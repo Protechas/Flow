@@ -186,6 +186,7 @@ export function ProgramIntelligencePanel({
       <div className="flex flex-wrap gap-3 pt-1 border-t border-border/40">
         <Link
           href={operationsHref({ grouping: "by_program", projectId: project.id })}
+          prefetch={false}
           className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
         >
           <Activity className="h-3 w-3" />
@@ -194,6 +195,7 @@ export function ProgramIntelligencePanel({
         </Link>
         <Link
           href={projectHealthHref({ projectId: project.id })}
+          prefetch={false}
           className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
         >
           Project health detail

@@ -176,7 +176,7 @@ export function ProjectSummaryPanel({
             size="sm"
             variant="outline"
             className="h-8"
-            render={<Link href={operationsHref({ grouping: "by_program", projectId: project.id })} />}
+            render={<Link href={operationsHref({ grouping: "by_program", projectId: project.id })} prefetch={false} />}
           >
             View tasks
           </Button>
@@ -186,7 +186,7 @@ export function ProjectSummaryPanel({
               size="sm"
               variant="outline"
               className="h-8"
-              render={<Link href={qaCenterHref()} />}
+              render={<Link href={qaCenterHref()} prefetch={false} />}
             >
               Review QA
             </Button>
@@ -196,7 +196,7 @@ export function ProjectSummaryPanel({
             size="sm"
             variant="outline"
             className="h-8"
-            render={<Link href={`/files?project=${project.id}`} />}
+            render={<Link href={`/files?project=${project.id}`} prefetch={false} />}
           >
             <FileUp className="h-3.5 w-3.5 mr-1" />
             Files

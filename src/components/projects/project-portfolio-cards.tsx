@@ -138,6 +138,7 @@ export function ProjectPortfolioCards({
                 <div className="min-w-0">
                   <Link
                     href={`/projects/${project.id}`}
+                    prefetch={false}
                     className="text-base font-semibold hover:text-primary line-clamp-2"
                   >
                     {project.name}
@@ -255,6 +256,7 @@ export function ProjectPortfolioCards({
                 )}
                 <Link
                   href={`/projects/${project.id}`}
+                  prefetch={false}
                   className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
                 >
                   Open program

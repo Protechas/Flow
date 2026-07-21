@@ -1,5 +1,12 @@
 import type { LegacyMetricRow } from "@/lib/legacy/monday-baseline";
-import type { TaskFileUpload, TaskSubmissionRecord } from "@/types/flow";
+import type { TaskSubmissionRecord } from "@/types/flow";
+
+/** Minimal upload shape — full TaskFileUpload rows also satisfy it. */
+export interface UploadEventLike {
+  user_id: string;
+  uploaded_at?: string | null;
+  created_at: string;
+}
 
 /**
  * Then vs Now: Monday.com era baseline against live Flow production.
@@ -72,7 +79,7 @@ function round1(n: number): number {
 
 export function buildThenVsNow(input: {
   legacy: LegacyMetricRow[];
-  uploads: TaskFileUpload[];
+  uploads: UploadEventLike[];
   submissions: TaskSubmissionRecord[];
   wagePerHour: number;
   flowStartDate: string;
