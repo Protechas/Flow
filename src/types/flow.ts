@@ -962,6 +962,8 @@ export type NotificationType =
   | "help_flag_acknowledged"
   | "help_flag_resolved"
   | "missing_wrap_up"
+  | "weekly_update_ready"
+  | "record_edited"
   | "work_eligibility_alert"
   | "forecast_risk"
   | "qa_rejected"

@@ -246,7 +246,7 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
       placeholder: "Repo links, PRs, anything else",
     },
   ],
-  workspace: { showActiveProjectsPanel: true, overdueFirst: true },
+  workspace: { showActiveProjectsPanel: true, overdueFirst: true, notifyManagerOnEdits: true },
   managerUpdate: {
     enabled: true,
     fields: [

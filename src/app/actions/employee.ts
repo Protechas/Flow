@@ -15,7 +15,12 @@ import {
   startTaskTimer,
   stopTaskTimer,
 } from "@/lib/data/production-tracking";
-import { createDailyWrapUp, updateWorkPackage, initFlowStore } from "@/lib/data/flow-store";
+import {
+  createDailyWrapUp,
+  getDailyWrapUp,
+  updateWorkPackage,
+  initFlowStore,
+} from "@/lib/data/flow-store";
 import { persistDailyWrapUpSync } from "@/lib/data/wrap-ups-db";
 import { demoteOtherInProgressTasks } from "@/lib/employee/single-focus";
 import { persistTaskTimeEntrySync } from "@/lib/data/production-tracking-db";
@@ -219,9 +224,11 @@ export async function submitDailyWrapUpAction(input: {
   await hydrateOperatingModels();
   const teamModel = resolveOperatingModelForTeam(user.team_id);
   const sections = sanitizeWrapUpSections(input.sections, teamModel.wrapUpFields ?? []);
+  const today = appTodayDate();
+  const isRevision = !!getDailyWrapUp(user.id, today);
   const wrapUp = createDailyWrapUp({
     user_id: user.id,
-    wrap_date: appTodayDate(),
+    wrap_date: today,
     completed_summary: input.completed_summary || null,
     blockers: input.blockers || null,
     needs_support: input.needs_support,
@@ -241,6 +248,29 @@ export async function submitDailyWrapUpAction(input: {
     sections,
   });
   await persistDailyWrapUpSync(wrapUp);
+
+  // Teams that opt in (workspace.notifyManagerOnEdits): revising an
+  // already-submitted daily report pings the employee's leaders for review.
+  if (isRevision && teamModel.workspace?.notifyManagerOnEdits === true) {
+    initFlowStore();
+    const { resolveLeadersForEmployee } = await import("@/lib/hierarchy/resolver");
+    const { deliverNotification } = await import("@/lib/notifications/notifications");
+    const store = (await import("@/lib/data/flow-store")).getFlowStore();
+    for (const leader of resolveLeadersForEmployee(user, store.users, {
+      includeSeniorManager: true,
+      includeAdminFallback: false,
+    })) {
+      deliverNotification({
+        user_id: leader.id,
+        type: "record_edited",
+        title: "Daily report revised",
+        message: `${user.full_name} revised their daily report for ${today}.`,
+        related_entity_type: "daily_wrap_up",
+        related_entity_id: wrapUp.id,
+        link: "/wrap-ups",
+      });
+    }
+  }
 
   const hasBlockers = !!input.blockers?.trim();
   if (input.needs_support || hasBlockers) {

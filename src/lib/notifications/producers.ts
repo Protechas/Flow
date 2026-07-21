@@ -1,4 +1,7 @@
-import { appTodayDate } from "@/lib/datetime/timezone";
+import { appDayOfWeek, appTodayDate } from "@/lib/datetime/timezone";
+import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
+import { weekOfFriday } from "@/lib/wrap-up/manager-update";
+import { teamWeeklyUpdatesEnabled } from "@/lib/wrap-up/weekly-update";
 import { healthLevelFromScore } from "@/lib/design/department-health";
 import { getFlowStore, initFlowStore, listDepartments } from "@/lib/data/flow-store";
 import { forecastVarianceDays } from "@/lib/forecast/engine";
@@ -86,6 +89,39 @@ export function syncWrapUpNotifications(users: User[]) {
         users
       );
     }
+  }
+}
+
+/**
+ * Thursday "your weekly update draft is ready" bell for teams whose operating
+ * model enables weeklyUpdates (fires from the config's opens day onward;
+ * deduped per user per week via the week_of entity id).
+ */
+export function syncWeeklyUpdateReadyNotifications(users: User[]) {
+  const dayOfWeek = appDayOfWeek();
+  const weekOf = weekOfFriday(appTodayDate());
+
+  for (const emp of users.filter((u) => u.is_active && u.team_id)) {
+    const model = resolveOperatingModelForTeam(emp.team_id);
+    if (!teamWeeklyUpdatesEnabled(model)) continue;
+    const opensDay = model.weeklyUpdates!.opens.day;
+    // Mon-based position so "on or after opens day" works across the week.
+    if ((dayOfWeek + 6) % 7 < (opensDay + 6) % 7) continue;
+
+    deliverNotification(
+      {
+        user_id: emp.id,
+        type: "weekly_update_ready",
+        title: "Weekly update draft ready",
+        message:
+          "Flow drafted your weekly update from this week's daily reports — review and submit from your workspace.",
+        related_entity_type: "weekly_update",
+        related_entity_id: `${emp.id}:${weekOf}`,
+        link: "/work",
+      },
+      // One bell per week: the week_of entity id plus a long dedupe window.
+      24 * 7
+    );
   }
 }
 
@@ -208,6 +244,7 @@ export function syncOperationalNotifications() {
   const users = store.users.filter((u) => u.is_active);
 
   syncWrapUpNotifications(users);
+  syncWeeklyUpdateReadyNotifications(users);
   syncForecastRiskNotifications(users, store.workPackages);
   syncDepartmentAlertNotifications(users);
 }

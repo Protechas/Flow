@@ -62,6 +62,34 @@ export async function submitWeeklyUpdateAction(input: { sections: Record<string,
       week_of: weekOf,
       sections,
     });
+
+    // Revising an already-submitted weekly update pings leaders for review
+    // when the team opts in (workspace.notifyManagerOnEdits).
+    if (existing && model.workspace?.notifyManagerOnEdits === true) {
+      const { initFlowStore, getFlowStore } = await import("@/lib/data/flow-store");
+      const { resolveLeadersForEmployee } = await import("@/lib/hierarchy/resolver");
+      const { deliverNotification } = await import("@/lib/notifications/notifications");
+      initFlowStore();
+      for (const leader of resolveLeadersForEmployee(user, getFlowStore().users, {
+        includeSeniorManager: true,
+        includeAdminFallback: false,
+      })) {
+        deliverNotification(
+          {
+            user_id: leader.id,
+            type: "record_edited",
+            title: "Weekly update revised",
+            message: `${user.full_name} revised their weekly update for the week of ${weekOf}.`,
+            related_entity_type: "weekly_update",
+            related_entity_id: `${user.id}:${weekOf}:${Date.now()}`,
+            link: "/wrap-ups",
+          },
+          24,
+          true
+        );
+      }
+    }
+
     revalidatePath("/work");
     revalidatePath("/wrap-ups");
     return { ok: true as const };

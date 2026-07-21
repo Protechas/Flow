@@ -117,6 +117,8 @@ export interface OperatingModelWorkspaceConfig {
   showActiveProjectsPanel?: boolean;
   /** Sort overdue tasks to the top of the Up Next queue. */
   overdueFirst?: boolean;
+  /** Notify the employee's manager when submitted records are revised. */
+  notifyManagerOnEdits?: boolean;
 }
 
 export interface TeamOperatingModel {
