@@ -24,6 +24,15 @@ import {
 } from "@/lib/wrap-up/review";
 import { isProductionRosterMember } from "@/lib/users/production-roster";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
+import { ManagerUpdatePanel } from "@/components/wrap-up/manager-update-panel";
+import { listManagerWeeklyUpdates } from "@/lib/data/manager-updates-db";
+import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
+import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
+import {
+  canSubmitManagerUpdate,
+  isFridayAppDate,
+  weekOfFriday,
+} from "@/lib/wrap-up/manager-update";
 import { format, subDays } from "date-fns";
 
 export default async function WrapUpsPage({
@@ -56,6 +65,25 @@ export default async function WrapUpsPage({
   const employees = store.users.filter(
     (u) => isProductionRosterMember(u) && (visibleIds === null || visibleIds.includes(u.id))
   );
+
+  // Weekly manager update ("Friday section") — form for filing managers,
+  // read feed for leadership (org-wide) and the manager's own team.
+  await hydrateOperatingModels();
+  const viewerModel = resolveOperatingModelForTeam(user.team_id);
+  const managerFields = canSubmitManagerUpdate(user, viewerModel)
+    ? (viewerModel.managerUpdate?.fields ?? [])
+    : [];
+  const today = appTodayDate();
+  const weekOf = weekOfFriday(today);
+  const sinceWeek = format(subDays(new Date(), 8 * 7), "yyyy-MM-dd");
+  const allUpdates = await listManagerWeeklyUpdates(sinceWeek).catch(() => []);
+  const visibleUpdates = hasPermission(user.role, "work:view_all")
+    ? allUpdates
+    : allUpdates.filter((u) => u.user_id === user.id || u.team_id === user.team_id);
+  const ownCurrent = visibleUpdates.find((u) => u.user_id === user.id && u.week_of === weekOf) ?? null;
+  const otherUpdates = visibleUpdates.filter((u) => u.id !== ownCurrent?.id);
+  const authorNames = Object.fromEntries(store.users.map((u) => [u.id, u.full_name]));
+  const teamNames = Object.fromEntries(teams.map((t) => [t.id, t.name]));
 
   const rows = buildWrapUpReviewRows(user, {
     startDate: format(subDays(new Date(), 14), "yyyy-MM-dd"),
@@ -112,6 +140,15 @@ export default async function WrapUpsPage({
       }
       workspace={
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
+          <ManagerUpdatePanel
+            fields={managerFields}
+            existing={ownCurrent}
+            isFriday={isFridayAppDate(today)}
+            weekOf={weekOf}
+            recent={otherUpdates}
+            authorNames={authorNames}
+            teamNames={teamNames}
+          />
           <WrapUpReviewCenter
             rows={rows}
             stats={stats}

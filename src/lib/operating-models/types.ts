@@ -87,6 +87,16 @@ export interface OperatingModelWrapUpField {
   placeholder?: string;
 }
 
+/**
+ * Weekly manager update ("Friday section"). When enabled, the team's manager
+ * gets a structured weekly form — prompts from `fields` — submittable on
+ * Fridays; leadership reads submissions in the Daily Report Review area.
+ */
+export interface OperatingModelManagerUpdateConfig {
+  enabled?: boolean;
+  fields: OperatingModelWrapUpField[];
+}
+
 /** Per-team employee-workspace behavior — how the home page renders. */
 export interface OperatingModelWorkspaceConfig {
   /** Show an "Active projects" panel built from the employee's open tasks. */
@@ -131,6 +141,8 @@ export interface TeamOperatingModel {
   wrapUpFields?: OperatingModelWrapUpField[];
   /** Per-team employee-workspace rendering (home panels, queue ordering). */
   workspace?: OperatingModelWorkspaceConfig;
+  /** Weekly manager update form ("Friday section"). */
+  managerUpdate?: OperatingModelManagerUpdateConfig;
   /** Fallback model — used when no team/dept match exists. */
   isGeneral?: boolean;
 }

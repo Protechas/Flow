@@ -247,6 +247,20 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
     },
   ],
   workspace: { showActiveProjectsPanel: true, overdueFirst: true },
+  managerUpdate: {
+    enabled: true,
+    fields: [
+      { id: "contributions", label: "Manager contributions" },
+      { id: "team_support", label: "Team support provided" },
+      { id: "project_decisions", label: "Project decisions" },
+      { id: "risks_identified", label: "Risks identified" },
+      { id: "blockers_resolved", label: "Blockers resolved" },
+      { id: "leadership_communication", label: "Leadership communication" },
+      { id: "resource_needs", label: "Resource needs" },
+      { id: "team_accomplishments", label: "Team accomplishments" },
+      { id: "next_week_priorities", label: "Priorities for the following week" },
+    ],
+  },
 };
 
 export const ID3_VALIDATION_MODEL: TeamOperatingModel = {

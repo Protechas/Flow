@@ -1805,6 +1805,19 @@ export interface WorkVisibilityTrendPoint {
 
 export type WrapUpComplianceStatus = "submitted" | "missing" | "overridden";
 
+/** Weekly manager update ("Friday section") — one row per manager per week. */
+export interface ManagerWeeklyUpdate {
+  id: string;
+  user_id: string;
+  team_id: string;
+  /** yyyy-MM-dd of the Friday (org timezone) this update covers. */
+  week_of: string;
+  /** Answers keyed by the operating model's managerUpdate.fields ids. */
+  sections: Record<string, string>;
+  submitted_at: string;
+  updated_at: string;
+}
+
 export interface DailyWrapUpOverride {
   id: string;
   user_id: string;
