@@ -97,6 +97,20 @@ export interface OperatingModelManagerUpdateConfig {
   fields: OperatingModelWrapUpField[];
 }
 
+/**
+ * Employee weekly updates. When enabled, each team member gets a weekly
+ * update draft (auto-compiled from their daily wrap-ups and completed
+ * tasks) with the team's sections, submittable inside the configured
+ * window. `opens`/`due` are day-of-week (0=Sun…6=Sat) + hour (0–23) in the
+ * organization timezone — e.g. AP: opens Thu 17:00, due Fri 15:00.
+ */
+export interface OperatingModelWeeklyUpdatesConfig {
+  enabled?: boolean;
+  fields: OperatingModelWrapUpField[];
+  opens: { day: number; hour: number };
+  due: { day: number; hour: number };
+}
+
 /** Per-team employee-workspace behavior — how the home page renders. */
 export interface OperatingModelWorkspaceConfig {
   /** Show an "Active projects" panel built from the employee's open tasks. */
@@ -143,6 +157,8 @@ export interface TeamOperatingModel {
   workspace?: OperatingModelWorkspaceConfig;
   /** Weekly manager update form ("Friday section"). */
   managerUpdate?: OperatingModelManagerUpdateConfig;
+  /** Employee weekly updates (auto-drafted, window-gated). */
+  weeklyUpdates?: OperatingModelWeeklyUpdatesConfig;
   /** Fallback model — used when no team/dept match exists. */
   isGeneral?: boolean;
 }

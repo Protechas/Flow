@@ -34,6 +34,15 @@ export function isAppCalendarDay(iso: string, day = appTodayDate()): boolean {
   return formatAppCalendarDate(iso) === day;
 }
 
+/** Day of week (0=Sun … 6=Sat) in the organization timezone. */
+export function appDayOfWeek(now = new Date()): number {
+  const name = new Intl.DateTimeFormat("en-US", {
+    timeZone: getAppTimeZone(),
+    weekday: "short",
+  }).format(now);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+}
+
 /** Current hour (0–23) in the organization timezone. */
 export function appCurrentHour(now = new Date()): number {
   const hour = new Intl.DateTimeFormat("en-US", {

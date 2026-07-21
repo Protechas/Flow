@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { appTodayDate } from "@/lib/datetime/timezone";
 import { EmployeeHome } from "@/components/employee/employee-home";
 import { EmployeeNeedsSetupView } from "@/components/setup/employee-needs-setup-view";
@@ -34,6 +35,15 @@ import { listActiveTickets } from "@/lib/requests/tickets";
 import { listFilesForTickets } from "@/lib/requests/ticket-files";
 import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
 import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
+import { EmployeeWeeklyUpdateCard } from "@/components/employee/employee-weekly-update-card";
+import { getWeeklyUpdate } from "@/lib/data/weekly-updates-db";
+import { appCurrentHour, appDayOfWeek } from "@/lib/datetime/timezone";
+import { weekOfFriday } from "@/lib/wrap-up/manager-update";
+import {
+  buildWeeklyUpdateDraft,
+  teamWeeklyUpdatesEnabled,
+  weeklyUpdateWindowState,
+} from "@/lib/wrap-up/weekly-update";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -67,6 +77,51 @@ export default async function EmployeeWorkPage() {
     showActiveProjectsPanel: teamModel.workspace?.showActiveProjectsPanel === true,
     overdueFirst: teamModel.workspace?.overdueFirst === true,
   };
+
+  // Weekly update card (teams with weeklyUpdates enabled): visible from
+  // Thursday, or any time a manager reopened this week's update.
+  let weeklyUpdateCard: ReactNode = null;
+  if (teamWeeklyUpdatesEnabled(teamModel) && isEmployeeRole(user.role)) {
+    const config = teamModel.weeklyUpdates!;
+    const weekOf = weekOfFriday(today);
+    const existing = await getWeeklyUpdate(user.id, weekOf).catch(() => null);
+    const dayOfWeek = appDayOfWeek();
+    const showFromThursday = dayOfWeek >= 4 || dayOfWeek === 0;
+    if (showFromThursday || existing) {
+      const weekDates = new Set<string>();
+      for (let offset = 4; offset >= 0; offset -= 1) {
+        const [y, m, d] = weekOf.split("-").map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d));
+        date.setUTCDate(date.getUTCDate() - offset);
+        weekDates.add(date.toISOString().slice(0, 10));
+      }
+      const myWrapUps = store.dailyWrapUps.filter(
+        (w) => w.user_id === user.id && weekDates.has(w.wrap_date)
+      );
+      const completedThisWeek = dashboard.board.all.filter(
+        (t) =>
+          t.status === "done" &&
+          t.completed_date &&
+          weekDates.has(t.completed_date.slice(0, 10))
+      );
+      const draft = buildWeeklyUpdateDraft({
+        fields: config.fields,
+        wrapUps: myWrapUps,
+        completedTasks: completedThisWeek,
+      });
+      weeklyUpdateCard = (
+        <div className="mb-4">
+          <EmployeeWeeklyUpdateCard
+            fields={config.fields}
+            draft={draft}
+            existing={existing}
+            windowState={weeklyUpdateWindowState(config, dayOfWeek, appCurrentHour())}
+            weekOf={weekOf}
+          />
+        </div>
+      );
+    }
+  }
   const activeTickets = await listActiveTickets().catch(() => []);
   // Open tickets are claimable only by the receiving departments; anything
   // you already claimed always shows so it can be finished.
@@ -104,6 +159,7 @@ export default async function EmployeeWorkPage() {
       <div className="mb-4">
         <CoachPanel nudges={coachNudges} persona={resolveCoachPersona(user)} />
       </div>
+      {weeklyUpdateCard}
       {myVisibleTickets.length > 0 && (
         <div className="enterprise-panel p-4 mb-4 space-y-3">
           <div className="flex items-center justify-between gap-2">

@@ -25,7 +25,12 @@ import {
 import { isProductionRosterMember } from "@/lib/users/production-roster";
 import { OPS_COPY } from "@/lib/copy/executive-terminology";
 import { ManagerUpdatePanel } from "@/components/wrap-up/manager-update-panel";
+import { WeeklyUpdatesReview } from "@/components/wrap-up/weekly-updates-review";
 import { listManagerWeeklyUpdates } from "@/lib/data/manager-updates-db";
+import {
+  listWeeklyUpdateComments,
+  listWeeklyUpdates,
+} from "@/lib/data/weekly-updates-db";
 import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
 import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
 import {
@@ -84,6 +89,16 @@ export default async function WrapUpsPage({
   const otherUpdates = visibleUpdates.filter((u) => u.id !== ownCurrent?.id);
   const authorNames = Object.fromEntries(store.users.map((u) => [u.id, u.full_name]));
   const teamNames = Object.fromEntries(teams.map((t) => [t.id, t.name]));
+
+  // Employee weekly updates: leadership sees all; team-scoped viewers see
+  // their own team's (mirrors the manager-update scoping above).
+  const allWeekly = await listWeeklyUpdates(sinceWeek).catch(() => []);
+  const visibleWeekly = hasPermission(user.role, "work:view_all")
+    ? allWeekly
+    : allWeekly.filter((u) => u.user_id === user.id || u.team_id === user.team_id);
+  const weeklyComments = await listWeeklyUpdateComments(visibleWeekly.map((u) => u.id)).catch(
+    () => []
+  );
 
   const rows = buildWrapUpReviewRows(user, {
     startDate: format(subDays(new Date(), 14), "yyyy-MM-dd"),
@@ -148,6 +163,14 @@ export default async function WrapUpsPage({
             recent={otherUpdates}
             authorNames={authorNames}
             teamNames={teamNames}
+          />
+          <WeeklyUpdatesReview
+            updates={visibleWeekly}
+            comments={weeklyComments}
+            authorNames={authorNames}
+            teamNames={teamNames}
+            canModerate={canReview}
+            currentUserId={user.id}
           />
           <WrapUpReviewCenter
             rows={rows}

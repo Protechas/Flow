@@ -1818,6 +1818,34 @@ export interface ManagerWeeklyUpdate {
   updated_at: string;
 }
 
+/** Employee weekly update — one row per employee per week, window-gated. */
+export interface EmployeeWeeklyUpdate {
+  id: string;
+  user_id: string;
+  team_id: string;
+  /** yyyy-MM-dd of the Friday (org timezone) this update covers. */
+  week_of: string;
+  /** Answers keyed by the operating model's weeklyUpdates.fields ids. */
+  sections: Record<string, string>;
+  status: "submitted" | "reassigned";
+  /** Prior submitted versions, oldest first. */
+  revisions: { sections: Record<string, string>; submitted_at: string }[];
+  submitted_at: string;
+  updated_at: string;
+  reassigned_by?: string | null;
+  reassigned_note?: string | null;
+}
+
+export interface WeeklyUpdateComment {
+  id: string;
+  update_id: string;
+  user_id: string;
+  kind: "comment" | "reaction";
+  body?: string | null;
+  emoji?: string | null;
+  created_at: string;
+}
+
 export interface DailyWrapUpOverride {
   id: string;
   user_id: string;

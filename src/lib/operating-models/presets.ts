@@ -261,6 +261,17 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
       { id: "next_week_priorities", label: "Priorities for the following week" },
     ],
   },
+  weeklyUpdates: {
+    enabled: true,
+    fields: [
+      { id: "work_completed", label: "Work Completed This Week" },
+      { id: "time_expectation", label: "Time Expectation for Completion" },
+      { id: "errors_issues", label: "Errors or Issues Encountered" },
+      { id: "next_steps", label: "Next Steps" },
+    ],
+    opens: { day: 4, hour: 17 },
+    due: { day: 5, hour: 15 },
+  },
 };
 
 export const ID3_VALIDATION_MODEL: TeamOperatingModel = {
