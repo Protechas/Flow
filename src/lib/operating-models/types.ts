@@ -97,8 +97,26 @@ export interface TeamOperatingModel {
    * landscape, highlights) turn this off so they aren't false-flagged.
    */
   contentChecksEnabled?: boolean;
+  /**
+   * Clock-out upload gate. When enabled, a task flagged files-required that the
+   * analyst worked at least `minTimedMinutes` on today must have an upload
+   * before they can clock out. The minutes threshold stops a task someone
+   * merely opened (then went to a meeting or break) from trapping clock-out.
+   * Default: enabled, 30-minute threshold.
+   */
+  uploadGate?: {
+    enabled?: boolean;
+    minTimedMinutes?: number;
+  };
   /** Fallback model — used when no team/dept match exists. */
   isGeneral?: boolean;
+}
+
+export const DEFAULT_UPLOAD_GATE_MIN_MINUTES = 30;
+
+export interface ResolvedUploadGate {
+  enabled: boolean;
+  minTimedMinutes: number;
 }
 
 export interface TeamOperatingModelRecord extends TeamOperatingModel {

@@ -4,7 +4,12 @@ import {
   getOperatingModel,
   listOperatingModels,
 } from "@/lib/operating-models/store";
-import type { OperatingContext, TeamOperatingModel } from "@/lib/operating-models/types";
+import {
+  DEFAULT_UPLOAD_GATE_MIN_MINUTES,
+  type OperatingContext,
+  type ResolvedUploadGate,
+  type TeamOperatingModel,
+} from "@/lib/operating-models/types";
 import type { Project, Team } from "@/types/flow";
 
 export function resolveOperatingModelBySlug(slug: string): TeamOperatingModel {
@@ -71,6 +76,32 @@ export function contentChecksEnabledForProject(
   teams: Team[] = []
 ): boolean {
   return resolveOperatingModelForProject(project, teams).contentChecksEnabled !== false;
+}
+
+/** Upload-gate behavior for a model, with defaults for models predating it. */
+export function resolveUploadGate(model: TeamOperatingModel): ResolvedUploadGate {
+  const gate = model.uploadGate;
+  const minutes = gate?.minTimedMinutes;
+  return {
+    // Default ON — matches the gate's behavior before it was configurable.
+    enabled: gate?.enabled !== false,
+    minTimedMinutes:
+      typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0
+        ? minutes
+        : DEFAULT_UPLOAD_GATE_MIN_MINUTES,
+  };
+}
+
+/** Upload-gate settings for the team that owns a project. */
+export function resolveUploadGateForProject(
+  project: {
+    project_type?: string | null;
+    team_id?: string | null;
+    department_id?: string | null;
+  },
+  teams: Team[] = []
+): ResolvedUploadGate {
+  return resolveUploadGate(resolveOperatingModelForProject(project, teams));
 }
 
 export function buildOperatingContext(

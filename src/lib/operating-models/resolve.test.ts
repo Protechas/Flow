@@ -9,6 +9,8 @@ import {
   contentChecksEnabledForProject,
   resolveOperatingModelForProject,
   resolveOperatingModelForTeam,
+  resolveUploadGate,
+  resolveUploadGateForProject,
 } from "@/lib/operating-models/resolve";
 import { replaceOperatingModelsInStore } from "@/lib/operating-models/store";
 import type { Project, Team } from "@/types/flow";
@@ -108,6 +110,42 @@ describe("contentChecksEnabledForProject", () => {
         teams
       )
     ).toBe(true);
+  });
+});
+
+describe("resolveUploadGate", () => {
+  it("defaults to enabled with a 30-minute threshold for models predating it", () => {
+    expect(resolveUploadGate(GENERAL_OPERATING_MODEL)).toEqual({
+      enabled: true,
+      minTimedMinutes: 30,
+    });
+  });
+
+  it("reads a team's configured gate and can turn it off", () => {
+    replaceOperatingModelsInStore([
+      { ...GENERAL_OPERATING_MODEL, is_active: true, sort_order: 0 },
+      {
+        ...ADVANCED_PROJECTS_MODEL,
+        teamId: "team-ap",
+        departmentId: "dept-eng",
+        uploadGate: { enabled: false, minTimedMinutes: 60 },
+        is_active: true,
+        sort_order: 1,
+      },
+    ]);
+    expect(
+      resolveUploadGateForProject(
+        { project_type: "custom", team_id: "team-ap", department_id: "dept-eng" },
+        teams
+      )
+    ).toEqual({ enabled: false, minTimedMinutes: 60 });
+    // Other teams keep the default gate.
+    expect(
+      resolveUploadGateForProject(
+        { project_type: "custom", team_id: "team-other", department_id: null },
+        teams
+      )
+    ).toEqual({ enabled: true, minTimedMinutes: 30 });
   });
 });
 

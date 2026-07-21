@@ -454,6 +454,38 @@ export function OperatingModelBuilder({
                 />
                 Show phase/year picker
               </label>
+
+              <div className="pt-2 border-t border-border/60">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={form.uploadGateEnabled !== false}
+                    onCheckedChange={(c) => update("uploadGateEnabled", Boolean(c))}
+                  />
+                  Require a file upload before clock-out
+                </label>
+                {form.uploadGateEnabled !== false && (
+                  <div className="flex items-center gap-2 text-sm pl-6 mt-2">
+                    <span className="text-muted-foreground">only after</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={480}
+                      value={form.uploadGateMinMinutes ?? 30}
+                      onChange={(e) =>
+                        update("uploadGateMinMinutes", Math.max(0, Number(e.target.value) || 0))
+                      }
+                      className="w-20 h-8"
+                    />
+                    <span className="text-muted-foreground">
+                      minutes of timed work on a task
+                    </span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground pl-6 mt-1">
+                  Stops a task someone only glanced at from blocking their clock-out.
+                  Turn off entirely for teams that don&apos;t upload files (e.g. email).
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

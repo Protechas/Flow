@@ -27,6 +27,8 @@ export type OperatingModelInput = {
   showWorkstreamPicker?: boolean;
   showYearPicker?: boolean;
   contentChecksEnabled?: boolean;
+  uploadGateEnabled?: boolean;
+  uploadGateMinMinutes?: number;
   is_active?: boolean;
 };
 
@@ -58,6 +60,8 @@ export const EMPTY_OPERATING_MODEL_INPUT: OperatingModelInput = {
   showWorkstreamPicker: true,
   showYearPicker: true,
   contentChecksEnabled: true,
+  uploadGateEnabled: true,
+  uploadGateMinMinutes: 30,
   is_active: true,
 };
 
@@ -83,6 +87,11 @@ export function modelToFormInput(model: TeamOperatingModel): OperatingModelInput
     showWorkstreamPicker: model.taskDefaults?.showWorkstreamPicker,
     showYearPicker: model.taskDefaults?.showYearPicker,
     contentChecksEnabled: model.contentChecksEnabled !== false,
+    uploadGateEnabled: model.uploadGate?.enabled !== false,
+    uploadGateMinMinutes:
+      typeof model.uploadGate?.minTimedMinutes === "number"
+        ? model.uploadGate.minTimedMinutes
+        : 30,
     is_active: true,
   };
 }
@@ -114,5 +123,12 @@ export function inputToModel(input: OperatingModelInput): TeamOperatingModel {
       showYearPicker: input.showYearPicker,
     },
     contentChecksEnabled: input.contentChecksEnabled !== false,
+    uploadGate: {
+      enabled: input.uploadGateEnabled !== false,
+      minTimedMinutes:
+        typeof input.uploadGateMinMinutes === "number" && input.uploadGateMinMinutes >= 0
+          ? Math.round(input.uploadGateMinMinutes)
+          : 30,
+    },
   };
 }

@@ -1027,6 +1027,22 @@ export function getTodayTimedTaskIds(userId: string): string[] {
   ];
 }
 
+/** Minutes worked per task today (banked + live for an active timer). */
+export function getTodayTimedMinutesByTask(userId: string): Record<string, number> {
+  initProductionTracking();
+  const today = todayDate();
+  const out: Record<string, number> = {};
+  for (const entry of state.taskTimeEntries) {
+    if (entry.user_id !== userId || !isAppCalendarDay(entry.started_at, today)) continue;
+    const minutes =
+      entry.status === "active"
+        ? minutesBetween(entry.started_at, ts())
+        : entry.total_active_minutes;
+    out[entry.task_id] = (out[entry.task_id] ?? 0) + minutes;
+  }
+  return out;
+}
+
 /** Uploads recorded today, for the clock-out upload gate. */
 export function getTodayTaskFileUploads(): TaskFileUpload[] {
   initProductionTracking();
