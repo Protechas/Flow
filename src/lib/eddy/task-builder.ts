@@ -82,7 +82,12 @@ export interface BulkMatrixAiDraft {
   years: number[];
   models?: string[] | null;
   modelCountPerGroup?: number | null;
+  /** Count of units in EACH generated task (e.g. 500 lines per task). */
   docsPerTask?: number | null;
+  /** What a unit is — files, lines, VINs… Drives per-task forecasting. */
+  forecastUnit?: string | null;
+  /** Minutes to complete one unit. */
+  minutesPerUnit?: number | null;
   qaRequired?: boolean | null;
   filesRequired?: boolean | null;
   priority?: WorkPriority | null;
@@ -349,7 +354,9 @@ export function validateTaskBuilderDraft(
       years,
       models: models?.length ? models : null,
       modelCountPerGroup: cleanNumber(d.modelCountPerGroup, 1, 40),
-      docsPerTask: cleanNumber(d.docsPerTask, 0, 1000),
+      docsPerTask: cleanNumber(d.docsPerTask, 0, 100000),
+      forecastUnit: cleanString(d.forecastUnit, 40),
+      minutesPerUnit: cleanNumber(d.minutesPerUnit, 0.1, 600),
       qaRequired: cleanBool(d.qaRequired),
       filesRequired: cleanBool(d.filesRequired),
       priority: cleanEnum(d.priority, PRIORITIES),
@@ -440,8 +447,12 @@ export function describeTaskBuilderDraft(
     );
     const team = nameFor(draft.teamId, catalog.teams);
     if (team) lines.push(`Team: ${team}`);
+    const unit = draft.forecastUnit ?? "files";
     const flags = [
-      draft.docsPerTask ? `${draft.docsPerTask} docs/task` : null,
+      draft.docsPerTask ? `${draft.docsPerTask} ${unit}/task` : null,
+      draft.minutesPerUnit
+        ? `${draft.minutesPerUnit} min/${unit.replace(/s$/, "")}`
+        : null,
       draft.qaRequired ? "QA required" : null,
       draft.filesRequired ? "Files required" : null,
     ].filter(Boolean);

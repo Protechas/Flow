@@ -61,6 +61,8 @@ export async function createBulkMatrixProjectAction(input: {
   useModelCount: boolean;
   modelCountPerGroup: number;
   docsPerTask: number;
+  forecastUnit?: string | null;
+  minutesPerUnit?: number | null;
   qaRequired: boolean;
   filesRequired: boolean;
   dailyTracking?: boolean;
@@ -205,6 +207,16 @@ export async function createBulkMatrixProjectAction(input: {
   }
 
   const notes = taskNotes(input.qaRequired, input.filesRequired);
+  const unitCount = input.docsPerTask > 0 ? input.docsPerTask : null;
+  const minutesPerUnit =
+    input.minutesPerUnit && input.minutesPerUnit > 0 ? input.minutesPerUnit : null;
+  const forecastUnit = input.forecastUnit?.trim() || null;
+  // Estimated hours: derive from units × minutes-per-unit when given, else the
+  // old flat 8h fallback.
+  const estimatedHours =
+    unitCount && minutesPerUnit
+      ? Math.max(0.25, Math.round((unitCount * minutesPerUnit) / 6) / 10)
+      : 8;
 
   for (const row of rows) {
     const mfrId = await ensureManufacturer(row);
@@ -219,8 +231,10 @@ export async function createBulkMatrixProjectAction(input: {
       status: "not_started",
       priority: input.priority ?? "medium",
       due_date: null,
-      estimated_hours: 8,
-      estimated_document_count: input.docsPerTask > 0 ? input.docsPerTask : null,
+      estimated_hours: estimatedHours,
+      estimated_document_count: unitCount,
+      estimated_minutes_per_document: minutesPerUnit,
+      forecast_unit: forecastUnit,
       complexity_level: input.complexity ?? "standard",
       qa_required: input.qaRequired,
       files_required: input.filesRequired,

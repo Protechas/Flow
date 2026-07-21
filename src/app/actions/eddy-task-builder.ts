@@ -69,7 +69,8 @@ const SYSTEM_PROMPT =
   "Draft field reference:\n" +
   '- quick_task: {mode, projectId | newProjectName, title, workstream?, year?, assigneeId?, estimatedUnits?, forecastUnit?, minutesPerUnit?, complexity? (simple|standard|complex|very_complex), priority? (low|medium|high|urgent), dueDate?, notes?, qaRequired?, filesRequired?}\n' +
   '- task_set: {mode, projectId | newProjectName, forecastUnit?, minutesPerUnit?, complexity?, priority?, qaRequired?, filesRequired?, tasks: [{title, workstream?, year?, assigneeId?, estimatedUnits?, dueDate?, notes?}]}\n' +
-  '- bulk_matrix: {mode, name, departmentId, teamId, projectType?, matrixOrder? (make_year_model|year_make_model|make_year_task|custom), makes: [..], years: [..], models?: [..] | modelCountPerGroup?, docsPerTask?, qaRequired?, filesRequired?, priority?, complexity?, dueDate?, description?}\n' +
+  '- bulk_matrix: {mode, name, departmentId, teamId, projectType?, matrixOrder? (make_year_model|year_make_model|make_year_task|custom), makes: [..], years: [..], models?: [..] | modelCountPerGroup?, docsPerTask?, forecastUnit?, minutesPerUnit?, qaRequired?, filesRequired?, priority?, complexity?, dueDate?, description?}\n' +
+  "  For bulk_matrix, docsPerTask is the number of units in EACH generated task and forecastUnit names that unit; capture them just like for tasks. Example: \"one task per make, 500 lines each, ~1.5 min per line\" → docsPerTask: 500, forecastUnit: \"lines\", minutesPerUnit: 1.5.\n" +
   '- from_template: {mode, templateId, name, departmentId, teamId, description?}';
 
 async function buildCatalog(
@@ -310,6 +311,8 @@ export async function approveTaskBuilderDraftAction(
         useModelCount: !d.models?.length,
         modelCountPerGroup: d.modelCountPerGroup ?? 1,
         docsPerTask: d.docsPerTask ?? 0,
+        forecastUnit: d.forecastUnit ?? null,
+        minutesPerUnit: d.minutesPerUnit ?? null,
         qaRequired: d.qaRequired ?? true,
         filesRequired: d.filesRequired ?? false,
       });

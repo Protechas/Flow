@@ -2059,6 +2059,8 @@ export type WorkPackageInput = Pick<
   | "start_date"
   | "estimated_hours"
   | "estimated_document_count"
+  | "estimated_minutes_per_document"
+  | "forecast_unit"
   | "complexity_level"
   | "manual_due_date"
   | "qa_required"

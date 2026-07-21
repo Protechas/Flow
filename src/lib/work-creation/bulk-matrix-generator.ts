@@ -39,12 +39,21 @@ export function generateMatrixRows(
   const order: BulkMatrixOrder =
     draft.matrixOrder === "custom" ? "make_year_model" : draft.matrixOrder;
 
+  // One generic task per make/year (no named models, count of 1) reads better
+  // as "Acura 2021" than a meaningless "Unit 1".
+  const singleGenericUnit =
+    draft.models.map((m) => m.trim()).filter(Boolean).length === 0 &&
+    draft.useModelCount &&
+    Math.max(1, draft.modelCountPerGroup || 1) === 1;
+
   const rows: GeneratedMatrixRow[] = [];
 
   for (const make of makes) {
     for (const year of years) {
       for (const model of modelNames) {
-        rows.push(mapRow(order, make, year, model));
+        const row = mapRow(order, make, year, model);
+        if (singleGenericUnit) row.taskTitle = `${make} ${year}`;
+        rows.push(row);
       }
     }
   }

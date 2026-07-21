@@ -72,6 +72,29 @@ describe("validateTaskBuilderDraft", () => {
     expect(res.errors.join(" ")).toMatch(/permission/);
   });
 
+  it("carries forecast unit, count, and minutes-per-unit on a bulk matrix", () => {
+    const res = validateTaskBuilderDraft(
+      {
+        mode: "bulk_matrix",
+        name: "Lines Refresh",
+        departmentId: "dept-1",
+        teamId: "team-1",
+        makes: ["Acura", "Toyota"],
+        years: [2025, 2026],
+        docsPerTask: 500,
+        forecastUnit: "lines",
+        minutesPerUnit: 1.5,
+      },
+      catalog
+    );
+    expect(res.ok).toBe(true);
+    if (res.draft && res.draft.mode === "bulk_matrix") {
+      expect(res.draft.docsPerTask).toBe(500);
+      expect(res.draft.forecastUnit).toBe("lines");
+      expect(res.draft.minutesPerUnit).toBe(1.5);
+    }
+  });
+
   it("validates a task set and drops garbage entries", () => {
     const res = validateTaskBuilderDraft(
       {
