@@ -111,9 +111,14 @@ export function buildThenVsNow(input: {
     (u) => (u.uploaded_at ?? u.created_at) >= input.flowStartDate
   );
   const flowPeople = new Set(flowUploads.map((u) => u.user_id));
+  // The in-progress week is excluded from rates and the chart: a Monday
+  // morning has 1/5th of a week's docs against a full week of person-days,
+  // which painted a phantom cliff on the ROI graph. Totals still count it.
+  const currentWeek = weekStartOf(now.toISOString());
   const flowWeeks = new Map<string, { docs: number; people: Set<string> }>();
   for (const u of flowUploads) {
     const week = weekStartOf(u.uploaded_at ?? u.created_at);
+    if (week === currentWeek) continue;
     const w = flowWeeks.get(week) ?? { docs: 0, people: new Set<string>() };
     w.docs += 1;
     w.people.add(u.user_id);

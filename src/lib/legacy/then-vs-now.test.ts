@@ -96,6 +96,31 @@ describe("buildThenVsNow", () => {
     expect(eras.has("flow")).toBe(true);
   });
 
+  it("excludes the in-progress week from the chart and rate, but not totals", () => {
+    // "Now" is Tuesday Jul 21 — the week of Jul 20 is 1.5 days old.
+    const midWeek = buildThenVsNow({
+      legacy,
+      uploads: [
+        upload("2026-07-14", "u1"),
+        upload("2026-07-15", "u1"),
+        upload("2026-07-16", "u2"),
+        upload("2026-07-20", "u1"),
+        upload("2026-07-21", "u2"),
+      ],
+      submissions: [],
+      wagePerHour: 22,
+      flowStartDate: "2026-06-29",
+      now: new Date("2026-07-21T18:00:00Z"),
+    });
+    const flowWeeks = midWeek.weekly.filter((p) => p.era === "flow").map((p) => p.week);
+    expect(flowWeeks).toContain("2026-07-13");
+    expect(flowWeeks).not.toContain("2026-07-20");
+    // Totals still include the partial week…
+    expect(midWeek.flow.docsDone).toBe(5);
+    // …but the rate uses complete weeks only: 3 docs / (2 people × 5 days).
+    expect(midWeek.flow.docsPerPersonDay).toBe(0.3);
+  });
+
   it("handles an empty Flow era without dividing by zero", () => {
     const empty = buildThenVsNow({
       legacy,

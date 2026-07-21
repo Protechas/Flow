@@ -153,22 +153,34 @@ function mapQaReview(row: Record<string, unknown>): QaReviewRecord {
   };
 }
 
-async function fetchAllFileUploads(supabase: NonNullable<Awaited<ReturnType<typeof dbClient>>>) {
-  // PostgREST caps a single response at 1000 rows regardless of .limit(), so
-  // page until a short page or uploads beyond the first thousand vanish.
+/**
+ * PostgREST caps every response at 1000 rows regardless of .limit(). Any
+ * hydration query that can exceed that must page, or rows silently vanish —
+ * the July 21 ROI "big drop" was task_file_uploads passing its old 5000-row
+ * ceiling (7,281 rows) and the sibling queries truncating at 1000.
+ */
+async function fetchAllRows(
+  supabase: NonNullable<Awaited<ReturnType<typeof dbClient>>>,
+  table: string,
+  orderColumn: string,
+  sinceIso?: string
+) {
   const pageSize = 1000;
-  const maxRows = 5000;
+  const maxRows = 50_000;
   const rows: Record<string, unknown>[] = [];
   for (let from = 0; from < maxRows; from += pageSize) {
-    const { data, error } = await supabase
-      .from("task_file_uploads")
+    let query = supabase
+      .from(table)
       .select("*")
-      .order("uploaded_at", { ascending: false })
+      .order(orderColumn, { ascending: false })
       .range(from, from + pageSize - 1);
+    if (sinceIso) query = query.gte(orderColumn, sinceIso);
+    const { data, error } = await query;
     if (error) return { rows, error };
     rows.push(...(data ?? []));
-    if (!data || data.length < pageSize) break;
+    if (!data || data.length < pageSize) return { rows, error: null };
   }
+  console.warn(`[production-tracking-db] ${table} hit the ${maxRows}-row hydration cap`);
   return { rows, error: null };
 }
 
@@ -177,35 +189,17 @@ const hydrateProduction = cache(async (): Promise<void> => {
   const supabase = await dbClient();
   if (!supabase) return;
 
-  const since = format(subDays(new Date(), 90), "yyyy-MM-dd");
+  const since = `${format(subDays(new Date(), 90), "yyyy-MM-dd")}T00:00:00Z`;
 
   const [clocks, tasks, files, subs, qa, sides] = await Promise.all([
-    supabase
-      .from("time_clock_entries")
-      .select("*")
-      .gte("clock_in_at", `${since}T00:00:00Z`)
-      .order("clock_in_at", { ascending: false }),
-    supabase
-      .from("task_time_entries")
-      .select("*")
-      .gte("started_at", `${since}T00:00:00Z`)
-      .order("started_at", { ascending: false }),
-    fetchAllFileUploads(supabase),
-    supabase
-      .from("task_submission_records")
-      .select("*")
-      .gte("submitted_at", `${since}T00:00:00Z`)
-      .order("submitted_at", { ascending: false }),
-    supabase
-      .from("qa_review_records")
-      .select("*")
-      .gte("reviewed_at", `${since}T00:00:00Z`)
-      .order("reviewed_at", { ascending: false }),
-    supabase
-      .from("side_sessions")
-      .select("*")
-      .gte("started_at", `${since}T00:00:00Z`)
-      .order("started_at", { ascending: false }),
+    fetchAllRows(supabase, "time_clock_entries", "clock_in_at", since),
+    fetchAllRows(supabase, "task_time_entries", "started_at", since),
+    // Uploads keep full history: the files browser and ROI baselines read
+    // beyond the 90-day production window.
+    fetchAllRows(supabase, "task_file_uploads", "uploaded_at"),
+    fetchAllRows(supabase, "task_submission_records", "submitted_at", since),
+    fetchAllRows(supabase, "qa_review_records", "reviewed_at", since),
+    fetchAllRows(supabase, "side_sessions", "started_at", since),
   ]);
 
   if (clocks.error && !isUnavailable(clocks.error)) throw new Error(clocks.error.message);
@@ -221,12 +215,12 @@ const hydrateProduction = cache(async (): Promise<void> => {
   await ensureWorkStructureHydrated();
 
   replaceProductionTrackingStore({
-    timeClockEntries: (clocks.data ?? []).map((r) => mapClock(r as Record<string, unknown>)),
-    taskTimeEntries: (tasks.data ?? []).map((r) => enrichTaskTime(r as Record<string, unknown>)),
+    timeClockEntries: clocks.rows.map((r) => mapClock(r)),
+    taskTimeEntries: tasks.rows.map((r) => enrichTaskTime(r)),
     taskFileUploads: files.rows.map((r) => mapFile(r)),
-    taskSubmissions: (subs.data ?? []).map((r) => mapSubmission(r as Record<string, unknown>)),
-    qaReviewRecords: (qa.data ?? []).map((r) => mapQaReview(r as Record<string, unknown>)),
-    sideSessions: (sides.data ?? []).map((r) => mapSideSession(r as Record<string, unknown>)),
+    taskSubmissions: subs.rows.map((r) => mapSubmission(r)),
+    qaReviewRecords: qa.rows.map((r) => mapQaReview(r)),
+    sideSessions: sides.rows.map((r) => mapSideSession(r)),
   });
   markHydrated("production-tracking");
 });
