@@ -1714,6 +1714,12 @@ export interface DailyWrapUp {
   task_tracking_compliance_pct?: number | null;
   activity_documentation_category?: ActivityDocumentationCategory | null;
   activity_documentation_note?: string | null;
+  /**
+   * Team-specific wrap-up answers, keyed by the operating model's
+   * wrapUpFields ids (e.g. Advanced Projects' next_action / eta). Teams
+   * without extra fields never set this.
+   */
+  sections?: Record<string, string> | null;
   created_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;

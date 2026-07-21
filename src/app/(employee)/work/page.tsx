@@ -32,6 +32,8 @@ import { RequestQueue } from "@/components/requests/request-queue";
 import { isTicketReceiver } from "@/lib/requests/audience";
 import { listActiveTickets } from "@/lib/requests/tickets";
 import { listFilesForTickets } from "@/lib/requests/ticket-files";
+import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
+import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
 
 export default async function EmployeeWorkPage() {
   const user = await requirePageAccess("/work");
@@ -54,6 +56,17 @@ export default async function EmployeeWorkPage() {
 
   const coachNudges = computeCoachNudges(user);
   const badges = await computeBadges(user.id);
+
+  // Per-team workspace behavior (extra wrap-up prompts, home panels) comes
+  // from the team's operating model — the engine that makes each team's
+  // workspace feel purpose-built without team-specific code.
+  await hydrateOperatingModels();
+  const teamModel = resolveOperatingModelForTeam(user.team_id);
+  const teamWorkspace = {
+    wrapUpFields: teamModel.wrapUpFields ?? [],
+    showActiveProjectsPanel: teamModel.workspace?.showActiveProjectsPanel === true,
+    overdueFirst: teamModel.workspace?.overdueFirst === true,
+  };
   const activeTickets = await listActiveTickets().catch(() => []);
   // Open tickets are claimable only by the receiving departments; anything
   // you already claimed always shows so it can be finished.
@@ -119,6 +132,7 @@ export default async function EmployeeWorkPage() {
       sideSession={getActiveSideSession(user.id)}
       sideSessionMinutes={getSideSessionMinutesToday(user.id)}
       ticketPulse={ticketPulse}
+      teamWorkspace={teamWorkspace}
     />
       <div className="mt-4">
         <BadgesPanel

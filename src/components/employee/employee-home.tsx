@@ -33,6 +33,12 @@ export function EmployeeHome(props: {
   sideSessionMinutes?: number;
   /** Email-team request pulse for the header box; absent = not a receiver. */
   ticketPulse?: { open: number; oldestMinutes: number | null } | null;
+  /** Per-team workspace behavior from the team's operating model. */
+  teamWorkspace?: {
+    wrapUpFields: { id: string; label: string; placeholder?: string }[];
+    showActiveProjectsPanel: boolean;
+    overdueFirst: boolean;
+  };
 }) {
   return (
     <EmployeeWorkspaceView

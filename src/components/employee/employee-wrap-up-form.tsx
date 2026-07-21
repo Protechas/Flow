@@ -31,6 +31,7 @@ export function EmployeeWrapUpForm({
   onSubmitted,
   submitLabel = "Save wrap-up",
   visibility,
+  extraFields = [],
 }: {
   onSubmitted?: () => void;
   submitLabel?: string;
@@ -40,6 +41,8 @@ export function EmployeeWrapUpForm({
     unassignedMinutes: number;
     taskTrackingCompliancePct: number | null;
   };
+  /** Team-specific wrap-up prompts from the operating model's wrapUpFields. */
+  extraFields?: { id: string; label: string; placeholder?: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [needsSupport, setNeedsSupport] = useState(false);
@@ -81,9 +84,15 @@ export function EmployeeWrapUpForm({
         startTransition(async () => {
           setError(null);
           try {
+            const sections: Record<string, string> = {};
+            for (const field of extraFields) {
+              const value = fd.get(`section_${field.id}`);
+              if (typeof value === "string" && value.trim()) sections[field.id] = value;
+            }
             const res = await submitDailyWrapUpAction({
               completed_summary: (fd.get("completed") as string) ?? "",
               blockers: (fd.get("blockers") as string) ?? "",
+              sections: Object.keys(sections).length ? sections : undefined,
               needs_support: needsSupport,
               needs_support_note: needsSupport
                 ? ((fd.get("support_note") as string) ?? "")
@@ -138,6 +147,18 @@ export function EmployeeWrapUpForm({
           Blockers or support requests notify your team lead automatically.
         </p>
       </div>
+      {extraFields.map((field) => (
+        <div key={field.id} className="space-y-2">
+          <Label htmlFor={`section_${field.id}`}>{field.label}</Label>
+          <Textarea
+            id={`section_${field.id}`}
+            name={`section_${field.id}`}
+            rows={2}
+            placeholder={field.placeholder}
+          />
+        </div>
+      ))}
+
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={needsSupport} onCheckedChange={(v) => setNeedsSupport(!!v)} />
         I need manager support

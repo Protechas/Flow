@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TicketPulse } from "@/components/requests/ticket-pulse";
+import { EmployeeActiveProjects } from "@/components/employee/employee-active-projects";
 import { EmployeeActivityHistory } from "@/components/employee/employee-activity-history";
 import { EmployeeAttentionPanel } from "@/components/employee/employee-attention-panel";
 import { EmployeeQuickActions } from "@/components/employee/employee-quick-actions";
@@ -12,6 +13,7 @@ import { EmployeeWorkflowProvider } from "@/components/employee/employee-workflo
 import { EmployeeWorkflowPanel } from "@/components/employee/employee-workflow-panel";
 import { SideSessionCard } from "@/components/employee/side-session-card";
 import { requiresShiftClock } from "@/lib/users/pay-type";
+import { sortOverdueFirst } from "@/lib/employee/queue";
 import type { WorkEligibility } from "@/lib/work-eligibility";
 import type { EmployeeDashboard } from "@/lib/employee/dashboard";
 import type {
@@ -37,6 +39,7 @@ export function EmployeeWorkspaceView({
   sideSession = null,
   sideSessionMinutes = 0,
   ticketPulse = null,
+  teamWorkspace,
 }: {
   dashboard: EmployeeDashboard;
   userName: string;
@@ -58,6 +61,12 @@ export function EmployeeWorkspaceView({
   sideSession?: SideSession | null;
   sideSessionMinutes?: number;
   ticketPulse?: { open: number; oldestMinutes: number | null } | null;
+  /** Per-team workspace behavior from the team's operating model. */
+  teamWorkspace?: {
+    wrapUpFields: { id: string; label: string; placeholder?: string }[];
+    showActiveProjectsPanel: boolean;
+    overdueFirst: boolean;
+  };
 }) {
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
 
@@ -128,9 +137,11 @@ export function EmployeeWorkspaceView({
     ]
   );
 
-  const upNextTasks = currentTask
+  const upNextBase = currentTask
     ? myQueue.upNext
     : myQueue.upNext.filter((t) => t.id !== missionNext?.id);
+  // Teams that opt in (workspace.overdueFirst) surface overdue work at the top.
+  const upNextTasks = teamWorkspace?.overdueFirst ? sortOverdueFirst(upNextBase) : upNextBase;
 
   const waitingOnQa = [...board.waitingQa].map((t) => ({ id: t.id, title: t.title }));
   const blockedIds = new Set(myQueue.blocked.map((b) => b.task.id));
@@ -168,6 +179,7 @@ export function EmployeeWorkspaceView({
           visibility={visibilityToday}
           wrapUpOpen={wrapUpOpen}
           onWrapUpOpenChange={setWrapUpOpen}
+          wrapUpExtraFields={teamWorkspace?.wrapUpFields}
         />
 
         <SideSessionCard
@@ -177,6 +189,10 @@ export function EmployeeWorkspaceView({
         />
 
         <EmployeeTodaysMission activeTaskTimer={activeTaskTimer} />
+
+        {teamWorkspace?.showActiveProjectsPanel && (
+          <EmployeeActiveProjects tasks={board.all} />
+        )}
 
         <EmployeeUpNextList tasks={upNextTasks} />
 

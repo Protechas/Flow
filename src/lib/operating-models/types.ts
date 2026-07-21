@@ -76,6 +76,25 @@ export interface OperatingModelForecastRules {
   dueDateMethod?: "forecast" | "calendar" | "manual";
 }
 
+/**
+ * Extra prompt shown on a team's daily wrap-up form. Answers land in
+ * daily_wrap_ups.sections keyed by `id`, so teams can extend the wrap-up
+ * without schema changes (e.g. Advanced Projects' "Next planned action").
+ */
+export interface OperatingModelWrapUpField {
+  id: string;
+  label: string;
+  placeholder?: string;
+}
+
+/** Per-team employee-workspace behavior — how the home page renders. */
+export interface OperatingModelWorkspaceConfig {
+  /** Show an "Active projects" panel built from the employee's open tasks. */
+  showActiveProjectsPanel?: boolean;
+  /** Sort overdue tasks to the top of the Up Next queue. */
+  overdueFirst?: boolean;
+}
+
 export interface TeamOperatingModel {
   slug: string;
   label: string;
@@ -108,6 +127,10 @@ export interface TeamOperatingModel {
     enabled?: boolean;
     minTimedMinutes?: number;
   };
+  /** Extra team-specific wrap-up prompts appended to the daily wrap-up form. */
+  wrapUpFields?: OperatingModelWrapUpField[];
+  /** Per-team employee-workspace rendering (home panels, queue ordering). */
+  workspace?: OperatingModelWorkspaceConfig;
   /** Fallback model — used when no team/dept match exists. */
   isGeneral?: boolean;
 }

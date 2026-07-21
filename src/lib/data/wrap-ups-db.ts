@@ -46,6 +46,10 @@ function mapWrapUp(row: Record<string, unknown>): DailyWrapUp {
     activity_documentation_category:
       row.activity_documentation_category as DailyWrapUp["activity_documentation_category"],
     activity_documentation_note: str(row.activity_documentation_note),
+    sections:
+      row.sections && typeof row.sections === "object"
+        ? (row.sections as Record<string, string>)
+        : null,
     created_at: String(row.created_at),
     reviewed_at: str(row.reviewed_at),
     reviewed_by: row.reviewed_by ? String(row.reviewed_by) : null,
@@ -139,6 +143,7 @@ export async function persistDailyWrapUpSync(entry: DailyWrapUp): Promise<void> 
       task_tracking_compliance_pct: entry.task_tracking_compliance_pct,
       activity_documentation_category: entry.activity_documentation_category,
       activity_documentation_note: entry.activity_documentation_note,
+      sections: entry.sections ?? null,
       reviewed_at: entry.reviewed_at,
       reviewed_by: entry.reviewed_by,
       internal_notes: entry.internal_notes,

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { DEFAULT_OPERATING_MODEL_PRESETS } from "@/lib/operating-models/presets";
+import { modelToDefinition } from "@/lib/operating-models/persist-shape";
 import {
   defaultOperatingModels,
   replaceOperatingModelsInStore,
@@ -85,7 +86,7 @@ async function seedDefaultOperatingModels(): Promise<void> {
     description: model.description,
     department_id: model.departmentId ?? null,
     team_id: model.teamId ?? null,
-    definition: model,
+    definition: modelToDefinition(model),
     is_general: model.isGeneral ?? false,
     is_active: true,
     sort_order: i,
@@ -110,18 +111,9 @@ export async function persistOperatingModelToSupabase(
     description: model.description,
     department_id: model.departmentId ?? null,
     team_id: model.teamId ?? null,
-    definition: {
-      hierarchyLabels: model.hierarchyLabels,
-      structureMode: model.structureMode,
-      projectTypes: model.projectTypes,
-      defaultProjectType: model.defaultProjectType,
-      taskTypes: model.taskTypes,
-      trackingFields: model.trackingFields,
-      kpis: model.kpis,
-      forecastRules: model.forecastRules,
-      taskDefaults: model.taskDefaults,
-      isGeneral: model.isGeneral,
-    },
+    // Whole-model definition: an enumerated field list here silently dropped
+    // uploadGate/contentChecksEnabled on every Settings save until Jul 21.
+    definition: modelToDefinition(model),
     is_general: model.isGeneral ?? false,
     is_active: model.is_active ?? true,
     sort_order: model.sort_order ?? 0,

@@ -55,11 +55,16 @@ export async function saveOperatingModelAction(input: OperatingModelInput) {
   if (!input.label.trim()) throw new Error("Label is required.");
   if (!input.kpiIds.length) throw new Error("Select at least one KPI.");
 
-  const model = inputToModel(input);
+  // Merge over the existing model so config the Settings form doesn't render
+  // (wrapUpFields, workspace, future fields) survives a save instead of being
+  // silently reset — same preserve-unknown-keys contract as the QA rule editor.
+  await hydrateOperatingModels();
+  const existing = getOperatingModel(slug);
+  const model = { ...existing, ...inputToModel(input) };
   const record = {
     ...model,
     is_active: input.is_active ?? true,
-    sort_order: 0,
+    sort_order: existing?.sort_order ?? 0,
   };
 
   upsertOperatingModelInStore(record);

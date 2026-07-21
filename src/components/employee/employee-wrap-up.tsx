@@ -20,6 +20,7 @@ export function EmployeeWrapUp({
   onSubmitted,
   showTrigger = true,
   visibility,
+  extraFields,
 }: {
   existing: DailyWrapUp | null;
   open?: boolean;
@@ -32,6 +33,7 @@ export function EmployeeWrapUp({
     unassignedMinutes: number;
     taskTrackingCompliancePct: number | null;
   };
+  extraFields?: { id: string; label: string; placeholder?: string }[];
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -70,6 +72,7 @@ export function EmployeeWrapUp({
         <EmployeeWrapUpForm
           submitLabel="Save wrap-up"
           visibility={visibility}
+          extraFields={extraFields}
           onSubmitted={() => {
             setOpen(false);
             onSubmitted?.();

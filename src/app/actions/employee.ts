@@ -23,6 +23,9 @@ import { persistWorkPackageDb } from "@/lib/data/work-items-db";
 import { ensureServerWriteContext } from "@/lib/server/write-context";
 import { hydrateHelpFlagSettings } from "@/lib/help-flags/hydrate";
 import { raiseHelpFlag } from "@/lib/help-flags/engine";
+import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
+import { resolveOperatingModelForTeam } from "@/lib/operating-models/resolve";
+import { sanitizeWrapUpSections } from "@/lib/wrap-up/sections";
 import type { User, WorkPackage } from "@/types/flow";
 
 function revalidateWork() {
@@ -204,12 +207,18 @@ export async function submitDailyWrapUpAction(input: {
   needs_support_note?: string;
   activity_documentation_category?: string;
   activity_documentation_note?: string;
+  /** Answers to the team's extra wrap-up fields, keyed by field id. */
+  sections?: Record<string, string>;
 }) {
   const user = await requireEmployee();
   try {
   await ensureServerWriteContext();
   const { getTodayVisibilityForUser } = await import("@/lib/work-visibility/calculator");
   const visibility = getTodayVisibilityForUser(user.id);
+  // Extra sections are only accepted for fields the user's team model defines.
+  await hydrateOperatingModels();
+  const teamModel = resolveOperatingModelForTeam(user.team_id);
+  const sections = sanitizeWrapUpSections(input.sections, teamModel.wrapUpFields ?? []);
   const wrapUp = createDailyWrapUp({
     user_id: user.id,
     wrap_date: appTodayDate(),
@@ -229,6 +238,7 @@ export async function submitDailyWrapUpAction(input: {
       visibility.unassignedMinutes > 0 && input.activity_documentation_note
         ? input.activity_documentation_note
         : null,
+    sections,
   });
   await persistDailyWrapUpSync(wrapUp);
 

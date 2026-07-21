@@ -47,6 +47,7 @@ export function EmployeeWorkflowPanel({
   visibility,
   wrapUpOpen,
   onWrapUpOpenChange,
+  wrapUpExtraFields,
 }: {
   todayWrapUp: DailyWrapUp | null;
   visibility?: {
@@ -57,6 +58,7 @@ export function EmployeeWorkflowPanel({
   };
   wrapUpOpen: boolean;
   onWrapUpOpenChange: (open: boolean) => void;
+  wrapUpExtraFields?: { id: string; label: string; placeholder?: string }[];
 }) {
   const wf = useEmployeeWorkflow();
   const router = useRouter();
@@ -430,6 +432,7 @@ export function EmployeeWorkflowPanel({
         onOpenChange={onWrapUpOpenChange}
         showTrigger={false}
         visibility={visibility}
+        extraFields={wrapUpExtraFields}
         onSubmitted={() => {
           router.refresh();
           if (pendingClockOut) setConfirmClockOutOpen(true);

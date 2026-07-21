@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DepartmentBadge } from "@/components/departments/department-badge";
 import { WrapUpStatusBadge } from "@/components/enterprise/wrap-up-status-badge";
 import { formatMinutes } from "@/lib/production/metrics";
+import { wrapUpSectionLabel } from "@/lib/wrap-up/sections";
 import type { WrapUpReviewDetail } from "@/types/flow";
 import { AlertTriangle, CheckCircle2, ExternalLink, Moon } from "lucide-react";
 
@@ -77,6 +78,13 @@ export function WrapUpReviewDetailSheet({
               <p className="text-xs text-muted-foreground mb-1">Blockers</p>
               <p className="text-sm">{wrapUp.blockers || "None reported"}</p>
             </div>
+            {wrapUp.sections &&
+              Object.entries(wrapUp.sections).map(([id, value]) => (
+                <div key={id}>
+                  <p className="text-xs text-muted-foreground mb-1">{wrapUpSectionLabel(id)}</p>
+                  <p className="text-sm whitespace-pre-wrap">{value}</p>
+                </div>
+              ))}
             {wrapUp.needs_support && (
               <div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-3">
                 <p className="text-xs font-medium text-amber-400 flex items-center gap-1.5">

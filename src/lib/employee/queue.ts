@@ -139,6 +139,27 @@ export function formatQueueDueFriendly(task: WorkPackage): string {
   }
 }
 
+export function isQueueTaskOverdue(task: WorkPackage): boolean {
+  const due = primaryDueDate(task) ?? task.due_date;
+  if (!due) return false;
+  try {
+    const d = parseISO(due.length > 10 ? due : `${due}T12:00:00`);
+    return startOfDay(d).getTime() < startOfDay(new Date()).getTime();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Stable partition: overdue tasks first, everything else in its given order.
+ * Applied per-team via the operating model's workspace.overdueFirst flag.
+ */
+export function sortOverdueFirst(tasks: WorkPackage[]): WorkPackage[] {
+  const overdue = tasks.filter(isQueueTaskOverdue);
+  if (!overdue.length) return tasks;
+  return [...overdue, ...tasks.filter((t) => !isQueueTaskOverdue(t))];
+}
+
 export function taskProgressPercent(task: WorkPackage): number | null {
   const total = task.estimated_document_count ?? 0;
   if (total <= 0) return null;

@@ -1481,6 +1481,7 @@ export function createDailyWrapUp(input: {
   task_tracking_compliance_pct?: number | null;
   activity_documentation_category?: import("@/types/flow").ActivityDocumentationCategory | null;
   activity_documentation_note?: string | null;
+  sections?: Record<string, string> | null;
 }): DailyWrapUp {
   initFlowStore();
   const existing = dailyWrapUps.findIndex(
@@ -1501,6 +1502,7 @@ export function createDailyWrapUp(input: {
     task_tracking_compliance_pct: input.task_tracking_compliance_pct ?? null,
     activity_documentation_category: input.activity_documentation_category ?? null,
     activity_documentation_note: input.activity_documentation_note ?? null,
+    sections: input.sections ?? null,
     created_at: ts(),
     reviewed_at: null,
     reviewed_by: null,

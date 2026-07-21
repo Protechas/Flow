@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { formatQueueDueFriendly } from "@/lib/employee/queue";
+import { formatQueueDueFriendly, isQueueTaskOverdue } from "@/lib/employee/queue";
+import { cn } from "@/lib/utils";
 import type { WorkPackage } from "@/types/flow";
+import { AlertTriangle } from "lucide-react";
 
 export function EmployeeUpNextList({
   tasks,
@@ -19,25 +21,42 @@ export function EmployeeUpNextList({
         Up Next
       </h2>
       <ul className="space-y-2">
-        {items.map((task, index) => (
-          <li key={task.id}>
-            <Link
-              href={`/work/${task.id}`}
-              prefetch={false}
-              className="enterprise-panel flex items-start gap-3 p-4 hover:bg-muted/30 transition-colors"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold tabular-nums">
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold leading-snug">{task.title}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {formatQueueDueFriendly(task)}
-                </p>
-              </div>
-            </Link>
-          </li>
-        ))}
+        {items.map((task, index) => {
+          const overdue = isQueueTaskOverdue(task);
+          return (
+            <li key={task.id}>
+              <Link
+                href={`/work/${task.id}`}
+                prefetch={false}
+                className={cn(
+                  "enterprise-panel flex items-start gap-3 p-4 hover:bg-muted/30 transition-colors",
+                  overdue && "border-red-500/40 bg-red-500/5"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold tabular-nums",
+                    overdue && "bg-red-500/15 text-red-500"
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-snug">{task.title}</p>
+                  <p
+                    className={cn(
+                      "text-sm text-muted-foreground mt-0.5",
+                      overdue && "text-red-500 font-medium flex items-center gap-1"
+                    )}
+                  >
+                    {overdue && <AlertTriangle className="h-3.5 w-3.5" />}
+                    {formatQueueDueFriendly(task)}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
