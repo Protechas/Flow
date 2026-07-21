@@ -141,7 +141,8 @@ export const SERVICE_INFORMATION_MODEL: TeamOperatingModel = {
 export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
   slug: "advanced-projects",
   label: "Advanced Projects",
-  description: "Workstream / Milestone / Task — features, bugs, deployments, automation.",
+  description:
+    "Zach's team workspace — projects and tasks by category, hours-based tracking, daily summaries with next actions, no QA/upload gates.",
   hierarchyLabels: {
     workPackage: "Workstream",
     workPackageShort: "Workstream",
@@ -153,10 +154,31 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
     taskPlural: "Tasks",
   },
   structureMode: "by_workstream",
-  projectTypes: ["adas", "research", "custom"],
-  defaultProjectType: "adas",
-  taskTypes: ["feature", "bug", "deployment", "automation", "research"],
-  trackingFields: ["features", "bugs", "deployments", "hours"],
+  projectTypes: [
+    "development",
+    "research",
+    "debugging",
+    "feature_addition",
+    "maintenance",
+    "testing",
+    "documentation",
+    "reporting",
+    "automation",
+    "custom",
+  ],
+  defaultProjectType: "development",
+  taskTypes: [
+    "feature",
+    "bug",
+    "deployment",
+    "automation",
+    "research",
+    "testing",
+    "documentation",
+    "maintenance",
+    "other",
+  ],
+  trackingFields: ["hours", "features", "bugs", "deployments"],
   kpis: [
     {
       id: "features_delivered",
@@ -204,6 +226,27 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
     showWorkstreamPicker: true,
     showYearPicker: false,
   },
+  contentChecksEnabled: false,
+  uploadGate: { enabled: false, minTimedMinutes: 30 },
+  wrapUpFields: [
+    {
+      id: "progress",
+      label: "Work performed & progress made",
+      placeholder: "What moved forward today?",
+    },
+    { id: "next_action", label: "Next planned action", placeholder: "What's first tomorrow?" },
+    {
+      id: "estimated_completion",
+      label: "Estimated completion / remaining time",
+      placeholder: "e.g. Friday, or ~6 hours left",
+    },
+    {
+      id: "additional_notes",
+      label: "Links or additional notes",
+      placeholder: "Repo links, PRs, anything else",
+    },
+  ],
+  workspace: { showActiveProjectsPanel: true, overdueFirst: true },
 };
 
 export const ID3_VALIDATION_MODEL: TeamOperatingModel = {
@@ -344,6 +387,14 @@ export const PROJECT_TYPE_MODEL_SLUG: Record<string, string> = {
   special_functions: "service-information",
   adas: "advanced-projects",
   research: "advanced-projects",
+  development: "advanced-projects",
+  debugging: "advanced-projects",
+  feature_addition: "advanced-projects",
+  maintenance: "advanced-projects",
+  testing: "advanced-projects",
+  documentation: "advanced-projects",
+  reporting: "advanced-projects",
+  automation: "advanced-projects",
   id3_validation: "id3-validation",
   training: "training",
   board: "general-operations",
