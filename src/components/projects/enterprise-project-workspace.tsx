@@ -22,6 +22,7 @@ import { resolveWorkPackageTrackingFlags } from "@/lib/work-packages/tracking-fl
 import { buildWorkspaceKpis } from "@/lib/projects/workspace-kpis";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
+import { WORK_PRIORITIES } from "@/lib/constants";
 import type {
   ProjectWorkspaceConfig,
   TaskLiveTimer,
@@ -323,7 +324,23 @@ export function EnterpriseProjectWorkspace({
         </select>
       );
     }
-    if (col.builtIn === "priority") return <span className="capitalize">{task.priority}</span>;
+    if (col.builtIn === "priority") {
+      return (
+        <select
+          className="h-8 rounded-md border bg-background px-2 text-xs capitalize"
+          value={task.priority}
+          disabled={!canEdit}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => updateTaskField(task.id, "priority", e.target.value)}
+        >
+          {WORK_PRIORITIES.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
     if (col.builtIn === "due_date") return primaryDueDate(task) ?? "—";
     if (col.builtIn === "estimated_hours") return task.estimated_hours ?? 0;
     if (col.builtIn === "estimated_document_count") {
