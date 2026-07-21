@@ -34,6 +34,9 @@ import type { TaskLiveTimer } from "@/lib/projects/workspace-types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAllowedCreationModes, usesManagerWorkHub } from "@/lib/work-creation/permissions";
 import { getProjectValidationMetricsForProject } from "@/lib/validation-center/runs";
+import { hydrateOperatingModels } from "@/lib/operating-models/hydrate";
+import { resolveOperatingModelForProject } from "@/lib/operating-models/resolve";
+import { resolveProjectUnit } from "@/lib/forecast/units";
 import { ManagerWorkSetup } from "@/components/work-creation/manager-work-setup";
 import { projectOwnerCandidates } from "@/lib/work-creation/client-defaults";
 import { ChevronLeft } from "lucide-react";
@@ -74,6 +77,13 @@ export default async function ProjectDetailPage({
 
   const project = allProjects.find((p) => p.id === projectId);
   if (!project) notFound();
+
+  // The project's counting unit: own field → team operating model → files.
+  await hydrateOperatingModels();
+  const projectUnit = resolveProjectUnit(
+    project,
+    resolveOperatingModelForProject(project, store.teams)
+  );
 
   if (departmentFilter && project.department_id !== departmentFilter) {
     notFound();
@@ -223,6 +233,7 @@ export default async function ProjectDetailPage({
         <WorkspaceContainer elevated={false} bodyClassName="p-0">
           <EnterpriseProjectWorkspace
             project={project}
+            projectUnit={projectUnit}
             manufacturers={scopedManufacturers}
             yearItems={scopedYearItems}
             workPackages={workPackages}

@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PROJECT_STATUSES, PROJECT_TYPES, WORK_PRIORITIES } from "@/lib/constants";
+import { FORECAST_UNITS } from "@/lib/forecast/units";
 import {
   boardDescriptionPurpose,
   formatBoardDescription,
@@ -101,12 +102,14 @@ export function EditProjectDialog({
       : rawDescription;
 
     startTransition(async () => {
+      const unit = fd.get("forecast_unit") as string;
       await updateProjectAction(project.id, {
         name: fd.get("name") as string,
         description,
         project_type: fd.get("project_type") as string,
         status: fd.get("status") as string,
         priority: fd.get("priority") as WorkPriority,
+        forecast_unit: unit && unit !== "__default__" ? unit : null,
         start_date: (fd.get("start_date") as string) || null,
         due_date: (fd.get("due_date") as string) || null,
         manual_project_due_date: (fd.get("manual_project_due_date") as string) || null,
@@ -241,14 +244,38 @@ export function EditProjectDialog({
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Start</Label>
-            <Input
-              name="start_date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Start</Label>
+              <Input
+                name="start_date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Counting unit</Label>
+              <Select name="forecast_unit" defaultValue={project.forecast_unit ?? "__default__"}>
+                <SelectTrigger>
+                  <SelectValue>
+                    {project.forecast_unit ?? "Team default"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">Team default</SelectItem>
+                  {FORECAST_UNITS.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>
+                      {u.plural}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                What tasks count — files, lines, records… Tasks inherit this
+                unless they set their own.
+              </p>
+            </div>
           </div>
 
           <ProjectForecastSection

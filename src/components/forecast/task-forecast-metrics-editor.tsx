@@ -13,25 +13,10 @@ import {
 import { useLiveForecastSettings } from "@/lib/forecast/use-live-forecast-settings";
 import type { ForecastComplexityLevel, ForecastSettings } from "@/types/flow";
 
-/**
- * What a "unit" of work is for a task. SI tracks files; ID³ tracks lines in
- * sheets; other teams count VINs or ROs. Label only — math is unchanged.
- */
-export const FORECAST_UNITS: { value: string; plural: string; singular: string }[] = [
-  { value: "files", plural: "files", singular: "file" },
-  { value: "documents", plural: "documents", singular: "document" },
-  { value: "lines", plural: "lines", singular: "line" },
-  { value: "VINs", plural: "VINs", singular: "VIN" },
-  { value: "ROs", plural: "ROs", singular: "RO" },
-  { value: "batches", plural: "batches", singular: "batch" },
-  { value: "models", plural: "models", singular: "model" },
-  { value: "rules", plural: "rules", singular: "rule" },
-];
-
-export function forecastUnitLabels(unit?: string | null): { plural: string; singular: string } {
-  const found = FORECAST_UNITS.find((u) => u.value === (unit ?? "files"));
-  return found ?? { plural: unit ?? "files", singular: unit ?? "file" };
-}
+// Vocabulary + resolvers live in the shared lib so server surfaces (board
+// headers, KPI labels) speak the same units; re-exported for existing imports.
+export { FORECAST_UNITS, forecastUnitLabels } from "@/lib/forecast/units";
+import { FORECAST_UNITS, forecastUnitLabels } from "@/lib/forecast/units";
 
 export function TaskForecastMetricsEditor({
   forecastSettings: initialSettings,

@@ -74,6 +74,8 @@ export interface OperatingModelForecastRules {
   complexityMultipliers?: Record<string, number>;
   capacityThresholdPct?: number;
   dueDateMethod?: "forecast" | "calendar" | "manual";
+  /** Default counting unit for the team's new projects (files, lines, records…). */
+  defaultUnit?: string;
 }
 
 /**

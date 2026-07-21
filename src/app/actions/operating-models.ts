@@ -60,7 +60,19 @@ export async function saveOperatingModelAction(input: OperatingModelInput) {
   // silently reset — same preserve-unknown-keys contract as the QA rule editor.
   await hydrateOperatingModels();
   const existing = getOperatingModel(slug);
-  const model = { ...existing, ...inputToModel(input) };
+  const fromForm = inputToModel(input);
+  // Nested config the form doesn't render (complexityMultipliers, defaultUnit)
+  // must survive too — a fresh forecastRules object from the form would
+  // clobber it, and unset form fields must not overwrite with undefined.
+  const mergedForecastRules: Record<string, unknown> = { ...existing?.forecastRules };
+  for (const [key, value] of Object.entries(fromForm.forecastRules ?? {})) {
+    if (value !== undefined) mergedForecastRules[key] = value;
+  }
+  const model = {
+    ...existing,
+    ...fromForm,
+    forecastRules: mergedForecastRules,
+  };
   const record = {
     ...model,
     is_active: input.is_active ?? true,

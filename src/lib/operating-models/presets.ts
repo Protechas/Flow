@@ -129,6 +129,7 @@ export const SERVICE_INFORMATION_MODEL: TeamOperatingModel = {
     complexityMultipliers: { simple: 0.8, standard: 1, complex: 1.4 },
     capacityThresholdPct: 90,
     dueDateMethod: "forecast",
+    defaultUnit: "files",
   },
   taskDefaults: {
     qaRequired: true,
@@ -332,6 +333,7 @@ export const ID3_VALIDATION_MODEL: TeamOperatingModel = {
     productiveHoursPerDay: 7,
     capacityThresholdPct: 85,
     dueDateMethod: "forecast",
+    defaultUnit: "records",
   },
   taskDefaults: {
     qaRequired: true,

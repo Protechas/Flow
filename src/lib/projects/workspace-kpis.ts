@@ -5,7 +5,9 @@ import type { WorkPackage } from "@/types/flow";
 
 export function buildWorkspaceKpis(
   tasks: WorkPackage[],
-  tracking: ProjectTrackingFlags
+  tracking: ProjectTrackingFlags,
+  /** The project's counting unit labels; defaults keep today's wording. */
+  unit: { plural: string; singular: string } = { plural: "documents", singular: "document" }
 ): WorkspaceKpiCard[] {
   const total = tasks.length;
   const completed = tasks.filter((t) => t.status === "done").length;
@@ -93,9 +95,10 @@ export function buildWorkspaceKpis(
   }
 
   if (tracking.fileUploads || docsTarget > 0) {
+    const unitLabel = unit.plural.charAt(0).toUpperCase() + unit.plural.slice(1);
     kpis.push({
       id: "docs",
-      label: "Documents completed",
+      label: `${unitLabel} completed`,
       value: String(docsCompleted),
       hint: docsTarget > 0 ? `of ${docsTarget} planned` : undefined,
     });

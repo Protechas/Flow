@@ -23,6 +23,7 @@ import { buildWorkspaceKpis } from "@/lib/projects/workspace-kpis";
 import { primaryDueDate } from "@/lib/forecast/live";
 import { COMPLEXITY_OPTIONS } from "@/lib/forecast/constants";
 import { WORK_PRIORITIES } from "@/lib/constants";
+import { forecastUnitLabels, resolveTaskUnit } from "@/lib/forecast/units";
 import type {
   ProjectWorkspaceConfig,
   TaskLiveTimer,
@@ -102,6 +103,7 @@ export function EnterpriseProjectWorkspace({
   validationMetrics,
   canViewValidation,
   liveTaskTimers,
+  projectUnit = "files",
 }: {
   project: Project;
   manufacturers: Manufacturer[];
@@ -119,6 +121,8 @@ export function EnterpriseProjectWorkspace({
   validationMetrics?: ProjectValidationMetrics | null;
   canViewValidation?: boolean;
   liveTaskTimers?: Record<string, TaskLiveTimer[]>;
+  /** The project's counting unit (resolved server-side: project → team model → files). */
+  projectUnit?: string;
 }) {
   const router = useRouter();
   const sections = useMemo(
@@ -154,9 +158,15 @@ export function EnterpriseProjectWorkspace({
   );
 
   const kpis = useMemo(
-    () => buildWorkspaceKpis(allProjectTasks, config.tracking),
-    [allProjectTasks, config.tracking]
+    () => buildWorkspaceKpis(allProjectTasks, config.tracking, forecastUnitLabels(projectUnit)),
+    [allProjectTasks, config.tracking, projectUnit]
   );
+  // Render-time label override: the stored column config still says
+  // "Est. files" from the template; the project's unit is authoritative.
+  const columnLabel = (col: WorkspaceColumnDef) =>
+    col.builtIn === "estimated_document_count"
+      ? `Est. ${forecastUnitLabels(projectUnit).plural}`
+      : col.label;
 
   const owner = managers.find((m) => m.id === project.project_owner_id);
   const dept = departments.find((d) => d.id === project.department_id);
@@ -344,22 +354,29 @@ export function EnterpriseProjectWorkspace({
     if (col.builtIn === "due_date") return primaryDueDate(task) ?? "—";
     if (col.builtIn === "estimated_hours") return task.estimated_hours ?? 0;
     if (col.builtIn === "estimated_document_count") {
+      const taskUnit = resolveTaskUnit(task, projectUnit);
       return (
-        <Input
-          type="number"
-          min={0}
-          className="h-8 w-20 text-xs"
-          value={task.estimated_document_count ?? ""}
-          disabled={!canEdit}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) =>
-            updateTaskField(
-              task.id,
-              "estimated_document_count",
-              e.target.value
-            )
-          }
-        />
+        <span className="inline-flex items-center gap-1.5">
+          <Input
+            type="number"
+            min={0}
+            className="h-8 w-20 text-xs"
+            value={task.estimated_document_count ?? ""}
+            disabled={!canEdit}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) =>
+              updateTaskField(
+                task.id,
+                "estimated_document_count",
+                e.target.value
+              )
+            }
+          />
+          {/* Per-row unit so mixed-unit projects stay honest at a glance. */}
+          <span className="text-[11px] text-muted-foreground">
+            {forecastUnitLabels(taskUnit).plural}
+          </span>
+        </span>
       );
     }
     if (col.builtIn === "complexity_level") {
@@ -669,7 +686,7 @@ export function EnterpriseProjectWorkspace({
                               )}
                             </button>
                           ) : (
-                            col.label
+                            columnLabel(col)
                           )}
                         </th>
                       ))}

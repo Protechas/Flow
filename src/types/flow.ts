@@ -409,6 +409,12 @@ export interface Project {
   is_cross_department?: boolean;
   status: string;
   priority: WorkPriority;
+  /**
+   * The project's counting unit (files, lines, records…). Tasks inherit it
+   * unless they set their own forecast_unit; every surface renders from it.
+   * Null = team operating model default, then "files".
+   */
+  forecast_unit?: string | null;
   start_date?: string | null;
   due_date?: string | null;
   end_date?: string | null;
@@ -2060,6 +2066,7 @@ export type ProjectInput = Pick<
   | "structure_mode"
   | "status"
   | "priority"
+  | "forecast_unit"
   | "start_date"
   | "due_date"
   | "project_owner_id"
