@@ -492,7 +492,7 @@ export function EnterpriseProjectWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
           {kpis.map((kpi) => (
             <div key={kpi.id} className="rounded-lg border bg-card/80 p-3 shadow-sm">
               <p className="text-xs text-muted-foreground">{kpi.label}</p>
@@ -512,33 +512,37 @@ export function EnterpriseProjectWorkspace({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-56 shrink-0 border-r bg-muted/20 p-3 space-y-2">
+      {/* Phones stack: sections become a swipeable chip row above a
+          full-width task pane; the sidebar returns at lg. */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+        <aside className="w-full lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r bg-muted/20 p-3 space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
             Sections
           </p>
-          {sections.map((section) => {
-            const count = workPackages.filter((t) => t.manufacturer_id === section.id).length;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => {
-                  setActiveSectionId(section.id);
-                  setView("tasks");
-                }}
-                className={cn(
-                  "w-full rounded-md px-3 py-2 text-left text-sm transition",
-                  activeSectionId === section.id
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                )}
-              >
-                <span className="font-medium">{section.name}</span>
-                <span className="ml-1 text-xs opacity-80">({count})</span>
-              </button>
-            );
-          })}
+          <div className="flex gap-1.5 overflow-x-auto flow-nav-scroll lg:block lg:space-y-2 lg:overflow-visible">
+            {sections.map((section) => {
+              const count = workPackages.filter((t) => t.manufacturer_id === section.id).length;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveSectionId(section.id);
+                    setView("tasks");
+                  }}
+                  className={cn(
+                    "shrink-0 whitespace-nowrap lg:w-full rounded-md px-3 py-2 text-left text-sm transition",
+                    activeSectionId === section.id
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  )}
+                >
+                  <span className="font-medium">{section.name}</span>
+                  <span className="ml-1 text-xs opacity-80">({count})</span>
+                </button>
+              );
+            })}
+          </div>
           {canEdit && (
             <div className="flex gap-1 pt-2">
               <Input
