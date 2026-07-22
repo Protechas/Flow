@@ -51,7 +51,9 @@ export function EmployeeHeader({
             <span className="font-semibold text-sm hidden sm:inline text-foreground">Flow</span>
           </Link>
 
-          <nav className="flex-1 flex gap-0.5 justify-center">
+          {/* min-w-0 + own scroller: on phones the nav swipes sideways instead
+              of stretching the whole page (the A10 mobile-sizing culprit). */}
+          <nav className="flex-1 min-w-0 flex gap-0.5 sm:justify-center overflow-x-auto flow-nav-scroll">
             {navItems.map((item) => {
               const active = isEmployeeNavActive(item.href, pathname);
               return (
@@ -60,7 +62,7 @@ export function EmployeeHeader({
                   href={item.href}
                   prefetch={false}
                   className={cn(
-                    "text-xs px-3 py-1.5 rounded-sm transition-colors font-medium",
+                    "text-xs px-3 py-1.5 rounded-sm transition-colors font-medium whitespace-nowrap",
                     active
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"

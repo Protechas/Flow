@@ -639,6 +639,14 @@
   .flow-sidebar-console [data-sidebar="content"].flow-sidebar-scroll::-webkit-scrollbar-thumb:hover {
     background: color-mix(in srgb, var(--sidebar-foreground) 40%, transparent);
   }
+  /* Horizontal nav that swipes on phones without a visible scrollbar. */
+  .flow-nav-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .flow-nav-scroll::-webkit-scrollbar {
+    display: none;
+  }
   .flow-command-bar {
     background: var(--glass-panel);
     border-bottom: 1px solid var(--border-subtle);
