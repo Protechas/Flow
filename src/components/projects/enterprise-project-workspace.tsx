@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownAZ, ArrowUpAZ, Plus, Settings2, Trash2 } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, CopyPlus, Plus, Settings2, Trash2 } from "lucide-react";
 import { deleteProjectAction, deleteWorkPackageAction, updateWorkPackageAction } from "@/app/actions/crud";
 import {
   addWorkspaceSectionAction,
   createWorkspaceTaskAction,
+  duplicateWorkPackageAction,
   updateProjectWorkspaceColumnsAction,
 } from "@/app/actions/project-workspace";
 import { Badge } from "@/components/ui/badge";
@@ -265,6 +266,18 @@ export function EnterpriseProjectWorkspace({
     startTransition(async () => {
       await deleteWorkPackageAction(task.id);
       if (selectedTaskId === task.id) setSelectedTaskId(null);
+      router.refresh();
+    });
+  }
+
+  function duplicateTask(task: WorkPackage) {
+    startTransition(async () => {
+      const res = await duplicateWorkPackageAction(task.id);
+      if (!res.ok) {
+        setAddTaskError(res.error);
+        return;
+      }
+      setAddTaskError(null);
       router.refresh();
     });
   }
@@ -694,8 +707,8 @@ export function EnterpriseProjectWorkspace({
                           )}
                         </th>
                       ))}
-                      {canDeleteTask && (
-                        <th className="px-3 py-2 w-10" aria-label="Actions" />
+                      {(canEdit || canDeleteTask) && (
+                        <th className="px-3 py-2 w-16" aria-label="Actions" />
                       )}
                     </tr>
                   </thead>
@@ -711,22 +724,42 @@ export function EnterpriseProjectWorkspace({
                             {renderCell(task, col)}
                           </td>
                         ))}
-                        {canDeleteTask && (
+                        {(canEdit || canDeleteTask) && (
                           <td className="px-2 py-2 align-middle">
-                            <Button
-                              type="button"
-                              size="icon-sm"
-                              variant="ghost"
-                              className="text-muted-foreground hover:text-destructive"
-                              disabled={pending}
-                              title={`Delete ${task.title}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTask(task);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <span className="flex items-center">
+                              {canEdit && (
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground hover:text-foreground"
+                                  disabled={pending}
+                                  title={`Duplicate ${task.title} for a sub-phase`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    duplicateTask(task);
+                                  }}
+                                >
+                                  <CopyPlus className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDeleteTask && (
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground hover:text-destructive"
+                                  disabled={pending}
+                                  title={`Delete ${task.title}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTask(task);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </span>
                           </td>
                         )}
                       </tr>
@@ -734,7 +767,7 @@ export function EnterpriseProjectWorkspace({
                     {sortedSectionTasks.length === 0 && (
                       <tr>
                         <td
-                          colSpan={visibleColumns.length + (canDeleteTask ? 1 : 0)}
+                          colSpan={visibleColumns.length + (canEdit || canDeleteTask ? 1 : 0)}
                           className="px-3 py-10 text-center text-muted-foreground"
                         >
                           No tasks yet. Add your first task above.

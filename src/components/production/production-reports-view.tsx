@@ -24,23 +24,39 @@ export function ProductionReportsView({
   report,
   users,
   projects,
+  teams = [],
 }: {
   report: ProductionReportSummary;
   users: User[];
   projects: { id: string; name: string }[];
+  teams?: { id: string; name: string }[];
 }) {
+  const [teamFilter, setTeamFilter] = useState("all");
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const teamOfUser = useMemo(
+    () => new Map(users.map((u) => [u.id, u.team_id ?? null])),
+    [users]
+  );
+  const employeeOptions = useMemo(
+    () =>
+      users.filter(
+        (u) => u.role === "employee" && (teamFilter === "all" || u.team_id === teamFilter)
+      ),
+    [users, teamFilter]
+  );
+
   const filteredRows = useMemo(() => {
     return report.rows.filter((r) => {
+      if (teamFilter !== "all" && teamOfUser.get(r.employeeId) !== teamFilter) return false;
       if (employeeFilter !== "all" && r.employeeId !== employeeFilter) return false;
       if (statusFilter === "awaiting" && !r.awaitingQa) return false;
       if (statusFilter !== "all" && statusFilter !== "awaiting" && r.status !== statusFilter) return false;
       return true;
     });
-  }, [report.rows, employeeFilter, statusFilter]);
+  }, [report.rows, teamFilter, teamOfUser, employeeFilter, statusFilter]);
 
   const filteredByProject = useMemo(() => {
     if (projectFilter === "all") return filteredRows;
@@ -60,11 +76,36 @@ export function ProductionReportsView({
       </div>
 
       <div className="flex flex-wrap gap-3">
+        {teams.length > 1 && (
+          <Select
+            value={teamFilter}
+            onValueChange={(v) => {
+              setTeamFilter(v ?? "all");
+              setEmployeeFilter("all");
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <EntitySelectValue
+                value={teamFilter}
+                items={teams}
+                getLabel={(t) => t.name}
+                placeholder="Team"
+                sentinels={[{ value: "all", label: "All teams" }]}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All teams</SelectItem>
+              {teams.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={employeeFilter} onValueChange={(v) => setEmployeeFilter(v ?? "all")}>
           <SelectTrigger className="w-[180px]">
             <EntitySelectValue
               value={employeeFilter}
-              items={users.filter((u) => u.role === "employee")}
+              items={employeeOptions}
               getLabel={userDisplayName}
               placeholder="Employee"
               sentinels={[{ value: "all", label: "All employees" }]}
@@ -72,7 +113,7 @@ export function ProductionReportsView({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All employees</SelectItem>
-            {users.filter((u) => u.role === "employee").map((u) => (
+            {employeeOptions.map((u) => (
               <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
             ))}
           </SelectContent>

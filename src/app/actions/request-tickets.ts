@@ -37,14 +37,34 @@ async function pauseTaskTimerForTicket(ticketId: string, userId: string): Promis
   const timer = getActiveTaskTimeEntry(userId);
   if (timer?.status !== "active") return;
   try {
+    // Record the handoff BEFORE pausing. A pause that failed to get recorded
+    // stranded the timer forever — every close path resumes only the task the
+    // ticket remembers, and the old order (pause, then record, errors
+    // swallowed) could pause without remembering (Michael's "timer stopped
+    // and refresh wouldn't bring it back", Jul 15).
+    const recorded = await setTicketPausedTask(ticketId, timer.task_id);
+    if (!recorded) return; // can't record → don't pause; never strand a timer
     pauseTaskTimer(userId);
     const { persistTaskTimeEntrySync } = await import("@/lib/data/production-tracking-db");
     const paused = getActiveTaskTimeEntry(userId);
     if (paused) await persistTaskTimeEntrySync(paused);
-    await setTicketPausedTask(ticketId, timer.task_id);
     logActivityBridge(userId, "time_log", "Task timer paused — working a team request", timer.task_id);
-  } catch {
-    // Claiming must never fail because the timer handoff hiccuped.
+  } catch (e) {
+    // Claiming must never fail because the timer handoff hiccuped — but a
+    // half-done handoff must be unwound, not swallowed.
+    console.error("[request-tickets] timer handoff failed, unwinding", e);
+    try {
+      const t = getActiveTaskTimeEntry(userId);
+      if (t?.status === "paused" && t.task_id === timer.task_id) {
+        resumeTaskTimer(userId);
+        const { persistTaskTimeEntrySync } = await import("@/lib/data/production-tracking-db");
+        const resumed = getActiveTaskTimeEntry(userId);
+        if (resumed) await persistTaskTimeEntrySync(resumed);
+      }
+      await setTicketPausedTask(ticketId, null);
+    } catch {
+      // Unwind is best-effort; the diagnostic trace above is the breadcrumb.
+    }
   }
 }
 

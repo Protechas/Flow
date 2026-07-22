@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import type {
   Comment,
   HelpFlagView,
+  QaReview,
   TaskFileUpload,
   TaskSubmissionRecord,
   TaskTimeEntry,
@@ -94,6 +95,7 @@ export function EmployeeTaskWorkspace({
 }: {
   task: WorkPackage;
   comments: Comment[];
+  qaReviews?: QaReview[];
   files: TaskFileUpload[];
   totalFileCount?: number;
   userId: string;
@@ -118,6 +120,7 @@ export function EmployeeTaskWorkspace({
 function EmployeeTaskWorkspaceContent({
   task,
   comments,
+  qaReviews = [],
   files,
   totalFileCount,
   userId,
@@ -133,6 +136,7 @@ function EmployeeTaskWorkspaceContent({
 }: {
   task: WorkPackage;
   comments: Comment[];
+  qaReviews?: QaReview[];
   files: TaskFileUpload[];
   totalFileCount?: number;
   userId: string;
@@ -617,6 +621,34 @@ function EmployeeTaskWorkspaceContent({
               </li>
             ))}
           </ul>
+          {/* The permanent review record: comments + verdicts stay visible
+              after QA acts (Michael's hub ask). */}
+          {qaReviews.length > 0 && (
+            <ul className="space-y-2">
+              {[...qaReviews]
+                .sort((a, b) => b.reviewed_at.localeCompare(a.reviewed_at))
+                .map((r) => (
+                  <li
+                    key={r.id}
+                    className={cn(
+                      "text-sm rounded-lg border px-3 py-2",
+                      r.result === "pass"
+                        ? "border-emerald-500/30 bg-emerald-500/5"
+                        : "border-amber-500/30 bg-amber-500/5"
+                    )}
+                  >
+                    <p className="text-xs font-medium">
+                      QA {r.result === "pass" ? "accepted" : "correction requested"}
+                      <span className="text-muted-foreground font-normal">
+                        {" · "}
+                        {new Date(r.reviewed_at).toLocaleDateString()}
+                      </span>
+                    </p>
+                    {r.notes && <p className="mt-1 whitespace-pre-wrap">{r.notes}</p>}
+                  </li>
+                ))}
+            </ul>
+          )}
           {canWork && (
             <form
               onSubmit={(e) => {

@@ -445,14 +445,19 @@ function CalendarChip({
   event: PlanningCalendarEvent;
   compact?: boolean;
 }) {
+  // Not-started work stays visually calm regardless of forecast heat —
+  // a calendar of untouched tasks screaming amber/red reads as chaos
+  // (owner's "calendar looks all messed up" hub item).
+  const notStarted = event.taskStatus === "not_started";
   const content = (
     <span
       className={cn(
         "block truncate rounded border px-1 py-0.5 text-[10px] leading-tight",
-        riskAccent(event.riskLevel),
-        kindAccent(event.kind)
+        notStarted
+          ? "border-border/50 bg-muted/10 text-muted-foreground"
+          : cn(riskAccent(event.riskLevel), kindAccent(event.kind))
       )}
-      title={`${event.title} — ${event.statusLabel ?? CALENDAR_KIND_LABELS[event.kind]}`}
+      title={`${event.title} — ${event.statusLabel ?? CALENDAR_KIND_LABELS[event.kind]}${notStarted ? " (not started)" : ""}`}
     >
       {compact ? event.title : event.title}
     </span>

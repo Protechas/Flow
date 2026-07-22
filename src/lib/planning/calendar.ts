@@ -43,6 +43,8 @@ export interface PlanningCalendarEvent {
   departmentName?: string | null;
   hoursRemaining?: number | null;
   statusLabel?: string;
+  /** Work status for task events — not-started work renders calm, not alarmed. */
+  taskStatus?: string;
 }
 
 export interface PlanningCalendarDaySummary {
@@ -113,6 +115,7 @@ export function buildPlanningCalendarEvents(input: PlanningCalendarBuildInput): 
         departmentId: pkg.department_id,
         departmentName: deptName(pkg.department_id, departments),
         statusLabel: "Forecast completion",
+        taskStatus: pkg.status,
       });
     }
 
@@ -128,6 +131,7 @@ export function buildPlanningCalendarEvents(input: PlanningCalendarBuildInput): 
         departmentId: pkg.department_id,
         departmentName: deptName(pkg.department_id, departments),
         statusLabel: "Committed due date",
+        taskStatus: pkg.status,
       });
     }
   }

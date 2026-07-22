@@ -9,6 +9,7 @@ import {
   clientTaskFileMaxBytes,
   formatUploadLimitLabel,
 } from "@/lib/files/upload-limits-client";
+import { collectDroppedFiles, MAX_DROPPED_FILES } from "@/lib/files/drop-entries";
 import { fileViewHref, taskFileHasContent } from "@/lib/files/download";
 import { cn } from "@/lib/utils";
 import type { TaskFileUpload } from "@/types/flow";
@@ -87,9 +88,18 @@ export function TaskFileUploadZone({
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          if (!disabled && e.dataTransfer.files.length) {
-            uploadFiles(e.dataTransfer.files);
-          }
+          if (disabled) return;
+          // Folders traverse into their files; plain files pass through.
+          const dt = e.dataTransfer;
+          void collectDroppedFiles(dt).then((collected) => {
+            if (collected.length >= MAX_DROPPED_FILES) {
+              const description = `That drop has ${MAX_DROPPED_FILES}+ files — upload in smaller batches.`;
+              setError(description);
+              toast({ variant: "error", title: "Too many files at once", description });
+              return;
+            }
+            if (collected.length) uploadFiles(collected);
+          });
         }}
         className={cn(
           "relative flow-upload-zone p-6 text-center",
@@ -102,9 +112,9 @@ export function TaskFileUploadZone({
         ) : (
           <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
         )}
-        <p className="text-sm font-medium">Drop completed files here</p>
+        <p className="text-sm font-medium">Drop completed files — or a whole folder — here</p>
         <p className="flow-helper mt-1">
-          Required before submitting for QA review · Max{" "}
+          Folders upload everything inside them · Required before submitting for QA review · Max{" "}
           {formatUploadLimitLabel(clientTaskFileMaxBytes)} per file
         </p>
         <input

@@ -100,6 +100,7 @@ export default async function EmployeeTaskPage({
     <EmployeeTaskWorkspace
       task={task}
       comments={store.comments}
+      qaReviews={store.qaReviews.filter((r) => r.work_package_id === task.id)}
       files={getTaskFilesForPendingSession(task.id)}
       totalFileCount={getTotalTaskFileCount(task.id)}
       userId={user.id}

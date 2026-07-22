@@ -230,6 +230,44 @@ export async function createWorkspaceTaskAction(input: {
   return { ok: true as const, taskId: pkg.id };
 }
 
+/**
+ * Duplicate a task as a fresh starting point for a sub-phase (Mark's hub
+ * ask): same section, estimates, unit, and tracking flags — new title,
+ * not started, unassigned, no timers/files/QA history.
+ */
+export async function duplicateWorkPackageAction(taskId: string) {
+  await requirePermission("projects:edit");
+  await ensureAppDataLoaded();
+  const store = getFlowStore();
+  const source = store.workPackages.find((p) => p.id === taskId);
+  if (!source) return { ok: false as const, error: "Task not found — refresh and try again." };
+
+  const pkg = createWorkPackage({
+    project_id: source.project_id,
+    manufacturer_id: source.manufacturer_id,
+    year_work_item_id: source.year_work_item_id ?? null,
+    year: source.year ?? null,
+    department_id: source.department_id ?? null,
+    title: `${source.title} (copy)`,
+    assigned_to: null,
+    status: "not_started",
+    priority: source.priority,
+    due_date: source.due_date ?? null,
+    estimated_hours: source.estimated_hours ?? 0,
+    estimated_document_count: source.estimated_document_count ?? null,
+    estimated_minutes_per_document: source.estimated_minutes_per_document ?? null,
+    forecast_unit: source.forecast_unit ?? null,
+    complexity_level: source.complexity_level ?? null,
+    qa_required: source.qa_required ?? true,
+    files_required: source.files_required ?? false,
+    notes: source.notes ?? null,
+  });
+
+  await persistWorkPackageDb(pkg);
+  revalidateTaskSurfaces(source.project_id);
+  return { ok: true as const, taskId: pkg.id };
+}
+
 export async function updateProjectWorkspaceColumnsAction(
   projectId: string,
   columns: WorkspaceColumnDef[]

@@ -34,6 +34,7 @@ export default async function ProductionPage() {
         report={report}
         users={visibleUsers}
         projects={store.projects.map((p) => ({ id: p.id, name: p.name }))}
+        teams={store.teams.map((t) => ({ id: t.id, name: t.name }))}
       />
     </>
   );
