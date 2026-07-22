@@ -1,0 +1,4 @@
+# Every change requires the owner's review. This file becomes enforceable
+# the moment branch protection with "require review from Code Owners" is
+# enabled on the repository (org-owner setting).
+* @DustyEang

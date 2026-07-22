@@ -2,6 +2,11 @@
 
 Workforce productivity platform for Service Info analyst teams. Unified hierarchy: **Project → Manufacturer → Year → Work Package**.
 
+> **Contributing?** Read [CONTRIBUTING.md](CONTRIBUTING.md) (workflow + setup)
+> and [ARCHITECTURE.md](ARCHITECTURE.md) (how the app works + The Rules)
+> before your first change. All changes go through pull requests; nobody
+> pushes `main` or deploys except the owner.
+
 ## Quick start
 
 ```bash
