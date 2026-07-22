@@ -155,6 +155,13 @@ export interface TeamOperatingModel {
     enabled?: boolean;
     minTimedMinutes?: number;
   };
+  /**
+   * When true, this team's employees never appear in cross-employee rankings
+   * (leaderboards, accountability/coaching queues, dashboard rank lists).
+   * They keep their own stats, scorecard, and time-clock function — project
+   * work just isn't comparable head-to-head (e.g. Advanced Projects).
+   */
+  excludeFromRankings?: boolean;
   /** Extra team-specific wrap-up prompts appended to the daily wrap-up form. */
   wrapUpFields?: OperatingModelWrapUpField[];
   /** Per-team employee-workspace rendering (home panels, queue ordering). */

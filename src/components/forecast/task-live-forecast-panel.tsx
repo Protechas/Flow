@@ -8,6 +8,7 @@ import { LiveForecastStatusBadge } from "@/components/forecast/live-forecast-sta
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { primaryDueDate } from "@/lib/forecast/live";
+import { forecastUnitLabels } from "@/lib/forecast/units";
 import type { WorkPackage } from "@/types/flow";
 
 export function TaskLiveForecastPanel({
@@ -19,6 +20,7 @@ export function TaskLiveForecastPanel({
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const unit = forecastUnitLabels(task.forecast_unit);
   const [docCount, setDocCount] = useState(String(task.current_documents_completed ?? 0));
   const isActive = task.forecast_mode === "active" && !!task.started_at;
   const primary = primaryDueDate(task);
@@ -42,11 +44,13 @@ export function TaskLiveForecastPanel({
       </div>
 
       {!task.estimated_document_count ? (
-        <p className="text-sm text-muted-foreground">No document estimate on this task.</p>
+        <p className="text-sm text-muted-foreground">No {unit.singular} estimate on this task.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 text-sm">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Est. documents</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              Est. {unit.plural}
+            </p>
             <p className="font-semibold">{task.estimated_document_count}</p>
           </div>
           <div>
@@ -54,7 +58,9 @@ export function TaskLiveForecastPanel({
             <p className="font-semibold capitalize">{task.complexity_level ?? "standard"}</p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Min / file</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              Min / {unit.singular}
+            </p>
             <p className="font-semibold tabular-nums">
               {task.estimated_minutes_per_document != null
                 ? `${task.estimated_minutes_per_document}m (task)`
@@ -74,7 +80,9 @@ export function TaskLiveForecastPanel({
           {(isActive || (task.current_documents_completed ?? 0) > 0) && (
             <>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Completed docs</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  Completed {unit.plural}
+                </p>
                 {allowManualProgress && isActive ? (
                   <div className="flex gap-1.5 mt-1">
                     <Input
@@ -110,7 +118,7 @@ export function TaskLiveForecastPanel({
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Current pace</p>
                     <p className="font-semibold">
                       {task.current_production_rate != null
-                        ? `${task.current_production_rate.toFixed(1)} min/doc`
+                        ? `${task.current_production_rate.toFixed(1)} min/${unit.singular}`
                         : "—"}
                     </p>
                   </div>

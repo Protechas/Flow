@@ -229,6 +229,7 @@ export const ADVANCED_PROJECTS_MODEL: TeamOperatingModel = {
   },
   contentChecksEnabled: false,
   uploadGate: { enabled: false, minTimedMinutes: 30 },
+  excludeFromRankings: true,
   wrapUpFields: [
     {
       id: "progress",

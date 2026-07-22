@@ -5,6 +5,7 @@ import {
   measureProjectPace,
   remainingDocumentCount,
 } from "@/lib/forecast/engine";
+import { forecastUnitLabels, resolveProjectUnit } from "@/lib/forecast/units";
 import type { Project, WorkPackage } from "@/types/flow";
 
 export function ProjectForecastPanel({
@@ -14,6 +15,7 @@ export function ProjectForecastPanel({
   project: Project;
   tasks?: WorkPackage[];
 }) {
+  const unit = forecastUnitLabels(resolveProjectUnit(project));
   const hasForecast = project.estimated_total_documents != null && project.estimated_total_documents > 0;
   const hasActive = !!project.active_project_due_date;
 
@@ -54,7 +56,9 @@ export function ProjectForecastPanel({
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-sm">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Documents Remaining</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              {unit.plural} Remaining
+            </p>
             <p className="font-semibold">{project.estimated_total_documents?.toLocaleString()}</p>
           </div>
           <div>
@@ -102,16 +106,17 @@ export function ProjectForecastPanel({
       {hasForecast && measuredHours != null && pace && (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
           <p>
-            At the team&apos;s <strong>measured pace</strong> ({pace.minutesPerDocument} min/doc from{" "}
-            {pace.docsSampled.toLocaleString()} completed documents), the remaining{" "}
-            {docsRemaining?.toLocaleString()} documents ≈{" "}
+            At the team&apos;s <strong>measured pace</strong> ({pace.minutesPerDocument} min/
+            {unit.singular} from {pace.docsSampled.toLocaleString()} completed {unit.plural}),
+            the remaining {docsRemaining?.toLocaleString()} {unit.plural} ≈{" "}
             <strong>{formatForecastHours(measuredHours)}</strong>
             {measuredDays != null ? <> ({formatForecastDays(measuredDays)})</> : null}.
           </p>
           {plannedPace != null && pace.minutesPerDocument > plannedPace * 1.5 && (
             <p className="mt-1 text-xs text-muted-foreground">
-              The planned estimate assumes {plannedPace} min/doc — the team is measuring well above
-              that. Update the tasks&apos; minutes-per-document to make the planning dates realistic.
+              The planned estimate assumes {plannedPace} min/{unit.singular} — the team is
+              measuring well above that. Update the tasks&apos; minutes-per-{unit.singular} to
+              make the planning dates realistic.
             </p>
           )}
         </div>

@@ -9,6 +9,7 @@ import {
   type PerformanceStoreSlice,
 } from "@/lib/scoring/performance-engine";
 import { isProductionRosterMember } from "@/lib/users/production-roster";
+import { isRankedForLeaderboards } from "@/lib/users/ranking";
 import type {
   AccountabilityReport,
   CoachingReport,
@@ -41,14 +42,22 @@ async function getPerformanceStore(
 export async function getTeamPerformanceDashboard(
   visibleUserIds?: Set<string>
 ): Promise<TeamPerformanceDashboard> {
-  return buildTeamPerformanceDashboard(await getPerformanceStore(visibleUserIds));
+  const store = await getPerformanceStore(visibleUserIds);
+  // Ranking-excluded teams (operating model excludeFromRankings) never enter
+  // the dashboard's ranked lists — their work isn't unit-comparable.
+  return buildTeamPerformanceDashboard({
+    ...store,
+    users: store.users.filter(isRankedForLeaderboards),
+  });
 }
 
 export async function getEmployeeScorecards(
   visibleUserIds?: Set<string>
 ): Promise<EmployeeScorecard[]> {
   const store = await getPerformanceStore(visibleUserIds);
-  const employees = store.users.filter(isProductionRosterMember);
+  const employees = store.users.filter(
+    (u) => isProductionRosterMember(u) && isRankedForLeaderboards(u)
+  );
   return rankScorecards(employees.map((u) => buildEmployeeScorecard(u, store)));
 }
 
@@ -58,8 +67,12 @@ export async function getEmployeeScorecard(
   const store = await getPerformanceStore();
   const user = store.users.find((u) => u.id === userId);
   if (!user) return null;
+  // Excluded-team members still get their own scorecard — just unranked
+  // (rank stays 0; the scorecard view hides the rank line for them).
   const cards = rankScorecards(
-    store.users.filter(isProductionRosterMember).map((u) => buildEmployeeScorecard(u, store))
+    store.users
+      .filter((u) => isProductionRosterMember(u) && isRankedForLeaderboards(u))
+      .map((u) => buildEmployeeScorecard(u, store))
   );
   return cards.find((c) => c.user.id === userId) ?? buildEmployeeScorecard(user, store);
 }

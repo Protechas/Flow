@@ -50,7 +50,8 @@ export function EmployeeScorecardView({
           <p className="text-sm text-muted-foreground capitalize">
             {user.role}
             {scorecard.managerName && ` · Manager: ${scorecard.managerName}`}
-            {" · "}Rank #{scorecard.rank} of {scorecard.totalRanked}
+            {/* Ranking-excluded teams get stats without a rank line. */}
+            {scorecard.rank > 0 && ` · Rank #${scorecard.rank} of ${scorecard.totalRanked}`}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             {user.role === "employee" && (
