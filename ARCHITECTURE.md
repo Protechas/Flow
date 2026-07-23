@@ -123,6 +123,12 @@ project-type map → general fallback).
 8. **Follow `AGENTS.md`**: this Next.js version differs from what you (or
    your AI tools) remember. The bundled docs in `node_modules/next/dist/docs`
    are the reference.
+9. **Cross-project boundary.** Other apps, agents, or AI sessions on this
+   machine must never read Flow's `.env.local` or commit to this repo from
+   outside its own workflow. External consumers (e.g. Athena, the owner's
+   assistant) integrate through reviewed, secret-gated, read-only endpoints
+   like `/api/athena/summary` — dormant unless their env key is set —
+   and their changes go through the same review as any contributor's.
 
 ## Subsystem index (where things live)
 

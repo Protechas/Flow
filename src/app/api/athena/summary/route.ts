@@ -45,15 +45,17 @@ export async function GET(request: Request) {
     supabase
       .from("request_tickets")
       .select("title, status, created_at")
-      .eq("requester_id", user.id)
-      .not("status", "in", '("done","closed","cancelled")')
+      // Schema truth: the column is requested_by, and Flow spells the
+      // closed states "done"/"canceled" (one l).
+      .eq("requested_by", user.id)
+      .not("status", "in", '("done","canceled")')
       .limit(20),
     // open queue visible to leadership roles only
-    ["admin", "manager", "senior_manager"].includes(user.role)
+    ["admin", "manager", "senior_manager", "super_admin"].includes(user.role)
       ? supabase
           .from("request_tickets")
           .select("title, status, created_at")
-          .not("status", "in", '("done","closed","cancelled")')
+          .not("status", "in", '("done","canceled")')
           .order("created_at", { ascending: true })
           .limit(25)
       : Promise.resolve({ data: null }),
